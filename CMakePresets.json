@@ -1,0 +1,158 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows",
+      "displayName": "Windows - Visual Studio",
+      "description": "Configure using Visual Studio generator on Windows.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/windows",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-simplelogger",
+      "inherits": "windows",
+      "displayName": "Windows - SimpleLogger",
+      "cacheVariables": {
+        "USE_SIMPLELOGGER": "ON"
+      }
+    },
+    {
+      "name": "windows-log4cxx",
+      "inherits": "windows",
+      "displayName": "Windows - Log4Cxx",
+      "cacheVariables": {
+        "USE_LOG4CXX": "ON"
+      }
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux - Ninja Multi-Config",
+      "description": "Configure using Ninja Multi-Config generator on Linux.",
+      "generator": "Ninja Multi-Config",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/linux",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-simplelogger",
+      "inherits": "linux",
+      "displayName": "Linux - SimpleLogger",
+      "cacheVariables": {
+        "USE_SIMPLELOGGER": "ON"
+      }
+    },
+    {
+      "name": "linux-log4cxx",
+      "inherits": "linux",
+      "displayName": "Linux - Log4Cxx",
+      "cacheVariables": {
+        "USE_LOG4CXX": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-simplelogger-release",
+      "configurePreset": "windows-simplelogger",
+      "description": "Build SimpleLogger using Visual Studio Release configuration.",
+      "hidden": false,
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-simplelogger-debug",
+      "configurePreset": "windows-simplelogger",
+      "description": "Build SimpleLogger using Visual Studio Debug configuration.",
+      "hidden": false,
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-log4cxx-debug",
+      "configurePreset": "windows-log4cxx",
+      "description": "Build Log4Cxx using Visual Studio Debug configuration.",
+      "hidden": false,
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-log4cxx-release",
+      "configurePreset": "windows-log4cxx",
+      "description": "Build Log4Cxx using Visual Studio Release configuration.",
+      "hidden": false,
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-simplelogger-release",
+      "configurePreset": "linux-simplelogger",
+      "description": "Build SimpleLogger using Ninja Multi-Config Release configuration.",
+      "hidden": false,
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-log4cxx-release",
+      "configurePreset": "linux-log4cxx",
+      "description": "Build Log4Cxx using Ninja Multi-Config Release configuration.",
+      "hidden": false,
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-log4cxx-debug",
+      "configurePreset": "linux-log4cxx",
+      "description": "Build Log4Cxx using Ninja Multi-Config Debug configuration.",
+      "hidden": false,
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-simplelogger-test",
+      "configurePreset": "windows-simplelogger",
+      "description": "Run tests for SimpleLogger on Windows after build.",
+      "hidden": false,
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-log4cxx-test",
+      "configurePreset": "windows-log4cxx",
+      "description": "Run tests for Log4Cxx on Windows after build.",
+      "hidden": false,
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-simplelogger-test",
+      "configurePreset": "linux-simplelogger",
+      "description": "Run tests for SimpleLogger on Linux after build.",
+      "hidden": false,
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-log4cxx-test",
+      "configurePreset": "linux-log4cxx",
+      "description": "Run tests for Log4Cxx on Linux after build.",
+      "hidden": false,
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

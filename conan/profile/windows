@@ -1,0 +1,29 @@
+[settings]
+arch=x86_64
+compiler=msvc
+
+# 14 is the absolute minimum for C++ support in Visual Studio 2015+
+compiler.cppstd=14
+compiler.runtime=dynamic
+
+# I believe the following table is an example of how conan maps the compiler.version and 
+# compiler update to the Visual Studio version and build tools.
+#
+# compiler.version | compiler.update | build tools      | Visual Studio Version
+# 190              |                 | v140  (14.0x)    | 14 Visual Studio 2015
+# 191              |                 | v141  (14.1x)    | 15 Visual Studio 2017
+# 191              | 6               | v141  (14.16)    | 15 Visual Studio 2017
+# 192              | 9               | v142  (14.29)    | 16.11 Visual Studio 2019
+# 193              | 0               | v143  (14.30)    | 17.0 Visual Studio 2019
+# 193              | 8               | v143  (14.38)    | 17.8 Visual Studio 2019
+# 194              |                 | v143  (14.4x)    | 17.1x Visual Studio 2022
+# 194              | 0               | v143  (14.40)    | 17.10 Visual Studio 2022
+# 194              | 2               | v143  (14.42)    | 17.12 Visual Studio 2022
+#
+# If no compiler.update is specified, the latest update for the compiler version should be used.
+compiler.version=193
+os=Windows
+
+[conf]
+# Have vcvars set up the environment for Visual Studio 17 2022
+tools.microsoft.msbuild:vs_version = 17
