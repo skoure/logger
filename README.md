@@ -1,19 +1,40 @@
 
 # logger
+C++ Logging Facade
 
 ## Purpose
 
-This project provides a modern C++ logging facade that unifies multiple logging backends (such as SimpleLogger, Log4cxx, and spdlog) under a single, consistent API. The facade enables you to:
+This project provides a modern C++ logging facade that unifies multiple logging implementations (such as SimpleLogger, Log4cxx, and spdlog) under a single, consistent API. The facade enables you to:
 
 - Switch logging implementations without changing application code
 - Centralize logger configuration and management
 - Write portable, testable, and maintainable logging code
-- Integrate advanced features from different backends as needed
+- Integrate advanced features from different implementations as needed
 
 It is ideal for projects that require flexibility, cross-platform support, and robust logging infrastructure.
 
-C++ Logging Facade
+## Example Usage
 
+```cpp
+#include <LoggerFactory.h>
+
+using namespace sk::logger;
+
+int main() {
+  // Obtain a logger instance by name
+  LoggerPtr logger = LoggerFactory::getInstance().getLogger("TestLogger");
+
+  // Set log level
+  logger->setLevel(Logger::Level::Info);
+
+  // Log messages at different levels
+  logger->info("Hello %s!", "world");
+  logger->error("Something went wrong: %d", 42);
+  logger->debug("Debugging value: %f", 3.14);
+
+  return 0;
+}
+```
 ## Build Instructions
 
 ### 1. Install Conan (v2)
