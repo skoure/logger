@@ -6,7 +6,7 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: November 08, 2025
+ * @date Last modified: November 15, 2025
  */
 #include <LoggerFactory.h>
 #include <mutex>
@@ -16,6 +16,9 @@
 #ifdef USE_LOG4CXX
 #include <Log4CxxLogger.h>
 #define LOGGER(name)  Log4CxxLogger(name)
+#elif USE_SPDLOG
+#include <SpdlogLogger.h>
+#define LOGGER(name)  SpdlogLogger(name)
 #else
 #include <SimpleLogger.h>
 #define LOGGER(name)  SimpleLogger(name)

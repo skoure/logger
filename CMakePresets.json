@@ -37,6 +37,14 @@
       }
     },
     {
+      "name": "windows-spdlog",
+      "inherits": "windows",
+      "displayName": "Windows - spdlog",
+      "cacheVariables": {
+        "USE_SPDLOG": "ON"
+      }
+    },
+    {
       "name": "linux",
       "displayName": "Linux - Ninja Multi-Config",
       "description": "Configure using Ninja Multi-Config generator on Linux.",
@@ -63,6 +71,14 @@
       "displayName": "Linux - Log4Cxx",
       "cacheVariables": {
         "USE_LOG4CXX": "ON"
+      }
+    },
+    {
+      "name": "linux-spdlog",
+      "inherits": "linux",
+      "displayName": "Linux - spdlog",
+      "cacheVariables": {
+        "USE_SPDLOG": "ON"
       }
     }
   ],
@@ -96,6 +112,20 @@
       "configuration": "Release"
     },
     {
+      "name": "windows-spdlog-debug",
+      "configurePreset": "windows-spdlog",
+      "description": "Build spdlog using Visual Studio Debug configuration.",
+      "hidden": false,
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-spdlog-release",
+      "configurePreset": "windows-spdlog",
+      "description": "Build spdlog using Visual Studio Release configuration.",
+      "hidden": false,
+      "configuration": "Release"
+    },
+    {
       "name": "linux-simplelogger-release",
       "configurePreset": "linux-simplelogger",
       "description": "Build SimpleLogger using Ninja Multi-Config Release configuration.",
@@ -113,6 +143,20 @@
       "name": "linux-log4cxx-debug",
       "configurePreset": "linux-log4cxx",
       "description": "Build Log4Cxx using Ninja Multi-Config Debug configuration.",
+      "hidden": false,
+      "configuration": "Debug"
+    },
+    {
+      "name": "linux-spdlog-release",
+      "configurePreset": "linux-spdlog",
+      "description": "Build spdlog using Ninja Multi-Config Release configuration.",
+      "hidden": false,
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-spdlog-debug",
+      "configurePreset": "linux-spdlog",
+      "description": "Build spdlog using Ninja Multi-Config Debug configuration.",
       "hidden": false,
       "configuration": "Debug"
     }
@@ -149,6 +193,15 @@
       "name": "linux-log4cxx-test",
       "configurePreset": "linux-log4cxx",
       "description": "Run tests for Log4Cxx on Linux after build.",
+      "hidden": false,
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-spdlog-test",
+      "configurePreset": "linux-spdlog",
+      "description": "Run tests for spdlog on Linux after build.",
       "hidden": false,
       "output": {
         "outputOnFailure": true
