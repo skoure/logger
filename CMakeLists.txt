@@ -33,16 +33,19 @@ endif()
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(src)
+include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
 
-file(GLOB SOURCES src/*.cpp)
-file(GLOB HEADERS src/*.h)
+file(GLOB SOURCES src/*.cpp src/parsers/*.cpp)
+file(GLOB HEADERS src/*.h src/parsers/*.h)
 
 add_library(logger STATIC ${SOURCES} ${HEADERS})
 
 set(LINK_LIBRARIES)
-include(${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
-find_package( GTest REQUIRED )
+if(EXISTS ${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
+    include(${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
+endif()
+
+find_package(GTest QUIET)
 
 # Define preprocessor macros for selected logger implementation
 set(INCLUDE_DIRS)
@@ -65,18 +68,36 @@ target_include_directories(logger PRIVATE ${INCLUDE_DIRS})
 target_compile_definitions(logger PRIVATE ${LOGGER_DEFINES})
 target_link_libraries(logger PRIVATE ${LINK_LIBRARIES})
 
+# Install public headers and library
+install(TARGETS logger
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin)
+
+# Install public headers from include/logger
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/logger DESTINATION include)
+
+
+
 # GoogleTest integration
 include(GoogleTest)
 
-file(GLOB TEST_SOURCES test/*.cpp)
+if(GTest_FOUND)
+    file(GLOB TEST_SOURCES test/*.cpp)
 
-add_executable(logger_tests ${TEST_SOURCES})
-target_include_directories(logger_tests PRIVATE ${INCLUDE_DIRS})
-target_compile_definitions(logger_tests PRIVATE ${LOGGER_DEFINES})
-target_link_libraries(logger_tests PRIVATE logger ${LINK_LIBRARIES} GTest::gtest GTest::gtest_main)
-target_include_directories(logger_tests PRIVATE ${GTest_INCLUDE_DIRS})
+    add_executable(logger_tests ${TEST_SOURCES})
+    target_include_directories(logger_tests PRIVATE ${INCLUDE_DIRS})
+    target_compile_definitions(logger_tests PRIVATE ${LOGGER_DEFINES})
+    target_link_libraries(logger_tests PRIVATE logger ${LINK_LIBRARIES} GTest::gtest GTest::gtest_main)
+    if(TARGET GTest::gtest)
+        target_include_directories(logger_tests PRIVATE ${GTest_INCLUDE_DIRS})
+    endif()
 
-gtest_discover_tests(logger_tests)
+    include(GoogleTest)
+    gtest_discover_tests(logger_tests)
 
-# Enable testing
-enable_testing()
+    # Enable testing
+    enable_testing()
+else()
+    message(WARNING "GTest not found: unit tests will not be built")
+endif()

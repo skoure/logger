@@ -13,7 +13,7 @@
 
 #ifdef USE_LOG4CXX
 
-#include <Logger.h>
+#include <logger/Logger.h>
 #include <log4cxx/logger.h>
 
 #define LOG_MAX_BUF 4096

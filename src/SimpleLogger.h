@@ -11,7 +11,7 @@
 #ifndef SK_SIMPLELOGGER_H
 #define SK_SIMPLELOGGER_H
 
-#include <Logger.h>
+#include <logger/Logger.h>
 #include <stdarg.h>
 
 #define LOG_MAX_BUF 4096

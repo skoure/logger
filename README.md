@@ -16,7 +16,7 @@ It is ideal for projects that require flexibility, cross-platform support, and r
 ## Example Usage
 
 ```cpp
-#include <LoggerFactory.h>
+#include <logger/LoggerFactory.h>
 
 using namespace sk::logger;
 
@@ -60,16 +60,16 @@ From the project root, you can select which logger implementation to enable usin
 
 - Enable Log4cxx implementation:
   ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/windows -s:a build_type=Release -o with_log4cxx=True
+  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o with_log4cxx=True
   ```
 
 - Enable spdlog implementation:
   ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/windows -s:a build_type=Release -o with_spdlog=True
+  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o with_spdlog=True
   ```
 
 
-Replace `--profile:all=./conan/profile/windows` with `--profile:all=./conan/profile/linux` for Linux builds.
+Replace `--profile:all=./conan/profile/linux` with `--profile:all=./conan/profile/windows` for Windows builds.
 
 **Note for Linux debug builds:**
 If your application or tests are built with `_GLIBCXX_DEBUG` (common for debug builds with GCC), you must also build all Conan dependencies with this define to avoid ABI incompatibility and runtime errors. Run Conan with:

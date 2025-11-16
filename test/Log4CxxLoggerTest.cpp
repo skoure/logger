@@ -14,7 +14,7 @@
 #include <gmock/gmock.h>
 #include <log4cxx/appenderskeleton.h>
 #include <Log4CxxLogger.h>
-#include <LoggerFactory.h>
+#include <logger/LoggerFactory.h>
 
 using namespace sk::logger;
 

@@ -13,7 +13,7 @@
 
 #ifdef USE_SPDLOG
 
-#include <Logger.h>
+#include <logger/Logger.h>
 #include <spdlog/spdlog.h>
 
 namespace sk { namespace logger {
