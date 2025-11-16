@@ -8,15 +8,11 @@
  * @date Created: November 15, 2025
  * @date Last modified: November 15, 2025
  */
-#include <gtest/gtest.h>
-
 #ifdef USE_SPDLOG
+#include <gtest/gtest.h>
 #include <SpdlogLogger.h>
-#endif
 
 using namespace sk::logger;
-
-#ifdef USE_SPDLOG
 
 class SpdlogLoggerTest : public ::testing::Test {
 protected:
