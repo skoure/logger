@@ -14,6 +14,7 @@
 #define SK_LOGGER_FACTORY_IMPL_H
 
 #include <logger/Logger.h>
+#include <LoggerHierarchy.h>
 #include <map>
 #include <mutex>
 #include <string>
@@ -34,10 +35,13 @@ private:
     LoggerFactoryImpl() = default;
     ~LoggerFactoryImpl();
 
-    std::map<std::string, LoggerPtr> m_loggers;
     std::mutex m_factoryLock;
+    LoggerHierarchy m_hierarchy;
 
     static LoggerPtr createLogger(const std::string& name);
+
+    bool applyParentSinks(LoggerPtr childLogger, LoggerPtr parentLogger);
+    bool applyParentConfiguration(LoggerPtr childLogger, LoggerPtr parentLogger);
 
 };
 
