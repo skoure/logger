@@ -21,9 +21,8 @@ using namespace sk::logger;
 LoggerHierarchy::LoggerHierarchy() {
     // Create root node
     root_ = std::make_shared<LoggerNode>();
-    root_->name = "root";
-    root_->parent = nullptr;
-    root_->additivity = true;
+    root_->data.name = "root";
+    root_->data.additivity = true;
     loggerMap_["root"] = root_;
 }
 
@@ -67,9 +66,8 @@ void LoggerHierarchy::createParents(const std::string& path) {
     // Create intermediate node if it doesn't have a logger yet
     if (loggerMap_.count(path) == 0) {
         auto node = std::make_shared<LoggerNode>();
-        node->name = path;
-        node->parent = loggerMap_[parentPath];
-        loggerMap_[parentPath]->children.push_back(node);
+        node->data.name = path;
+        loggerMap_[parentPath]->addChild(node);
         loggerMap_[path] = node;
     }
 }
@@ -85,8 +83,8 @@ LoggerHierarchy::LoggerNodePtr LoggerHierarchy::addLogger(const std::string& nam
 
     // Handle root logger specially
     if (name == "root") {
-        root_->logger = logger;
-        root_->additivity = additivity;
+        root_->data.logger = logger;
+        root_->data.additivity = additivity;
         return root_;
     }
 
@@ -98,17 +96,16 @@ LoggerHierarchy::LoggerNodePtr LoggerHierarchy::addLogger(const std::string& nam
     if (loggerMap_.count(name) > 0) {
         // Update existing node
         auto node = loggerMap_[name];
-        node->logger = logger;
-        node->additivity = additivity;
+        node->data.logger = logger;
+        node->data.additivity = additivity;
         return node;
     } else {
         // Create new node
         auto node = std::make_shared<LoggerNode>();
-        node->name = name;
-        node->logger = logger;
-        node->additivity = additivity;
-        node->parent = loggerMap_[parentPath];
-        loggerMap_[parentPath]->children.push_back(node);
+        node->data.name = name;
+        node->data.logger = logger;
+        node->data.additivity = additivity;
+        loggerMap_[parentPath]->addChild(node);
         loggerMap_[name] = node;
         return node;
     }
@@ -116,7 +113,7 @@ LoggerHierarchy::LoggerNodePtr LoggerHierarchy::addLogger(const std::string& nam
 
 LoggerPtr LoggerHierarchy::getLogger(const std::string& name) const {
     auto node = getLoggerNode(name);
-    return node ? node->logger : nullptr;
+    return node ? node->data.logger : nullptr;
 }
 
 LoggerHierarchy::LoggerNodePtr LoggerHierarchy::getLoggerNode(const std::string& name) const {
@@ -129,7 +126,7 @@ LoggerHierarchy::LoggerNodePtr LoggerHierarchy::getLoggerNode(const std::string&
 
 LoggerPtr LoggerHierarchy::getParent(const std::string& name) const {
     auto parentNode = getParentNode(name);
-    return parentNode ? parentNode->logger : nullptr;
+    return parentNode ? parentNode->data.logger : nullptr;
 }
 
 LoggerHierarchy::LoggerNodePtr LoggerHierarchy::getParentNode(const std::string& name) const {
@@ -149,9 +146,9 @@ std::vector<LoggerPtr> LoggerHierarchy::getChildren(const std::string& name) con
         return children;
     }
 
-    for (const auto& childNode : node->children) {
-        if (childNode->logger) {
-            children.push_back(childNode->logger);
+    for (const auto& childNode : node->getChildren()) {
+        if (childNode->data.logger) {
+            children.push_back(childNode->data.logger);
         }
     }
 
@@ -161,24 +158,23 @@ std::vector<LoggerPtr> LoggerHierarchy::getChildren(const std::string& name) con
 void LoggerHierarchy::setAdditivity(const std::string& name, bool additivity) {
     auto node = getLoggerNode(name);
     if (node) {
-        node->additivity = additivity;
+        node->data.additivity = additivity;
     }
 }
 
 bool LoggerHierarchy::hasAdditivity(const std::string& name) const {
     auto node = getLoggerNode(name);
-    return node ? node->additivity : true;  // default is true
+    return node ? node->data.additivity : true;  // default is true
 }
 
 
-LoggerPtr LoggerHierarchy::getRoot() const { return root_->logger; }
+LoggerPtr LoggerHierarchy::getRoot() const { return root_->data.logger; }
 
 void LoggerHierarchy::clear() {
     loggerMap_.clear();
     root_ = std::make_shared<LoggerNode>();
-    root_->name = "root";
-    root_->parent = nullptr;
-    root_->additivity = true;
+    root_->data.name = "root";
+    root_->data.additivity = true;
     loggerMap_["root"] = root_;
 }
 

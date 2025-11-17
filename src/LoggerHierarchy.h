@@ -12,6 +12,7 @@
 #define SK_LOGGER_HIERARCHY_H
 
 #include <logger/Logger.h>
+#include "HierarchicalNode.h"
 
 #include <map>
 #include <string>
@@ -40,17 +41,16 @@ namespace sk { namespace logger {
 class LoggerHierarchy {
 public:
     /**
-     * @struct LoggerNode
-     * @brief Represents a node in the logger hierarchy.
+     * @struct LoggerNodeData
+     * @brief Data stored in each node of the logger hierarchy.
      */
-    struct LoggerNode {
-        std::string name;                                   // Full logger name
-        LoggerPtr logger;                                   // The logger instance
-        std::shared_ptr<LoggerNode> parent;                 // Parent node (nullptr if root)
-        std::vector<std::shared_ptr<LoggerNode>> children;  // Child nodes
-        bool additivity = true;                             // Whether to propagate to parent
+    struct LoggerNodeData {
+        std::string name;        // Full logger name
+        LoggerPtr logger;        // The logger instance
+        bool additivity = true;  // Whether to propagate to parent
     };
 
+    typedef sk::common::HierarchicalNode<LoggerNodeData> LoggerNode;
     typedef std::shared_ptr<LoggerNode> LoggerNodePtr;
 
     LoggerHierarchy();
