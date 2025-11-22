@@ -180,6 +180,15 @@
         "outputOnFailure": true
       }
     },
+        {
+      "name": "windows-spdlog-test",
+      "configurePreset": "windows-spdlog",
+      "description": "Run tests for spdlog on Windows after build.",
+      "hidden": false,
+      "output": {
+        "outputOnFailure": true
+      }
+    },
     {
       "name": "linux-simplelogger-test",
       "configurePreset": "linux-simplelogger",
