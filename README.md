@@ -114,4 +114,4 @@ Use the provided CMakePresets to select the logger implementation and platform:
   ```
 
 ---
-For more details, see the CMakePresets.json and conanfile.txt files.
+For more details, see the CMakePresets.json and conanfile.py files.
