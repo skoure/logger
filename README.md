@@ -60,12 +60,12 @@ From the project root, you can select which logger implementation to enable usin
 
 - Enable Log4cxx implementation:
   ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o with_log4cxx=True
+  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_spdlog=True"
   ```
 
 - Enable spdlog implementation:
   ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o with_spdlog=True
+  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_spdlog=True"
   ```
 
 
@@ -112,6 +112,24 @@ Use the provided CMakePresets to select the logger implementation and platform:
   cmake --build --preset linux-log4cxx-release
   ctest --preset linux-log4cxx-test
   ```
+
+  - **Linux (spdlog):**
+  ```sh
+  cmake --preset linux-spdlog
+  cmake --build --preset linux-spdlog-release
+  ctest --preset linux-spdlog-test
+  ```
+
+### 4. Generate documentation
+- **Linux**
+  ```sh
+  cmake --build ./build/linux --target doc
+  ``` 
+
+- **Windows**
+  ```sh
+  cmake --build ./build/windows --target doc
+  ``` 
 
 ---
 For more details, see the CMakePresets.json and conanfile.py files.

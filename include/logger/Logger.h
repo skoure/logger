@@ -134,6 +134,10 @@ protected:
 
 };
 
+/**
+ * @typedef LoggerPtr
+ * @brief Shared pointer type for Logger instances.
+ */
 typedef std::shared_ptr<Logger> LoggerPtr;
 
 }} // namespace

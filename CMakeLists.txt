@@ -77,7 +77,20 @@ install(TARGETS logger
 # Install public headers from include/logger
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/logger DESTINATION include)
 
-
+# Doxygen documentation target (optional)
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    message(STATUS "Doxygen found, enabling documentation target.")
+    set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/Doxyfile)
+    set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile.out)
+    add_custom_target(doc
+    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Generating API documentation with Doxygen"
+    VERBATIM)
+else()
+    message(STATUS "Doxygen not found, documentation target will not be available.")
+endif()
 
 # GoogleTest integration
 include(GoogleTest)

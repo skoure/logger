@@ -15,6 +15,15 @@
 
 namespace sk { namespace logger {
 
+/**
+ * @class LoggerFactory
+ * @brief Singleton factory for creating and retrieving logger instances.
+ *
+ * This class manages logger instances by name and provides a unified
+ * interface for obtaining loggers of the selected implementation. It
+ * ensures thread-safe access and supports backend flexibility via the
+ * logging facade.
+ */
 class LoggerFactory {
 public:
     /**
