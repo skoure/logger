@@ -37,7 +37,7 @@ include(FetchContent)
 FetchContent_Declare(
     sk_common
     GIT_REPOSITORY https://github.com/skoure/common.git
-    GIT_TAG        main
+    GIT_TAG        cdaac9f7448ab6be80e2f9938318839cf884bac4
 )
 FetchContent_MakeAvailable(sk_common)
 
@@ -52,8 +52,6 @@ set(LINK_LIBRARIES)
 if(EXISTS ${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
     include(${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
 endif()
-
-find_package(GTest QUIET)
 
 # Define preprocessor macros for selected logger implementation
 set(INCLUDE_DIRS)
@@ -82,49 +80,51 @@ target_include_directories(logger PRIVATE ${INCLUDE_DIRS})
 target_compile_definitions(logger PRIVATE ${LOGGER_DEFINES})
 target_link_libraries(logger PRIVATE ${LINK_LIBRARIES} sk::common)
 
-# Install public headers and library
-install(TARGETS logger
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin)
+# Only add install/doc/test targets when this is the top-level project,
+# not when consumed via FetchContent by another project.
+if(PROJECT_IS_TOP_LEVEL)
 
-# Install public headers from include/logger
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/logger DESTINATION include)
+    install(TARGETS logger
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin)
 
-# Doxygen documentation target (optional)
-find_package(Doxygen QUIET)
-if(DOXYGEN_FOUND)
-    message(STATUS "Doxygen found, enabling documentation target.")
-    set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/Doxyfile)
-    set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile.out)
-    add_custom_target(doc
-    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Generating API documentation with Doxygen"
-    VERBATIM)
-else()
-    message(STATUS "Doxygen not found, documentation target will not be available.")
-endif()
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/logger DESTINATION include)
 
-# GoogleTest integration
-include(GoogleTest)
-
-if(GTest_FOUND)
-    file(GLOB TEST_SOURCES test/*.cpp)
-
-    add_executable(logger_tests ${TEST_SOURCES})
-    target_include_directories(logger_tests PRIVATE ${INCLUDE_DIRS})
-    target_compile_definitions(logger_tests PRIVATE ${LOGGER_DEFINES})
-    target_link_libraries(logger_tests PRIVATE logger ${LINK_LIBRARIES} GTest::gtest GTest::gtest_main)
-    if(TARGET GTest::gtest)
-        target_include_directories(logger_tests PRIVATE ${GTest_INCLUDE_DIRS})
+    find_package(Doxygen QUIET)
+    if(DOXYGEN_FOUND)
+        message(STATUS "Doxygen found, enabling documentation target.")
+        set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/Doxyfile)
+        set(DOXYGEN_OUT ${CMAKE_BINARY_DIR}/Doxyfile.out)
+        add_custom_target(doc
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM)
+    else()
+        message(STATUS "Doxygen not found, documentation target will not be available.")
     endif()
 
     include(GoogleTest)
-    gtest_discover_tests(logger_tests)
+    find_package(GTest QUIET)
 
-    # Enable testing
-    enable_testing()
-else()
-    message(WARNING "GTest not found: unit tests will not be built")
-endif()
+    if(GTest_FOUND)
+        file(GLOB TEST_SOURCES test/*.cpp)
+
+        add_executable(logger_tests ${TEST_SOURCES})
+        target_include_directories(logger_tests PRIVATE ${INCLUDE_DIRS})
+        target_compile_definitions(logger_tests PRIVATE ${LOGGER_DEFINES})
+        target_link_libraries(logger_tests PRIVATE logger ${LINK_LIBRARIES} sk::common GTest::gtest GTest::gtest_main)
+        if(TARGET GTest::gtest)
+            target_include_directories(logger_tests PRIVATE ${GTest_INCLUDE_DIRS})
+        endif()
+
+        include(GoogleTest)
+        gtest_discover_tests(logger_tests)
+
+        enable_testing()
+    else()
+        message(WARNING "GTest not found: unit tests will not be built")
+    endif()
+
+endif() # PROJECT_IS_TOP_LEVEL
