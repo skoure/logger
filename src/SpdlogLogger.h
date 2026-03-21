@@ -6,14 +6,14 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 15, 2025
- * @date Last modified: November 15, 2025
+ * @date Last modified: March 21, 2026
  */
 #ifndef SK_SPDLOG_LOGGER_H
 #define SK_SPDLOG_LOGGER_H
 
 #ifdef USE_SPDLOG
 
-#include <logger/Logger.h>
+#include <LoggerBase.h>
 #include <spdlog/spdlog.h>
 
 namespace sk { namespace logger {
@@ -25,58 +25,43 @@ namespace sk { namespace logger {
  * This class wraps the spdlog library and provides a unified interface
  * for logging messages at various severity levels. It is intended to be
  * used via the logging facade (see Logger.h) for backend flexibility.
+ *
+ * All formatting and LogRecord construction is handled by LoggerBase.
+ * This class only implements the backend write (append) and level management.
  */
-class SpdlogLogger : public Logger
+class SpdlogLogger : public LoggerBase
 {
 public:
-	SpdlogLogger(std::string name);
-	~SpdlogLogger(void);
+    SpdlogLogger(std::string name);
+    ~SpdlogLogger();
 
-	const std::string getName() { return m_name; }
+    const std::string getName() { return m_name; }
 
-	bool isFatalEnabled() const;
-	bool isErrorEnabled() const;
-	bool isWarnEnabled() const;
-	bool isInfoEnabled() const;
-	bool isDebugEnabled() const;
-	bool isTraceEnabled() const;
+    Level getLevel();
+    void  setLevel(Level level);
 
-    Level getLevel(); 
-    void setLevel(Level level);
+    bool isFatalEnabled() const;
+    bool isErrorEnabled() const;
+    bool isWarnEnabled()  const;
+    bool isInfoEnabled()  const;
+    bool isDebugEnabled() const;
+    bool isTraceEnabled() const;
 
-	void fatal(const char *fmt, ...);
-	void error(const char *fmt, ...);
-	void warn(const char *fmt, ...);
-	void info(const char *fmt, ...);
-	void debug(const char *fmt, ...);
-	void trace(const char *fmt, ...);
+    std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
 
-	void error(const char* msg, const std::exception& ex) override;
-	void fatal(const char* msg, const std::exception& ex) override;
-
-	std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
+protected:
+    void append(const LogRecord& record) override;
 
 private:
-	std::shared_ptr<spdlog::logger> m_pLogger;
-	std::string m_name;
-	Level m_level;
+    std::shared_ptr<spdlog::logger> m_pLogger;
+    std::string                     m_name;
+    Level                           m_level;
 
-	/**
-	 * @brief Converts from Logger::Level to spdlog::level::level_enum.
-	 * @param level Logger level.
-	 * @return Equivalent spdlog level.
-	 */
-	static spdlog::level::level_enum toSpdlogLevel(Level level);
-
-	/**
-	 * @brief Converts from spdlog::level::level_enum to Logger::Level.
-	 * @param level spdlog level.
-	 * @return Equivalent Logger level.
-	 */
-	static Level fromSpdlogLevel(spdlog::level::level_enum level);
+    static spdlog::level::level_enum toSpdlogLevel(Level level);
+    static Level fromSpdlogLevel(spdlog::level::level_enum level);
 };
 
-}}
+}} // namespace sk::logger
 
 #endif
-#endif
+#endif // SK_SPDLOG_LOGGER_H

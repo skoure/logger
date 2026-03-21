@@ -6,110 +6,27 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: November 08, 2025
+ * @date Last modified: March 21, 2026
  */
 #include <SimpleLogger.h>
-#include <LoggerUtils.h>
 #include <iostream>
-#include <stdarg.h>
 
 using namespace sk::logger;
 using namespace std;
 
-SimpleLogger::SimpleLogger(std::string name) : m_level(Level::Info),
-                                               m_name(std::move(name))
+SimpleLogger::SimpleLogger(std::string name)
+    : m_level(Level::Info),
+      m_name(std::move(name))
 {
 }
 
-SimpleLogger::~SimpleLogger(void)
+SimpleLogger::~SimpleLogger()
 {
 }
 
-void SimpleLogger::fatal(const char *fmt, ...)
+void SimpleLogger::append(const LogRecord& record)
 {
-    if (isFatalEnabled())
-    {
-        va_list argp;
-        va_start(argp, fmt);
-        log("FATAL", fmt, argp);
-        va_end(argp);
-    }
-}
-
-void SimpleLogger::error(const char *fmt, ...)
-{
-    if (isErrorEnabled())
-    {
-        va_list argp;
-        va_start(argp, fmt);
-        log("ERROR", fmt, argp);
-        va_end(argp);
-    }
-}
-
-void SimpleLogger::warn(const char *fmt, ...)
-{
-    if (isWarnEnabled())
-    {
-        va_list argp;
-        va_start(argp, fmt);
-        log("WARN", fmt, argp);
-        va_end(argp);
-    }
-}
-
-void SimpleLogger::info(const char *fmt, ...)
-{
-    if (isInfoEnabled())
-    {
-        va_list argp;
-        va_start(argp, fmt);
-        log("INFO", fmt, argp);
-        va_end(argp);
-    }
-}
-
-void SimpleLogger::debug(const char *fmt, ...)
-{
-    if (isDebugEnabled())
-    {
-        va_list argp;
-        va_start(argp, fmt);
-        log("DEBUG", fmt, argp);
-        va_end(argp);
-    }
-}
-
-void SimpleLogger::trace(const char *fmt, ...)
-{
-    if (isTraceEnabled())
-    {
-        va_list argp;
-        va_start(argp, fmt);
-        log("TRACE", fmt, argp);
-        va_end(argp);
-    }
-}
-
-void SimpleLogger::log(const char *level, const char *fmt, va_list argp)
-{
-    char buf[LOG_MAX_BUF + 1] = {0};
-    std::vsnprintf(buf, LOG_MAX_BUF, fmt, argp);
-    clog << level << " [" << getName() << "] " << buf << std::endl;
-}
-
-void SimpleLogger::error(const char* msg, const std::exception& ex)
-{
-    if (isErrorEnabled())
-    {
-        clog << "ERROR [" << getName() << "] " << formatException(msg, ex) << endl;
-    }
-}
-
-void SimpleLogger::fatal(const char* msg, const std::exception& ex)
-{
-    if (isFatalEnabled())
-    {
-        clog << "FATAL [" << getName() << "] " << formatException(msg, ex) << endl;
-    }
+    clog << levelToString(record.level)
+         << " [" << record.loggerName << "] "
+         << record.message << endl;
 }
