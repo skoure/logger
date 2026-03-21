@@ -49,7 +49,6 @@ set(SOURCES
     src/LoggerHierarchy.cpp
     src/LoggerBase.cpp
     src/LoggerUtils.cpp
-    src/MarkerFactory.cpp
 )
 set(HEADERS
     src/LoggerFactoryImpl.h
@@ -136,7 +135,6 @@ if(PROJECT_IS_TOP_LEVEL)
             test/LoggerFactoryTest.cpp
             test/LoggerHierarchyTest.cpp
             test/LoggerUtilsTest.cpp
-            test/MarkerFactoryTest.cpp
         )
         if(USE_LOG4CXX)
             list(APPEND TEST_SOURCES test/Log4CxxLoggerTest.cpp)
