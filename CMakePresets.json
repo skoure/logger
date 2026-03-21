@@ -13,7 +13,6 @@
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
       "hidden": true,
-      "binaryDir": "${sourceDir}/build/windows",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -24,6 +23,7 @@
       "name": "windows-simplelogger",
       "inherits": "windows",
       "displayName": "Windows - SimpleLogger",
+      "binaryDir": "${sourceDir}/build/windows-simplelogger",
       "cacheVariables": {
         "USE_SIMPLELOGGER": "ON"
       }
@@ -32,6 +32,7 @@
       "name": "windows-log4cxx",
       "inherits": "windows",
       "displayName": "Windows - Log4Cxx",
+      "binaryDir": "${sourceDir}/build/windows-log4cxx",
       "cacheVariables": {
         "USE_LOG4CXX": "ON"
       }
@@ -40,6 +41,7 @@
       "name": "windows-spdlog",
       "inherits": "windows",
       "displayName": "Windows - spdlog",
+      "binaryDir": "${sourceDir}/build/windows-spdlog",
       "cacheVariables": {
         "USE_SPDLOG": "ON"
       }
@@ -50,7 +52,6 @@
       "description": "Configure using Ninja Multi-Config generator on Linux.",
       "generator": "Ninja Multi-Config",
       "hidden": true,
-      "binaryDir": "${sourceDir}/build/linux",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -61,6 +62,7 @@
       "name": "linux-simplelogger",
       "inherits": "linux",
       "displayName": "Linux - SimpleLogger",
+      "binaryDir": "${sourceDir}/build/linux-simplelogger",
       "cacheVariables": {
         "USE_SIMPLELOGGER": "ON"
       }
@@ -69,6 +71,7 @@
       "name": "linux-log4cxx",
       "inherits": "linux",
       "displayName": "Linux - Log4Cxx",
+      "binaryDir": "${sourceDir}/build/linux-log4cxx",
       "cacheVariables": {
         "USE_LOG4CXX": "ON"
       }
@@ -77,6 +80,7 @@
       "name": "linux-spdlog",
       "inherits": "linux",
       "displayName": "Linux - spdlog",
+      "binaryDir": "${sourceDir}/build/linux-spdlog",
       "cacheVariables": {
         "USE_SPDLOG": "ON"
       }

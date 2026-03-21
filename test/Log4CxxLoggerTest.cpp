@@ -15,6 +15,7 @@
 #include <log4cxx/appenderskeleton.h>
 #include <Log4CxxLogger.h>
 #include <logger/LoggerFactory.h>
+#include <stdexcept>
 
 using namespace sk::logger;
 
@@ -62,6 +63,47 @@ TEST(Log4CxxLoggerTest, InfoOutputsExpectedMessage) {
 
     std::string output = dynamic_cast<OutputStreamAppender*>(appender.get())->buffer.str();
     EXPECT_THAT(output, ::testing::HasSubstr("Hello world 42"));
+}
+
+TEST(Log4CxxLoggerTest, ExceptionErrorOutputsContextAndMessage) {
+    LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("ExceptionTestLogger");
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(log4cxxLogger, nullptr);
+
+    log4cxx::AppenderPtr appender(new OutputStreamAppender());
+    log4cxxLogger->getInternalLogger()->addAppender(appender);
+    log4cxxLogger->setLevel(Logger::Level::Error);
+
+    try {
+        throw std::runtime_error("db connection lost");
+    } catch (const std::exception& ex) {
+        logger->error("query failed", ex);
+    }
+
+    log4cxxLogger->getInternalLogger()->removeAppender(appender);
+
+    std::string output = dynamic_cast<OutputStreamAppender*>(appender.get())->buffer.str();
+    EXPECT_THAT(output, ::testing::HasSubstr("query failed"));
+    EXPECT_THAT(output, ::testing::HasSubstr("db connection lost"));
+}
+
+TEST(Log4CxxLoggerTest, ExceptionFatalOutputsContextAndMessage) {
+    LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("ExceptionFatalTestLogger");
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(log4cxxLogger, nullptr);
+
+    log4cxx::AppenderPtr appender(new OutputStreamAppender());
+    log4cxxLogger->getInternalLogger()->addAppender(appender);
+    log4cxxLogger->setLevel(Logger::Level::Fatal);
+
+    std::runtime_error ex("critical system failure");
+    logger->fatal("unrecoverable error", ex);
+
+    log4cxxLogger->getInternalLogger()->removeAppender(appender);
+
+    std::string output = dynamic_cast<OutputStreamAppender*>(appender.get())->buffer.str();
+    EXPECT_THAT(output, ::testing::HasSubstr("unrecoverable error"));
+    EXPECT_THAT(output, ::testing::HasSubstr("critical system failure"));
 }
 
 #endif

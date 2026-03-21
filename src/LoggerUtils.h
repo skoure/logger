@@ -1,0 +1,35 @@
+/**
+ * @file LoggerUtils.h
+ * @brief Internal utility functions for logger implementations.
+ *
+ * Copyright (c) 2025 Stephen Kouretas. All Rights Reserved.
+ *
+ * @author Stephen Kouretas <stephen.kouretas@gmail.com>
+ * @date Created: March 20, 2026
+ */
+#ifndef SK_LOGGER_UTILS_H
+#define SK_LOGGER_UTILS_H
+
+#include <exception>
+#include <string>
+
+namespace sk { namespace logger {
+
+/**
+ * @brief Formats an exception into a human-readable string containing
+ *        the exception type, message, and an optional stacktrace.
+ *
+ * The stacktrace reflects the call stack at the point this function is
+ * invoked (typically inside a catch block), not the original throw site.
+ * Meaningful frame names require the binary to be compiled with debug
+ * symbols (-g or RelWithDebInfo build type).
+ *
+ * @param msg Context message prepended to the output (e.g. "Failed to open file").
+ * @param ex  The exception to format.
+ * @return    Formatted string: "<msg>: <type>: <what()>\nStacktrace:\n<frames>"
+ */
+std::string formatException(const char* msg, const std::exception& ex);
+
+}} // namespace sk::logger
+
+#endif // SK_LOGGER_UTILS_H

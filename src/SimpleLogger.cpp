@@ -9,6 +9,7 @@
  * @date Last modified: November 08, 2025
  */
 #include <SimpleLogger.h>
+#include <LoggerUtils.h>
 #include <iostream>
 #include <stdarg.h>
 
@@ -95,4 +96,20 @@ void SimpleLogger::log(const char *level, const char *fmt, va_list argp)
     char buf[LOG_MAX_BUF + 1] = {0};
     std::vsnprintf(buf, LOG_MAX_BUF, fmt, argp);
     clog << level << " [" << getName() << "] " << buf << std::endl;
+}
+
+void SimpleLogger::error(const char* msg, const std::exception& ex)
+{
+    if (isErrorEnabled())
+    {
+        clog << "ERROR [" << getName() << "] " << formatException(msg, ex) << endl;
+    }
+}
+
+void SimpleLogger::fatal(const char* msg, const std::exception& ex)
+{
+    if (isFatalEnabled())
+    {
+        clog << "FATAL [" << getName() << "] " << formatException(msg, ex) << endl;
+    }
 }

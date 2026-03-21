@@ -8,25 +8,24 @@ set(LIBRARY_NAME ${PROJECT_NAME})
 option(USE_LOG4CXX "Use Log4Cxx" OFF)
 option(USE_SPDLOG "Use spdlog" OFF)
 option(USE_SIMPLELOGGER "Use SimpleLogger" OFF)
+option(USE_CPPTRACE "Enable stacktrace support via cpptrace" ON)
 
-# Error if more than one backend is enabled
-set(logger_count 0)
+# Enforce mutual exclusion between backends. When switching CMake configurations
+# in an IDE, stale cached values from the previous configuration can leave multiple
+# backends enabled simultaneously. Force the unused ones off so reconfiguring works
+# without requiring a cache clear. Priority: LOG4CXX > SPDLOG > SIMPLELOGGER.
 if(USE_LOG4CXX)
-    math(EXPR logger_count "${logger_count} + 1")
-endif()
-if(USE_SPDLOG)
-    math(EXPR logger_count "${logger_count} + 1")
-endif()
-if(USE_SIMPLELOGGER)
-    math(EXPR logger_count "${logger_count} + 1")
-endif()
-
-if(logger_count GREATER 1)
-    message(FATAL_ERROR "Only one logger can be enabled at a time.")
-elseif(logger_count EQUAL 0)
+    set(USE_SPDLOG OFF CACHE BOOL "Use spdlog" FORCE)
+    set(USE_SIMPLELOGGER OFF CACHE BOOL "Use SimpleLogger" FORCE)
+elseif(USE_SPDLOG)
+    set(USE_LOG4CXX OFF CACHE BOOL "Use Log4Cxx" FORCE)
+    set(USE_SIMPLELOGGER OFF CACHE BOOL "Use SimpleLogger" FORCE)
+elseif(USE_SIMPLELOGGER)
+    set(USE_LOG4CXX OFF CACHE BOOL "Use Log4Cxx" FORCE)
+    set(USE_SPDLOG OFF CACHE BOOL "Use spdlog" FORCE)
+else()
     message(STATUS "No logger selected, defaulting to SimpleLogger.")
     set(USE_SIMPLELOGGER ON CACHE BOOL "Use SimpleLogger" FORCE)
-    list(APPEND LOGGER_DEFINES USE_SIMPLELOGGER)
 endif()
 
 
@@ -62,6 +61,12 @@ elseif(USE_SPDLOG)
     list(APPEND LINK_LIBRARIES spdlog::spdlog)
 elseif(USE_SIMPLELOGGER)
     list(APPEND LOGGER_DEFINES USE_SIMPLELOGGER)
+endif()
+
+if(USE_CPPTRACE)
+    find_package(cpptrace REQUIRED)
+    list(APPEND LOGGER_DEFINES USE_CPPTRACE)
+    list(APPEND LINK_LIBRARIES cpptrace::cpptrace)
 endif()
 
 target_include_directories(logger PRIVATE ${INCLUDE_DIRS})

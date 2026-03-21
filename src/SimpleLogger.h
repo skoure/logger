@@ -50,6 +50,9 @@ public:
     void debug(const char *fmt, ...);
     void trace(const char *fmt, ...);
 
+    void error(const char* msg, const std::exception& ex) override;
+    void fatal(const char* msg, const std::exception& ex) override;
+
 
 private:
     void log(const char* level, const char *fmt, va_list argp);

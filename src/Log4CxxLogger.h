@@ -54,6 +54,9 @@ public:
 	void debug(const char *fmt, ...);
 	void trace(const char *fmt, ...);
 
+	void error(const char* msg, const std::exception& ex) override;
+	void fatal(const char* msg, const std::exception& ex) override;
+
 	log4cxx::LoggerPtr getInternalLogger() const { return m_pLogger; }
 
 private:

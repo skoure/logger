@@ -13,6 +13,7 @@
 #ifdef USE_SPDLOG
 
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <LoggerUtils.h>
 #include <stdarg.h>
 #include <cstdio>
 
@@ -196,6 +197,22 @@ void SpdlogLogger::trace(const char *fmt, ...)
 		std::vsnprintf(buf, LOG_MAX_BUF, fmt, argp);
 		va_end(argp);
 		m_pLogger->trace(buf);
+	}
+}
+
+void SpdlogLogger::error(const char* msg, const std::exception& ex)
+{
+	if (isErrorEnabled())
+	{
+		m_pLogger->error(formatException(msg, ex));
+	}
+}
+
+void SpdlogLogger::fatal(const char* msg, const std::exception& ex)
+{
+	if (isFatalEnabled())
+	{
+		m_pLogger->critical(formatException(msg, ex));
 	}
 }
 

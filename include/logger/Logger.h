@@ -11,6 +11,7 @@
 #ifndef SK_LOGGER_H
 #define SK_LOGGER_H
 
+#include <exception>
 #include <memory>
 #include <string>
 
@@ -66,27 +67,32 @@ public:
      * @return True if FATAL or higher is enabled, false otherwise.
      */
     virtual bool isFatalEnabled() const = 0;
+    
     /**
      * @brief Checks if ERROR level logging is enabled.
      * @return True if ERROR or higher is enabled, false otherwise.
      */
     virtual bool isErrorEnabled() const = 0;
+
     /**
      * @brief Checks if WARN level logging is enabled.
      * @return True if WARN or higher is enabled, false otherwise.
      */
     virtual bool isWarnEnabled() const = 0;
+
     /**
      * @brief Checks if INFO level logging is enabled.
      * @return True if INFO or higher is enabled, false otherwise.
      */
     virtual bool isInfoEnabled() const = 0;
+
     /**
      * @brief Checks if DEBUG level logging is enabled.
      * @details Use this to avoid constructing debug messages when not enabled.
      * @return True if DEBUG or higher is enabled, false otherwise.
      */
     virtual bool isDebugEnabled() const = 0;
+
     /**
      * @brief Checks if TRACE level logging is enabled.
      * @return True if TRACE is enabled, false otherwise.
@@ -99,6 +105,7 @@ public:
      * @param ... Arguments for format string.
      */
     virtual void fatal(const char *fmt, ...) = 0;
+
     /**
      * @brief Logs a formatted error message if ERROR level is enabled.
      * @param fmt Format string.
@@ -111,24 +118,47 @@ public:
      * @param ... Arguments for format string.
      */
     virtual void warn(const char *fmt, ...) = 0;
+
     /**
      * @brief Logs a formatted info message if INFO level is enabled.
      * @param fmt Format string.
      * @param ... Arguments for format string.
      */
     virtual void info(const char *fmt, ...) = 0;
+
     /**
      * @brief Logs a formatted debug message if DEBUG level is enabled.
      * @param fmt Format string.
      * @param ... Arguments for format string.
      */
     virtual void debug(const char *fmt, ...) = 0;
+
     /**
      * @brief Logs a formatted trace message if TRACE level is enabled.
      * @param fmt Format string.
      * @param ... Arguments for format string.
      */
     virtual void trace(const char *fmt, ...) = 0;
+
+    /**
+     * @brief Logs an exception at ERROR level with a context message and stacktrace.
+     *
+     * The stacktrace is captured at the call site (catch block), not the throw site.
+     *
+     * @param msg Context message describing the operation that failed.
+     * @param ex  The exception to log.
+     */
+    virtual void error(const char* msg, const std::exception& ex) = 0;
+
+    /**
+     * @brief Logs an exception at FATAL level with a context message and stacktrace.
+     *
+     * The stacktrace is captured at the call site (catch block), not the throw site.
+     *
+     * @param msg Context message describing the operation that failed.
+     * @param ex  The exception to log.
+     */
+    virtual void fatal(const char* msg, const std::exception& ex) = 0;
 
 protected:
 

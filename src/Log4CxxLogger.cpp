@@ -11,6 +11,7 @@
 #ifdef USE_LOG4CXX
 
 #include "Log4CxxLogger.h"
+#include <LoggerUtils.h>
 #include <stdarg.h>
 
 using namespace sk::logger;
@@ -133,6 +134,22 @@ void Log4CxxLogger::trace(const char *fmt, ...){
 		std::vsnprintf(buf, LOG_MAX_BUF, fmt, ap);
 		LOG4CXX_TRACE(m_pLogger, buf);
 		va_end(ap);		
+	}
+}
+
+void Log4CxxLogger::error(const char* msg, const std::exception& ex)
+{
+	if (m_pLogger && isErrorEnabled())
+	{
+		LOG4CXX_ERROR(m_pLogger, sk::logger::formatException(msg, ex));
+	}
+}
+
+void Log4CxxLogger::fatal(const char* msg, const std::exception& ex)
+{
+	if (m_pLogger && isFatalEnabled())
+	{
+		LOG4CXX_FATAL(m_pLogger, sk::logger::formatException(msg, ex));
 	}
 }
 

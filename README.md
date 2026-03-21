@@ -32,6 +32,14 @@ int main() {
   logger->error("Something went wrong: %d", 42);
   logger->debug("Debugging value: %f", 3.14);
 
+  // Log an exception with context message and stacktrace
+  try {
+    // ... some operation ...
+  } catch (const std::exception& ex) {
+    logger->error("Failed to open config file", ex);
+    logger->fatal("Unrecoverable error", ex);
+  }
+
   return 0;
 }
 ```
@@ -54,18 +62,23 @@ From the project root, you can select which logger implementation to enable usin
 **Available options:**
 - `with_log4cxx` (default: False)
 - `with_spdlog` (default: False)
+- `with_cpptrace` (default: True) — enables exception stacktrace capture via [cpptrace](https://github.com/jeremy-rifkin/cpptrace)
 
 **Example commands:**
 
-
 - Enable Log4cxx implementation:
   ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_spdlog=True"
+  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_log4cxx=True"
   ```
 
 - Enable spdlog implementation:
   ```sh
   conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_spdlog=True"
+  ```
+
+- Disable cpptrace (omits stacktrace from exception logging):
+  ```sh
+  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_cpptrace=False"
   ```
 
 
@@ -79,6 +92,13 @@ conan install ./conan/conanfile.py --output-folder=build/conan --build=missing -
 ```
 
 This ensures consistent debug settings across your project and its dependencies.
+
+**Note for stacktrace support (cpptrace):**
+Stacktrace frame names are only meaningful when the binary is compiled with debug symbols. Use `Debug` or `RelWithDebInfo` build types. In a pure `Release` build, frame addresses will appear but function names will show as `??`.
+
+```sh
+conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Debug -o="&:with_spdlog=True" -o="&:with_cpptrace=True"
+```
 
 
 ### 3. Configure build and run tests with CMake

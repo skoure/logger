@@ -11,6 +11,7 @@
 #ifdef USE_SPDLOG
 #include <gtest/gtest.h>
 #include <SpdlogLogger.h>
+#include <stdexcept>
 
 using namespace sk::logger;
 
@@ -106,6 +107,24 @@ TEST_F(SpdlogLoggerTest, DoesNotLogBelowLevel) {
     // Should not throw when logging below current level
     EXPECT_NO_THROW(logger.warn("Should not log"));
     EXPECT_NO_THROW(logger.info("Should not log"));
+}
+
+TEST_F(SpdlogLoggerTest, ExceptionErrorDoesNotThrow) {
+    logger.setLevel(Logger::Level::Error);
+    std::runtime_error ex("spdlog error");
+    EXPECT_NO_THROW(logger.error("context", ex));
+}
+
+TEST_F(SpdlogLoggerTest, ExceptionFatalDoesNotThrow) {
+    logger.setLevel(Logger::Level::Fatal);
+    std::runtime_error ex("spdlog fatal");
+    EXPECT_NO_THROW(logger.fatal("context", ex));
+}
+
+TEST_F(SpdlogLoggerTest, ExceptionErrorSuppressedWhenBelowLevel) {
+    logger.setLevel(Logger::Level::Fatal);
+    std::runtime_error ex("should be suppressed");
+    EXPECT_NO_THROW(logger.error("suppressed", ex));
 }
 
 #endif

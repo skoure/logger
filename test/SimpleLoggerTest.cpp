@@ -12,6 +12,7 @@
 #include <SimpleLogger.h>
 #include <sstream>
 #include <iostream>
+#include <stdexcept>
 
 using namespace sk::logger;
 
@@ -66,4 +67,34 @@ TEST_F(SimpleLoggerTest, FormattingWorks) {
     logger.info("Value: %d, String: %s", 123, "abc");
     std::string output = buffer.str();
     EXPECT_NE(output.find("INFO [TestLogger] Value: 123, String: abc"), std::string::npos);
+}
+
+TEST_F(SimpleLoggerTest, ExceptionErrorLogsContextAndMessage) {
+    logger.setLevel(Logger::Level::Error);
+    try {
+        throw std::runtime_error("disk full");
+    } catch (const std::exception& ex) {
+        logger.error("write failed", ex);
+    }
+    std::string output = buffer.str();
+    EXPECT_NE(output.find("ERROR [TestLogger]"), std::string::npos);
+    EXPECT_NE(output.find("write failed"), std::string::npos);
+    EXPECT_NE(output.find("disk full"), std::string::npos);
+}
+
+TEST_F(SimpleLoggerTest, ExceptionFatalLogsContextAndMessage) {
+    logger.setLevel(Logger::Level::Fatal);
+    std::runtime_error ex("critical failure");
+    logger.fatal("system crash", ex);
+    std::string output = buffer.str();
+    EXPECT_NE(output.find("FATAL [TestLogger]"), std::string::npos);
+    EXPECT_NE(output.find("system crash"), std::string::npos);
+    EXPECT_NE(output.find("critical failure"), std::string::npos);
+}
+
+TEST_F(SimpleLoggerTest, ExceptionErrorSuppressedWhenBelowLevel) {
+    logger.setLevel(Logger::Level::Fatal);
+    std::runtime_error ex("suppressed");
+    logger.error("should not log", ex);
+    EXPECT_EQ(buffer.str(), "");
 }
