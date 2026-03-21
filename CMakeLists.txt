@@ -32,6 +32,15 @@ endif()
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Fetch sk::common for HierarchicalNode and other shared utilities
+include(FetchContent)
+FetchContent_Declare(
+    sk_common
+    GIT_REPOSITORY https://github.com/skoure/common.git
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(sk_common)
+
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
 
 file(GLOB SOURCES src/*.cpp src/parsers/*.cpp)
@@ -71,7 +80,7 @@ endif()
 
 target_include_directories(logger PRIVATE ${INCLUDE_DIRS})
 target_compile_definitions(logger PRIVATE ${LOGGER_DEFINES})
-target_link_libraries(logger PRIVATE ${LINK_LIBRARIES})
+target_link_libraries(logger PRIVATE ${LINK_LIBRARIES} sk::common)
 
 # Install public headers and library
 install(TARGETS logger

@@ -12,7 +12,7 @@
 #define SK_LOGGER_HIERARCHY_H
 
 #include <logger/Logger.h>
-#include "HierarchicalNode.h"
+#include <containers/HierarchicalNode.h>
 
 #include <map>
 #include <string>
@@ -50,7 +50,7 @@ public:
         bool additivity = true;  // Whether to propagate to parent
     };
 
-    typedef sk::common::HierarchicalNode<LoggerNodeData> LoggerNode;
+    typedef sk::common::containers::HierarchicalNode<LoggerNodeData> LoggerNode;
     typedef std::shared_ptr<LoggerNode> LoggerNodePtr;
 
     LoggerHierarchy();
