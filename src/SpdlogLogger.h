@@ -11,8 +11,6 @@
 #ifndef SK_SPDLOG_LOGGER_H
 #define SK_SPDLOG_LOGGER_H
 
-#ifdef USE_SPDLOG
-
 #include <LoggerBase.h>
 #include <spdlog/spdlog.h>
 
@@ -63,5 +61,4 @@ private:
 
 }} // namespace sk::logger
 
-#endif
 #endif // SK_SPDLOG_LOGGER_H

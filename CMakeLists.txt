@@ -43,8 +43,31 @@ FetchContent_MakeAvailable(sk_common)
 
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
 
-file(GLOB SOURCES src/*.cpp src/parsers/*.cpp)
-file(GLOB HEADERS src/*.h src/parsers/*.h)
+set(SOURCES
+    src/LoggerFactory.cpp
+    src/LoggerFactoryImpl.cpp
+    src/LoggerHierarchy.cpp
+    src/LoggerBase.cpp
+    src/LoggerUtils.cpp
+    src/MarkerFactory.cpp
+)
+set(HEADERS
+    src/LoggerFactoryImpl.h
+    src/LoggerHierarchy.h
+    src/LoggerBase.h
+    src/LoggerUtils.h
+    src/LogRecord.h
+)
+if(USE_LOG4CXX)
+    list(APPEND SOURCES src/Log4CxxLogger.cpp)
+    list(APPEND HEADERS src/Log4CxxLogger.h)
+elseif(USE_SPDLOG)
+    list(APPEND SOURCES src/SpdlogLogger.cpp)
+    list(APPEND HEADERS src/SpdlogLogger.h)
+else()
+    list(APPEND SOURCES src/SimpleLogger.cpp)
+    list(APPEND HEADERS src/SimpleLogger.h)
+endif()
 
 add_library(logger STATIC ${SOURCES} ${HEADERS})
 
@@ -109,7 +132,19 @@ if(PROJECT_IS_TOP_LEVEL)
     find_package(GTest QUIET)
 
     if(GTest_FOUND)
-        file(GLOB TEST_SOURCES test/*.cpp)
+        set(TEST_SOURCES
+            test/LoggerFactoryTest.cpp
+            test/LoggerHierarchyTest.cpp
+            test/LoggerUtilsTest.cpp
+            test/MarkerFactoryTest.cpp
+        )
+        if(USE_LOG4CXX)
+            list(APPEND TEST_SOURCES test/Log4CxxLoggerTest.cpp)
+        elseif(USE_SPDLOG)
+            list(APPEND TEST_SOURCES test/SpdlogLoggerTest.cpp)
+        else()
+            list(APPEND TEST_SOURCES test/SimpleLoggerTest.cpp)
+        endif()
 
         add_executable(logger_tests ${TEST_SOURCES})
         target_include_directories(logger_tests PRIVATE ${INCLUDE_DIRS})

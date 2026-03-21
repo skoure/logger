@@ -11,8 +11,6 @@
 #ifndef SK_LOG4CXX_LOGGER_H
 #define SK_LOG4CXX_LOGGER_H
 
-#ifdef USE_LOG4CXX
-
 #include <LoggerBase.h>
 #include <log4cxx/logger.h>
 
@@ -59,5 +57,4 @@ private:
 
 }} // namespace sk::logger
 
-#endif
 #endif // SK_LOG4CXX_LOGGER_H

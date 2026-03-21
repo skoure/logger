@@ -9,9 +9,6 @@
  * @date Last modified: March 21, 2026
  */
 #include <SpdlogLogger.h>
-
-#ifdef USE_SPDLOG
-
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 using namespace sk::logger;
@@ -92,5 +89,3 @@ void SpdlogLogger::append(const LogRecord& record)
     case Level::Trace: m_pLogger->trace   (record.message); break;
     }
 }
-
-#endif

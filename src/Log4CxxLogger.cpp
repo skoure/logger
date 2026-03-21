@@ -8,8 +8,6 @@
  * @date Created: November 08, 2025
  * @date Last modified: March 21, 2026
  */
-#ifdef USE_LOG4CXX
-
 #include <Log4CxxLogger.h>
 
 using namespace sk::logger;
@@ -61,5 +59,3 @@ void Log4CxxLogger::append(const LogRecord& record)
     case Level::Trace: LOG4CXX_TRACE(m_pLogger, record.message); break;
     }
 }
-
-#endif
