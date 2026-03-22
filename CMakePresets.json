@@ -12,6 +12,7 @@
       "description": "Configure using Visual Studio generator on Windows. Builds all available backends.",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
+      "toolset": "v143",
       "binaryDir": "${sourceDir}/build/windows",
       "condition": {
         "type": "equals",
