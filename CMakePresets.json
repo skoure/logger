@@ -2,17 +2,17 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 24,
     "patch": 0
   },
   "configurePresets": [
     {
       "name": "windows",
       "displayName": "Windows - Visual Studio",
-      "description": "Configure using Visual Studio generator on Windows.",
+      "description": "Configure using Visual Studio generator on Windows. Builds all available backends.",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "hidden": true,
+      "binaryDir": "${sourceDir}/build/windows",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -20,202 +20,59 @@
       }
     },
     {
-      "name": "windows-simplelogger",
-      "inherits": "windows",
-      "displayName": "Windows - SimpleLogger",
-      "binaryDir": "${sourceDir}/build/windows-simplelogger",
-      "cacheVariables": {
-        "USE_SIMPLELOGGER": "ON"
-      }
-    },
-    {
-      "name": "windows-log4cxx",
-      "inherits": "windows",
-      "displayName": "Windows - Log4Cxx",
-      "binaryDir": "${sourceDir}/build/windows-log4cxx",
-      "cacheVariables": {
-        "USE_LOG4CXX": "ON"
-      }
-    },
-    {
-      "name": "windows-spdlog",
-      "inherits": "windows",
-      "displayName": "Windows - spdlog",
-      "binaryDir": "${sourceDir}/build/windows-spdlog",
-      "cacheVariables": {
-        "USE_SPDLOG": "ON"
-      }
-    },
-    {
       "name": "linux",
       "displayName": "Linux - Ninja Multi-Config",
-      "description": "Configure using Ninja Multi-Config generator on Linux.",
+      "description": "Configure using Ninja Multi-Config generator on Linux. Builds all available backends.",
       "generator": "Ninja Multi-Config",
-      "hidden": true,
+      "binaryDir": "${sourceDir}/build/linux",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       }
-    },
-    {
-      "name": "linux-simplelogger",
-      "inherits": "linux",
-      "displayName": "Linux - SimpleLogger",
-      "binaryDir": "${sourceDir}/build/linux-simplelogger",
-      "cacheVariables": {
-        "USE_SIMPLELOGGER": "ON"
-      }
-    },
-    {
-      "name": "linux-log4cxx",
-      "inherits": "linux",
-      "displayName": "Linux - Log4Cxx",
-      "binaryDir": "${sourceDir}/build/linux-log4cxx",
-      "cacheVariables": {
-        "USE_LOG4CXX": "ON"
-      }
-    },
-    {
-      "name": "linux-spdlog",
-      "inherits": "linux",
-      "displayName": "Linux - spdlog",
-      "binaryDir": "${sourceDir}/build/linux-spdlog",
-      "cacheVariables": {
-        "USE_SPDLOG": "ON"
-      }
     }
   ],
   "buildPresets": [
     {
-      "name": "windows-simplelogger-release",
-      "configurePreset": "windows-simplelogger",
-      "description": "Build SimpleLogger using Visual Studio Release configuration.",
-      "hidden": false,
+      "name": "windows-release",
+      "configurePreset": "windows",
+      "description": "Build all backends using Visual Studio Release configuration.",
       "configuration": "Release"
     },
     {
-      "name": "windows-simplelogger-debug",
-      "configurePreset": "windows-simplelogger",
-      "description": "Build SimpleLogger using Visual Studio Debug configuration.",
-      "hidden": false,
+      "name": "windows-debug",
+      "configurePreset": "windows",
+      "description": "Build all backends using Visual Studio Debug configuration.",
       "configuration": "Debug"
     },
     {
-      "name": "windows-log4cxx-debug",
-      "configurePreset": "windows-log4cxx",
-      "description": "Build Log4Cxx using Visual Studio Debug configuration.",
-      "hidden": false,
-      "configuration": "Debug"
-    },
-    {
-      "name": "windows-log4cxx-release",
-      "configurePreset": "windows-log4cxx",
-      "description": "Build Log4Cxx using Visual Studio Release configuration.",
-      "hidden": false,
+      "name": "linux-release",
+      "configurePreset": "linux",
+      "description": "Build all backends using Ninja Multi-Config Release configuration.",
       "configuration": "Release"
     },
     {
-      "name": "windows-spdlog-debug",
-      "configurePreset": "windows-spdlog",
-      "description": "Build spdlog using Visual Studio Debug configuration.",
-      "hidden": false,
-      "configuration": "Debug"
-    },
-    {
-      "name": "windows-spdlog-release",
-      "configurePreset": "windows-spdlog",
-      "description": "Build spdlog using Visual Studio Release configuration.",
-      "hidden": false,
-      "configuration": "Release"
-    },
-    {
-      "name": "linux-simplelogger-release",
-      "configurePreset": "linux-simplelogger",
-      "description": "Build SimpleLogger using Ninja Multi-Config Release configuration.",
-      "hidden": false,
-      "configuration": "Release"
-    },
-    {
-      "name": "linux-log4cxx-release",
-      "configurePreset": "linux-log4cxx",
-      "description": "Build Log4Cxx using Ninja Multi-Config Release configuration.",
-      "hidden": false,
-      "configuration": "Release"
-    },
-    {
-      "name": "linux-log4cxx-debug",
-      "configurePreset": "linux-log4cxx",
-      "description": "Build Log4Cxx using Ninja Multi-Config Debug configuration.",
-      "hidden": false,
-      "configuration": "Debug"
-    },
-    {
-      "name": "linux-spdlog-release",
-      "configurePreset": "linux-spdlog",
-      "description": "Build spdlog using Ninja Multi-Config Release configuration.",
-      "hidden": false,
-      "configuration": "Release"
-    },
-    {
-      "name": "linux-spdlog-debug",
-      "configurePreset": "linux-spdlog",
-      "description": "Build spdlog using Ninja Multi-Config Debug configuration.",
-      "hidden": false,
+      "name": "linux-debug",
+      "configurePreset": "linux",
+      "description": "Build all backends using Ninja Multi-Config Debug configuration.",
       "configuration": "Debug"
     }
   ],
   "testPresets": [
     {
-      "name": "windows-simplelogger-test",
-      "configurePreset": "windows-simplelogger",
-      "description": "Run tests for SimpleLogger on Windows after build.",
-      "hidden": false,
+      "name": "windows-test",
+      "configurePreset": "windows",
+      "description": "Run all backend tests on Windows.",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }
     },
     {
-      "name": "windows-log4cxx-test",
-      "configurePreset": "windows-log4cxx",
-      "description": "Run tests for Log4Cxx on Windows after build.",
-      "hidden": false,
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-        {
-      "name": "windows-spdlog-test",
-      "configurePreset": "windows-spdlog",
-      "description": "Run tests for spdlog on Windows after build.",
-      "hidden": false,
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "linux-simplelogger-test",
-      "configurePreset": "linux-simplelogger",
-      "description": "Run tests for SimpleLogger on Linux after build.",
-      "hidden": false,
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "linux-log4cxx-test",
-      "configurePreset": "linux-log4cxx",
-      "description": "Run tests for Log4Cxx on Linux after build.",
-      "hidden": false,
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "linux-spdlog-test",
-      "configurePreset": "linux-spdlog",
-      "description": "Run tests for spdlog on Linux after build.",
-      "hidden": false,
+      "name": "linux-test",
+      "configurePreset": "linux",
+      "description": "Run all backend tests on Linux.",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }

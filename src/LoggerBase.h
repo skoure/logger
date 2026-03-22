@@ -2,7 +2,7 @@
  * @file LoggerBase.h
  * @brief Concrete base class providing the format-and-dispatch pipeline for all backends.
  *
- * Copyright (c) 2025 Stephen Kouretas. All Rights Reserved.
+ * Copyright (c) 2026 Stephen Kouretas. All Rights Reserved.
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: March 21, 2026

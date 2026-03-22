@@ -8,7 +8,6 @@
  * @date Created: November 15, 2025
  * @date Last modified: November 15, 2025
  */
-#ifdef USE_SPDLOG
 #include <gtest/gtest.h>
 #include <SpdlogLogger.h>
 #include <stdexcept>
@@ -126,5 +125,3 @@ TEST_F(SpdlogLoggerTest, ExceptionErrorSuppressedWhenBelowLevel) {
     std::runtime_error ex("should be suppressed");
     EXPECT_NO_THROW(logger.error("suppressed", ex));
 }
-
-#endif

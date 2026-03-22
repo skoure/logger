@@ -1,33 +1,34 @@
 /**
  * @file LoggerFactoryImpl.h
  * @brief Internal implementation for LoggerFactory.
- * This allows separation of the LoggerFactory interface and the implementation details.
  *
  * Copyright (c) 2025 Stephen Kouretas. All Rights Reserved.
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 16, 2025
- * @date Last modified: November 16, 2025
- *
+ * @date Last modified: March 21, 2026
  */
 #ifndef SK_LOGGER_FACTORY_IMPL_H
 #define SK_LOGGER_FACTORY_IMPL_H
 
 #include <logger/Logger.h>
+#include <ILoggerBackend.h>
 #include <LoggerHierarchy.h>
-#include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 
 namespace sk { namespace logger {
 
 class LoggerFactoryImpl {
-
 public:
-    /**
-     * @brief Get the singleton LoggerFactory instance.
-     */
     static LoggerFactoryImpl& getInstance();
+
+    /**
+     * @brief Set the active backend. Must be called once before getLogger().
+     * @param backend Ownership transferred to the factory.
+     */
+    void setBackend(std::unique_ptr<ILoggerBackend> backend);
 
     LoggerPtr getLogger(const std::string& name);
 
@@ -35,16 +36,13 @@ private:
     LoggerFactoryImpl() = default;
     ~LoggerFactoryImpl();
 
-    std::mutex m_factoryLock;
-    LoggerHierarchy m_hierarchy;
+    std::mutex                      m_factoryLock;
+    LoggerHierarchy                 m_hierarchy;
+    std::unique_ptr<ILoggerBackend> m_backend;
 
-    static LoggerPtr createLogger(const std::string& name);
-
-    bool applyParentSinks(LoggerPtr childLogger, LoggerPtr parentLogger);
     bool applyParentConfiguration(LoggerPtr childLogger, LoggerPtr parentLogger);
-
 };
 
-}} // namespace
+}} // namespace sk::logger
 
 #endif // SK_LOGGER_FACTORY_IMPL_H

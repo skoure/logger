@@ -8,8 +8,6 @@
  * @date Created: November 08, 2025
  * @date Last modified: November 08, 2025
  */
-#ifdef USE_LOG4CXX
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <log4cxx/appenderskeleton.h>
@@ -105,5 +103,3 @@ TEST(Log4CxxLoggerTest, ExceptionFatalOutputsContextAndMessage) {
     EXPECT_THAT(output, ::testing::HasSubstr("unrecoverable error"));
     EXPECT_THAT(output, ::testing::HasSubstr("critical system failure"));
 }
-
-#endif

@@ -21,8 +21,11 @@ It is ideal for projects that require flexibility, cross-platform support, and r
 using namespace sk::logger;
 
 int main() {
+  // No backend initialization needed — the backend auto-registers
+  // when you link to logger_simple_auto, logger_spdlog_auto, or logger_log4cxx_auto
+
   // Obtain a logger instance by name
-  LoggerPtr logger = LoggerFactory::getInstance().getLogger("TestLogger");
+  LoggerPtr logger = LoggerFactory::getInstance().getLogger("App.Database");
 
   // Set log level
   logger->setLevel(Logger::Level::Info);
@@ -43,113 +46,109 @@ int main() {
   return 0;
 }
 ```
+
+## How to Link
+
+The build produces an auto-registering wrapper target for each backend. Link exactly one:
+
+| Backend      | CMake target           |
+|--------------|------------------------|
+| SimpleLogger | `logger_simple_auto`   |
+| spdlog       | `logger_spdlog_auto`   |
+| Log4cxx      | `logger_log4cxx_auto`  |
+
+The `_auto` target carries `logger_core` as a transitive dependency — no need to list it separately.
+
+CMake example:
+```cmake
+find_package(logger REQUIRED)
+target_link_libraries(my_app PRIVATE logger_spdlog_auto)
+```
+
 ## Build Instructions
 
 ### 1. Install Conan (v2)
 
-- On Windows or Linux, use pip:
-  ```sh
-  pip install conan
-  ```
-- Or see the official docs: https://docs.conan.io/2/installation.html
-
+```sh
+pip install conan
+```
+Or see the official docs: https://docs.conan.io/2/installation.html
 
 ### 2. Install dependencies with Conan
 
-From the project root, you can select which logger implementation to enable using Conan options:
+A single Conan install fetches all backend dependencies (spdlog, log4cxx, gtest) at once.
 
-
-**Available options:**
-- `with_log4cxx` (default: False)
-- `with_spdlog` (default: False)
+**Available option:**
 - `with_cpptrace` (default: True) — enables exception stacktrace capture via [cpptrace](https://github.com/jeremy-rifkin/cpptrace)
 
-**Example commands:**
+**Linux:**
+```sh
+conan install ./conan/conanfile.py --output-folder=build/conan --build=missing \
+    --profile:all=./conan/profile/linux -s:a build_type=Release
+```
 
-- Enable Log4cxx implementation:
-  ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_log4cxx=True"
-  ```
+**Windows:**
+```sh
+conan install ./conan/conanfile.py --output-folder=build/conan --build=missing \
+    --profile:all=./conan/profile/windows -s:a build_type=Release
+```
 
-- Enable spdlog implementation:
-  ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_spdlog=True"
-  ```
-
-- Disable cpptrace (omits stacktrace from exception logging):
-  ```sh
-  conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_cpptrace=False"
-  ```
-
-
-Replace `--profile:all=./conan/profile/linux` with `--profile:all=./conan/profile/windows` for Windows builds.
+**Disable cpptrace** (omits stacktrace from exception logging):
+```sh
+conan install ./conan/conanfile.py --output-folder=build/conan --build=missing \
+    --profile:all=./conan/profile/linux -s:a build_type=Release -o="&:with_cpptrace=False"
+```
 
 **Note for Linux debug builds:**
-If your application or tests are built with `_GLIBCXX_DEBUG` (common for debug builds with GCC), you must also build all Conan dependencies with this define to avoid ABI incompatibility and runtime errors. Run Conan with:
-
+If your application or tests are built with `_GLIBCXX_DEBUG`, run Conan with:
+```sh
+conan install ./conan/conanfile.py --output-folder=build/conan --build=missing \
+    --profile:all=./conan/profile/linux -s:a build_type=Debug \
+    -c tools.build:defines=["_GLIBCXX_DEBUG"]
 ```
-conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Debug -c tools.build:defines=["_GLIBCXX_DEBUG"] -o with_log4cxx=True
-```
-
-This ensures consistent debug settings across your project and its dependencies.
 
 **Note for stacktrace support (cpptrace):**
-Stacktrace frame names are only meaningful when the binary is compiled with debug symbols. Use `Debug` or `RelWithDebInfo` build types. In a pure `Release` build, frame addresses will appear but function names will show as `??`.
+Stacktrace frame names are only meaningful with debug symbols. Use `Debug` or `RelWithDebInfo`.
 
+### 3. Configure, build, and test with CMake
+
+All available backends are built automatically based on what Conan installed.
+
+**Linux:**
 ```sh
-conan install ./conan/conanfile.py --output-folder=build/conan --build=missing --profile:all=./conan/profile/linux -s:a build_type=Debug -o="&:with_spdlog=True" -o="&:with_cpptrace=True"
+cmake --preset linux
+cmake --build --preset linux-release
+ctest --preset linux-test
 ```
 
+**Windows:**
+```sh
+cmake --preset windows
+cmake --build --preset windows-release
+ctest --preset windows-test
+```
 
-### 3. Configure build and run tests with CMake
+This produces up to three library artifacts:
+- `build/linux/Release/liblogger_simple.a`
+- `build/linux/Release/liblogger_spdlog.a`
+- `build/linux/Release/liblogger_log4cxx.a`
 
-Use the provided CMakePresets to select the logger implementation and platform:
-
-- **Windows (SimpleLogger):**
-  ```sh
-  cmake --preset windows-simplelogger
-  cmake --build --preset windows-simplelogger-release
-  ctest --preset windows-simplelogger-test
-  ```
-
-- **Windows (Log4Cxx):**
-  ```sh
-  cmake --preset windows-log4cxx
-  cmake --build --preset windows-log4cxx-release
-  ctest --preset windows-log4cxx-test
-  ```
-
-- **Linux (SimpleLogger):**
-  ```sh
-  cmake --preset linux-simplelogger
-  cmake --build --preset linux-simplelogger-release
-  ctest --preset simplelogger-log4cxx-test
-  ```
-
-- **Linux (Log4Cxx):**
-  ```sh
-  cmake --preset linux-log4cxx
-  cmake --build --preset linux-log4cxx-release
-  ctest --preset linux-log4cxx-test
-  ```
-
-  - **Linux (spdlog):**
-  ```sh
-  cmake --preset linux-spdlog
-  cmake --build --preset linux-spdlog-release
-  ctest --preset linux-spdlog-test
-  ```
+And runs three separate test executables:
+- `logger_tests_simple`
+- `logger_tests_spdlog`
+- `logger_tests_log4cxx`
 
 ### 4. Generate documentation
-- **Linux**
-  ```sh
-  cmake --build ./build/linux --target doc
-  ``` 
 
-- **Windows**
-  ```sh
-  cmake --build ./build/windows --target doc
-  ``` 
+**Linux:**
+```sh
+cmake --build ./build/linux --target doc
+```
+
+**Windows:**
+```sh
+cmake --build ./build/windows --target doc
+```
 
 ---
-For more details, see the CMakePresets.json and conanfile.py files.
+For more details, see the [CMakePresets.json](CMakePresets.json) and [conan/conanfile.py](conan/conanfile.py) files.
