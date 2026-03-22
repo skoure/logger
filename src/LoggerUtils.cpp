@@ -2,7 +2,7 @@
  * @file LoggerUtils.cpp
  * @brief Internal utility functions for logger implementations.
  *
- * Copyright (c) 2025 Stephen Kouretas. All Rights Reserved.
+ * Copyright (c) 2026 Stephen Kouretas. All Rights Reserved.
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: March 20, 2026

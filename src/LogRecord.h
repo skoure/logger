@@ -2,7 +2,7 @@
  * @file LogRecord.h
  * @brief Captures all metadata for a single log event.
  *
- * Copyright (c) 2025 Stephen Kouretas. All Rights Reserved.
+ * Copyright (c) 2026 Stephen Kouretas. All Rights Reserved.
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: March 21, 2026
