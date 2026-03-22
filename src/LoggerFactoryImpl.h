@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 16, 2025
- * @date Last modified: March 21, 2026
  */
 #ifndef SK_LOGGER_FACTORY_IMPL_H
 #define SK_LOGGER_FACTORY_IMPL_H
@@ -40,7 +39,6 @@ private:
     LoggerHierarchy                 m_hierarchy;
     std::unique_ptr<ILoggerBackend> m_backend;
 
-    bool applyParentConfiguration(LoggerPtr childLogger, LoggerPtr parentLogger);
 };
 
 }} // namespace sk::logger

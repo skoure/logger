@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: November 08, 2025
  */
 #ifndef SK_LOGGER_H
 #define SK_LOGGER_H
@@ -51,16 +50,38 @@ public:
     virtual const std::string getName() = 0;
 
     /**
-     * @brief Returns the current logging level for this logger.
-     * @return Current log level.
+     * @brief Returns the effective logging level for this logger.
+     *
+     * If no level has been explicitly set on this logger the level is
+     * inherited by walking up the parent chain. The root logger always
+     * has an explicit level, so this method always returns a valid value.
+     *
+     * @return Current effective log level.
      */
-    virtual Level getLevel() = 0;
+    virtual Level getLevel() const = 0;
 
     /**
-     * @brief Sets the logging level for this logger.
+     * @brief Explicitly sets the logging level for this logger.
+     *
+     * Marks this logger with an explicit level. Does not affect children.
+     *
      * @param level New log level to set.
      */
     virtual void setLevel(Level level) = 0;
+
+    /**
+     * @brief Reverts this logger to inherited level behaviour.
+     *
+     * After calling clearLevel(), getLevel() will walk up to the nearest
+     * ancestor with an explicitly-set level.
+     */
+    virtual void clearLevel() = 0;
+
+    /**
+     * @brief Returns true if setLevel() has been called on this logger.
+     * @return True if the level was explicitly set; false if inherited.
+     */
+    virtual bool isLevelExplicitlySet() const = 0;
 
     /**
      * @brief Checks if FATAL level logging is enabled.

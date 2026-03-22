@@ -1,6 +1,6 @@
 /**
  * @file LoggerBase.h
- * @brief Concrete base class providing the format-and-dispatch pipeline for all backends.
+ * @brief Concrete base class providing level management and the format-and-dispatch pipeline.
  *
  * Copyright (c) 2026 Stephen Kouretas. All Rights Reserved.
  *
@@ -12,26 +12,49 @@
 
 #include <logger/Logger.h>
 #include <LogRecord.h>
+#include <memory>
 #include <stdarg.h>
 
 namespace sk { namespace logger {
 
 /**
  * @class LoggerBase
- * @brief Implements all public Logger log methods in terms of a single append() hook.
+ * @brief Implements level management and all public Logger log methods in terms of a single append() hook.
  *
- * Subclasses (SimpleLogger, SpdlogLogger, Log4CxxLogger) only need to implement:
- *   - getName(), getLevel(), setLevel()
- *   - isXxxEnabled() — six level-check methods
+ * Provides:
+ *   - Hierarchical level inheritance: getLevel() walks up the parent chain if no explicit
+ *     level has been set on this logger. setLevel() / clearLevel() manage the explicit marker.
+ *   - Additivity flag.
+ *   - All isXxxEnabled() checks via getLevel().
+ *   - printf-style message formatting and LogRecord dispatch for all log methods.
+ *
+ * Subclasses only need to implement:
+ *   - getName()
  *   - append(const LogRecord&) — the backend write operation
  *
- * This base class handles va_list capture, dynamic message formatting (no fixed
- * buffer limit), LogRecord construction, and exception formatting — once, in one
- * place, for all backends.
+ * Backends that manage level natively (e.g. Log4CxxLogger) override getLevel(),
+ * setLevel(), clearLevel(), and isLevelExplicitlySet() to delegate to their own
+ * internal state, and override onLevelChanged() is NOT needed for those.
  */
 class LoggerBase : public Logger
 {
 public:
+    // --- Level management (Logger overrides) ---
+
+    Level getLevel() const override;
+    void  setLevel(Level level) override;
+    void  clearLevel() override;
+    bool  isLevelExplicitlySet() const override;
+
+    // --- Level checks (Logger overrides) ---
+
+    bool isFatalEnabled() const override;
+    bool isErrorEnabled() const override;
+    bool isWarnEnabled()  const override;
+    bool isInfoEnabled()  const override;
+    bool isDebugEnabled() const override;
+    bool isTraceEnabled() const override;
+
     // --- Concrete implementations of Logger's pure virtual log methods ---
 
     void fatal(const char* fmt, ...) override;
@@ -51,6 +74,16 @@ public:
      */
     static const char* levelToString(Level level);
 
+    /**
+     * @brief Sets the parent logger used for level inheritance.
+     *
+     * Called once by LoggerFactoryImpl when the logger is registered.
+     * The parent is held as a weak_ptr to avoid ownership cycles.
+     *
+     * @param parent Weak reference to the parent logger.
+     */
+    void setParent(const std::weak_ptr<Logger>& parent);
+
 protected:
     /**
      * @brief Delivers a fully-formed LogRecord to the backend.
@@ -63,7 +96,21 @@ protected:
      */
     virtual void append(const LogRecord& record) = 0;
 
+    /**
+     * @brief Called after setLevel() stores a new explicit level.
+     *
+     * Override in backends (e.g. SpdlogLogger) to sync their internal
+     * level state. The default implementation is a no-op.
+     *
+     * @param level The newly set level.
+     */
+    virtual void onLevelChanged(Level /*level*/) {}
+
 private:
+    Level                 m_level              = Level::Info;
+    bool                  m_levelExplicitlySet = false;
+    std::weak_ptr<Logger> m_parent;
+
     /**
      * @brief Formats the message, builds a LogRecord, and calls append().
      * @param level Severity level for this event.

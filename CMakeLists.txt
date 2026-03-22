@@ -149,7 +149,7 @@ if(PROJECT_IS_TOP_LEVEL)
             test/SimpleLoggerBackendTest.cpp
         )
         target_link_libraries(logger_tests_simple PRIVATE logger_simple_auto GTest::gtest_main)
-        gtest_discover_tests(logger_tests_simple)
+        gtest_discover_tests(logger_tests_simple TEST_PREFIX "simple.")
 
         # spdlog tests
         if(TARGET logger_spdlog)
@@ -159,7 +159,7 @@ if(PROJECT_IS_TOP_LEVEL)
                 test/SpdlogBackendTest.cpp
             )
             target_link_libraries(logger_tests_spdlog PRIVATE logger_spdlog_auto GTest::gtest_main)
-            gtest_discover_tests(logger_tests_spdlog)
+            gtest_discover_tests(logger_tests_spdlog TEST_PREFIX "spdlog.")
         endif()
 
         # Log4cxx tests
@@ -170,7 +170,7 @@ if(PROJECT_IS_TOP_LEVEL)
                 test/Log4CxxBackendTest.cpp
             )
             target_link_libraries(logger_tests_log4cxx PRIVATE logger_log4cxx_auto GTest::gtest_main)
-            gtest_discover_tests(logger_tests_log4cxx)
+            gtest_discover_tests(logger_tests_log4cxx TEST_PREFIX "log4cxx.")
         endif()
 
     else()

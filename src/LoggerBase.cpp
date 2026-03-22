@@ -40,7 +40,49 @@ static std::string formatMessage(const char* fmt, va_list args)
 }
 
 // ---------------------------------------------------------------------------
-// LoggerBase
+// LoggerBase — level / additivity management
+// ---------------------------------------------------------------------------
+
+Logger::Level LoggerBase::getLevel() const
+{
+    if (m_levelExplicitlySet)
+        return m_level;
+    auto parent = m_parent.lock();
+    return parent ? parent->getLevel() : Level::Info;
+}
+
+void LoggerBase::setLevel(Level level)
+{
+    m_level              = level;
+    m_levelExplicitlySet = true;
+    onLevelChanged(level);
+}
+
+void LoggerBase::clearLevel()
+{
+    m_levelExplicitlySet = false;
+}
+
+bool LoggerBase::isLevelExplicitlySet() const
+{
+    return m_levelExplicitlySet;
+}
+
+
+void LoggerBase::setParent(const std::weak_ptr<Logger>& parent)
+{
+    m_parent = parent;
+}
+
+bool LoggerBase::isFatalEnabled() const { return getLevel() >= Level::Fatal; }
+bool LoggerBase::isErrorEnabled() const { return getLevel() >= Level::Error; }
+bool LoggerBase::isWarnEnabled()  const { return getLevel() >= Level::Warn;  }
+bool LoggerBase::isInfoEnabled()  const { return getLevel() >= Level::Info;  }
+bool LoggerBase::isDebugEnabled() const { return getLevel() >= Level::Debug; }
+bool LoggerBase::isTraceEnabled() const { return getLevel() >= Level::Trace; }
+
+// ---------------------------------------------------------------------------
+// LoggerBase — static helpers
 // ---------------------------------------------------------------------------
 
 const char* LoggerBase::levelToString(Level level)

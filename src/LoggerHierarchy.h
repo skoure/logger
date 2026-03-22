@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 16, 2025
- * @date Last modified: November 16, 2025
  */
 #ifndef SK_LOGGER_HIERARCHY_H
 #define SK_LOGGER_HIERARCHY_H
@@ -25,10 +24,10 @@ namespace sk { namespace logger {
  * @brief Manages hierarchical relationships between loggers.
  *
  * Provides parent-child logger relationships where:
- * - Child loggers inherit configuration from parent loggers
  * - Logger names are dot-separated (e.g., "App.Database.SQL")
  * - "root" is the top-level logger
- * - Additivity flag controls whether messages propagate to parents
+ * - Level inheritance is handled dynamically by the loggers themselves
+ *   (see LoggerBase::getLevel() which walks the parent chain)
  *
  * Example hierarchy:
  *   root
@@ -40,42 +39,37 @@ namespace sk { namespace logger {
  */
 class LoggerHierarchy {
 public:
-    /**
-     * @struct LoggerNodeData
-     * @brief Data stored in each node of the logger hierarchy.
-     */
-    struct LoggerNodeData {
-        std::string name;        // Full logger name
-        LoggerPtr logger;        // The logger instance
-        bool additivity = true;  // Whether to propagate to parent
-    };
-
-    typedef sk::common::containers::HierarchicalNode<LoggerNodeData> LoggerNode;
-    typedef std::shared_ptr<LoggerNode> LoggerNodePtr;
+    typedef sk::common::containers::HierarchicalNode<LoggerPtr> LoggerNode;
+    typedef std::shared_ptr<LoggerNode>                         LoggerNodePtr;
 
     LoggerHierarchy();
     virtual ~LoggerHierarchy() = default;
 
     /**
      * @brief Add a logger to the hierarchy.
-     * @param name Logger name (e.g., "App.Database")
+     *
+     * Missing intermediate ancestor nodes are created automatically.
+     *
+     * @param name   Logger name (e.g., "App.Database")
      * @param logger The logger instance
-     * @param additivity Whether this logger propagates to parent (default: true)
-     * @return Pointer to the created or updated node
      */
-    LoggerNodePtr addLogger(const std::string& name, LoggerPtr logger, bool additivity = true);
+    void addLogger(const std::string& name, LoggerPtr logger);
 
     /**
      * @brief Get a logger by name from the hierarchy.
      * @param name Logger name (e.g., "App.Database")
-     * @return Logger instance or nullptr if not found
+     * @return Logger instance or nullptr if not found or is an intermediate node
      */
     LoggerPtr getLogger(const std::string& name) const;
 
     /**
-     * @brief Get a logger node by name from the hierarchy.
+     * @brief Get the hierarchy node for a given name.
+     *
+     * Unlike getLogger(), this returns a non-null pointer for intermediate nodes
+     * (nodes that exist in the tree structure but have no logger assigned yet).
+     *
      * @param name Logger name (e.g., "App.Database")
-     * @return LoggerNode pointer or nullptr if not found
+     * @return Node pointer or nullptr if no such node exists
      */
     LoggerNodePtr getLoggerNode(const std::string& name) const;
 
@@ -87,37 +81,15 @@ public:
     LoggerPtr getParent(const std::string& name) const;
 
     /**
-     * @brief Get the parent logger node.
-     * @param name Logger name (e.g., "App.Database")
-     * @return Parent node pointer or nullptr if not found or is root
-     */
-    LoggerNodePtr getParentNode(const std::string& name) const;
-
-    /**
      * @brief Get children of a logger.
      * @param name Logger name (e.g., "App.Database")
-     * @return Vector of child loggers
+     * @return Vector of child loggers (excludes intermediate nodes with no logger)
      */
     std::vector<LoggerPtr> getChildren(const std::string& name) const;
 
     /**
-     * @brief Set the additivity flag for a logger.
-     * @param name Logger name
-     * @param additivity Whether to propagate to parent
-     */
-    void setAdditivity(const std::string& name, bool additivity);
-
-    /**
-     * @brief Check if a logger has additivity enabled.
-     * @param name Logger name
-     * @return True if additivity is enabled, false otherwise
-     */
-    bool hasAdditivity(const std::string& name) const;
-
-
-    /**
      * @brief Get root logger.
-     * @return Root logger instance or nullptr if not set
+     * @return Root logger instance or nullptr if not yet set
      */
     LoggerPtr getRoot() const;
 
@@ -134,21 +106,15 @@ public:
 
 private:
     /**
-     * @brief Split a logger name into parts.
-     * Examples: "App.Database.SQL" -> ["App", "Database", "SQL"]
-     *           "root" -> ["root"]
-     */
-    static std::vector<std::string> splitLoggerName(const std::string& name);
-
-    /**
-     * @brief Get the parent path of a logger.
+     * @brief Get the parent path of a logger name.
      * Examples: "App.Database.SQL" -> "App.Database"
-     *           "App" -> "root"
+     *           "App"              -> "root"
+     *           "root"             -> "root"
      */
     static std::string getParentPath(const std::string& name);
 
     /**
-     * @brief Create missing parent nodes in the hierarchy.
+     * @brief Ensure all ancestor nodes exist in the hierarchy.
      * @param path Logger path (e.g., "App.Database.SQL")
      */
     void createParents(const std::string& path);
@@ -156,7 +122,7 @@ private:
     // Root node of the hierarchy
     LoggerNodePtr root_;
 
-    // Map of all loggers by name for quick lookup
+    // Map of all nodes by logger name for O(1) lookup
     std::map<std::string, LoggerNodePtr> loggerMap_;
 };
 

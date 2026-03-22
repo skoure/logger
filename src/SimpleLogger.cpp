@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 21, 2026
  */
 #include <SimpleLogger.h>
 #include <iostream>
@@ -15,8 +14,7 @@ using namespace sk::logger;
 using namespace std;
 
 SimpleLogger::SimpleLogger(std::string name)
-    : m_level(Level::Info),
-      m_name(std::move(name))
+    : m_name(std::move(name))
 {
 }
 

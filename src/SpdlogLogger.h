@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 15, 2025
- * @date Last modified: March 21, 2026
  */
 #ifndef SK_SPDLOG_LOGGER_H
 #define SK_SPDLOG_LOGGER_H
@@ -35,28 +34,17 @@ public:
 
     const std::string getName() { return m_name; }
 
-    Level getLevel();
-    void  setLevel(Level level);
-
-    bool isFatalEnabled() const;
-    bool isErrorEnabled() const;
-    bool isWarnEnabled()  const;
-    bool isInfoEnabled()  const;
-    bool isDebugEnabled() const;
-    bool isTraceEnabled() const;
-
     std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
 
 protected:
     void append(const LogRecord& record) override;
+    void onLevelChanged(Level level) override;
 
 private:
     std::shared_ptr<spdlog::logger> m_pLogger;
     std::string                     m_name;
-    Level                           m_level;
 
     static spdlog::level::level_enum toSpdlogLevel(Level level);
-    static Level fromSpdlogLevel(spdlog::level::level_enum level);
 };
 
 }} // namespace sk::logger

@@ -27,7 +27,7 @@ protected:
 // Test hierarchy creation
 TEST_F(LoggerHierarchyTest, CreateRootLogger) {
     auto logger = LoggerFactory::getInstance().getLogger("root");
-    hierarchy.addLogger("root", logger, true);
+    hierarchy.addLogger("root", logger);
 
     EXPECT_EQ(hierarchy.getRoot(), logger);
     EXPECT_EQ(hierarchy.getLogger("root"), logger);
@@ -39,9 +39,9 @@ TEST_F(LoggerHierarchyTest, AddLoggersToHierarchy) {
     auto app = LoggerFactory::getInstance().getLogger("App");
     auto db = LoggerFactory::getInstance().getLogger("App.Database");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("App", app, true);
-    hierarchy.addLogger("App.Database", db, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("App", app);
+    hierarchy.addLogger("App.Database", db);
 
     EXPECT_EQ(hierarchy.getLogger("root"), root);
     EXPECT_EQ(hierarchy.getLogger("App"), app);
@@ -54,9 +54,9 @@ TEST_F(LoggerHierarchyTest, ParentChildRelationships) {
     auto app = LoggerFactory::getInstance().getLogger("App");
     auto db = LoggerFactory::getInstance().getLogger("App.Database");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("App", app, true);
-    hierarchy.addLogger("App.Database", db, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("App", app);
+    hierarchy.addLogger("App.Database", db);
 
     // Check parent relationships
     EXPECT_EQ(hierarchy.getParent("App"), root);
@@ -71,10 +71,10 @@ TEST_F(LoggerHierarchyTest, GetChildren) {
     auto db = LoggerFactory::getInstance().getLogger("App.Database");
     auto sql = LoggerFactory::getInstance().getLogger("App.Database.SQL");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("App", app, true);
-    hierarchy.addLogger("App.Database", db, true);
-    hierarchy.addLogger("App.Database.SQL", sql, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("App", app);
+    hierarchy.addLogger("App.Database", db);
+    hierarchy.addLogger("App.Database.SQL", sql);
 
     // Root should have App as child
     auto rootChildren = hierarchy.getChildren("root");
@@ -92,19 +92,6 @@ TEST_F(LoggerHierarchyTest, GetChildren) {
     EXPECT_EQ(dbChildren[0], sql);
 }
 
-// Test additivity flag
-TEST_F(LoggerHierarchyTest, AdditivityFlag) {
-    auto app = LoggerFactory::getInstance().getLogger("App");
-    
-    hierarchy.addLogger("App", app, true);
-    EXPECT_TRUE(hierarchy.hasAdditivity("App"));
-
-    hierarchy.setAdditivity("App", false);
-    EXPECT_FALSE(hierarchy.hasAdditivity("App"));
-
-    hierarchy.setAdditivity("App", true);
-    EXPECT_TRUE(hierarchy.hasAdditivity("App"));
-}
 
 // Test deep hierarchy
 TEST_F(LoggerHierarchyTest, DeepHierarchy) {
@@ -114,11 +101,11 @@ TEST_F(LoggerHierarchyTest, DeepHierarchy) {
     auto level3 = LoggerFactory::getInstance().getLogger("L1.L2.L3");
     auto level4 = LoggerFactory::getInstance().getLogger("L1.L2.L3.L4");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("L1", level1, true);
-    hierarchy.addLogger("L1.L2", level2, true);
-    hierarchy.addLogger("L1.L2.L3", level3, true);
-    hierarchy.addLogger("L1.L2.L3.L4", level4, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("L1", level1);
+    hierarchy.addLogger("L1.L2", level2);
+    hierarchy.addLogger("L1.L2.L3", level3);
+    hierarchy.addLogger("L1.L2.L3.L4", level4);
 
     // Check logger count
     EXPECT_EQ(hierarchy.getLoggerCount(), 5);
@@ -135,8 +122,8 @@ TEST_F(LoggerHierarchyTest, AutomaticParentCreation) {
     auto root = LoggerFactory::getInstance().getLogger("root");
     auto sql = LoggerFactory::getInstance().getLogger("App.Database.SQL");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("App.Database.SQL", sql, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("App.Database.SQL", sql);
 
     // Intermediate nodes should be created
     EXPECT_TRUE(hierarchy.getLoggerNode("App") != nullptr);
@@ -151,8 +138,8 @@ TEST_F(LoggerHierarchyTest, ClearHierarchy) {
     auto root = LoggerFactory::getInstance().getLogger("root");
     auto app = LoggerFactory::getInstance().getLogger("App");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("App", app, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("App", app);
 
     EXPECT_EQ(hierarchy.getLoggerCount(), 2);
 
@@ -169,10 +156,10 @@ TEST_F(LoggerHierarchyTest, MultipleSiblings) {
     auto system = LoggerFactory::getInstance().getLogger("System");
     auto network = LoggerFactory::getInstance().getLogger("Network");
 
-    hierarchy.addLogger("root", root, true);
-    hierarchy.addLogger("App", app, true);
-    hierarchy.addLogger("System", system, true);
-    hierarchy.addLogger("Network", network, true);
+    hierarchy.addLogger("root", root);
+    hierarchy.addLogger("App", app);
+    hierarchy.addLogger("System", system);
+    hierarchy.addLogger("Network", network);
 
     auto rootChildren = hierarchy.getChildren("root");
     EXPECT_EQ(rootChildren.size(), 3);
@@ -184,16 +171,75 @@ TEST_F(LoggerHierarchyTest, HierarchicalConfiguration) {
     auto rootLogger = LoggerFactory::getLogger("root");
     auto appLogger = LoggerFactory::getLogger("App");
     auto dbLogger = LoggerFactory::getLogger("App.Database");
-    
+
     EXPECT_NE(rootLogger, nullptr);
     EXPECT_NE(appLogger, nullptr);
     EXPECT_NE(dbLogger, nullptr);
-    
+
     // Verify subsequent calls return the same instances
     auto rootLogger2 = LoggerFactory::getLogger("root");
     auto appLogger2 = LoggerFactory::getLogger("App");
-    
+
     EXPECT_EQ(rootLogger, rootLogger2);
     EXPECT_EQ(appLogger, appLogger2);
+}
+
+// ---------------------------------------------------------------------------
+// Level inheritance tests — run against every backend via the shared file
+// ---------------------------------------------------------------------------
+
+TEST_F(LoggerHierarchyTest, ChildInheritsParentLevel) {
+    auto parent = LoggerFactory::getLogger("LvlApp");
+    auto child  = LoggerFactory::getLogger("LvlApp.Module");
+
+    parent->setLevel(Logger::Level::Warn);
+
+    EXPECT_FALSE(child->isLevelExplicitlySet());
+    EXPECT_EQ(child->getLevel(), Logger::Level::Warn);
+}
+
+TEST_F(LoggerHierarchyTest, GrandchildInheritsTransitively) {
+    auto root   = LoggerFactory::getLogger("LvlApp2");
+    auto middle = LoggerFactory::getLogger("LvlApp2.Sub");
+    auto leaf   = LoggerFactory::getLogger("LvlApp2.Sub.Deep");
+
+    root->setLevel(Logger::Level::Error);
+
+    EXPECT_EQ(middle->getLevel(), Logger::Level::Error);
+    EXPECT_EQ(leaf->getLevel(),   Logger::Level::Error);
+}
+
+TEST_F(LoggerHierarchyTest, ExplicitChildNotAffectedByParentChange) {
+    auto parent = LoggerFactory::getLogger("LvlApp3");
+    auto child  = LoggerFactory::getLogger("LvlApp3.Module");
+
+    child->setLevel(Logger::Level::Debug);
+    parent->setLevel(Logger::Level::Error);
+
+    EXPECT_EQ(child->getLevel(), Logger::Level::Debug);
+    EXPECT_TRUE(child->isLevelExplicitlySet());
+}
+
+TEST_F(LoggerHierarchyTest, ClearLevelRevertsToParentInheritance) {
+    auto parent = LoggerFactory::getLogger("LvlApp4");
+    auto child  = LoggerFactory::getLogger("LvlApp4.Module");
+
+    parent->setLevel(Logger::Level::Error);
+    child->setLevel(Logger::Level::Debug);
+    child->clearLevel();
+
+    EXPECT_FALSE(child->isLevelExplicitlySet());
+    EXPECT_EQ(child->getLevel(), Logger::Level::Error);
+}
+
+TEST_F(LoggerHierarchyTest, IntermediateExplicitLevelBlocksGrandparent) {
+    auto root   = LoggerFactory::getLogger("LvlApp5");
+    auto middle = LoggerFactory::getLogger("LvlApp5.Sub");
+    auto leaf   = LoggerFactory::getLogger("LvlApp5.Sub.Deep");
+
+    root->setLevel(Logger::Level::Error);
+    middle->setLevel(Logger::Level::Debug);
+
+    EXPECT_EQ(leaf->getLevel(), Logger::Level::Debug);
 }
 

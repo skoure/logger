@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 21, 2026
  */
 #include <Log4CxxLogger.h>
 
@@ -22,9 +21,11 @@ Log4CxxLogger::~Log4CxxLogger()
 {
 }
 
-Logger::Level Log4CxxLogger::getLevel()
+Logger::Level Log4CxxLogger::getLevel() const
 {
-    log4cxx::LevelPtr levelPtr = m_pLogger->getLevel();
+    // Use getEffectiveLevel() so we always return a valid level, walking
+    // up log4cxx's native hierarchy if this logger has no explicit level.
+    log4cxx::LevelPtr levelPtr = m_pLogger->getEffectiveLevel();
     if      (levelPtr == log4cxx::Level::getFatal()) return Level::Fatal;
     else if (levelPtr == log4cxx::Level::getError()) return Level::Error;
     else if (levelPtr == log4cxx::Level::getWarn())  return Level::Warn;
@@ -45,6 +46,18 @@ void Log4CxxLogger::setLevel(Level level)
     case Level::Debug: m_pLogger->setLevel(log4cxx::Level::getDebug()); break;
     case Level::Trace: m_pLogger->setLevel(log4cxx::Level::getTrace()); break;
     }
+}
+
+void Log4CxxLogger::clearLevel()
+{
+    // Setting to null reverts to log4cxx's native hierarchy inheritance.
+    m_pLogger->setLevel(nullptr);
+}
+
+bool Log4CxxLogger::isLevelExplicitlySet() const
+{
+    // A null level pointer means the logger is inheriting from its parent.
+    return m_pLogger->getLevel() != nullptr;
 }
 
 void Log4CxxLogger::append(const LogRecord& record)

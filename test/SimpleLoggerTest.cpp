@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: November 08, 2025
  */
 #include <gtest/gtest.h>
 #include <SimpleLogger.h>
@@ -98,3 +97,38 @@ TEST_F(SimpleLoggerTest, ExceptionErrorSuppressedWhenBelowLevel) {
     logger.error("should not log", ex);
     EXPECT_EQ(buffer.str(), "");
 }
+
+// ---------------------------------------------------------------------------
+// Level management API tests
+// ---------------------------------------------------------------------------
+
+TEST_F(SimpleLoggerTest, DefaultLevelIsInfo) {
+    // Fresh logger (no explicit set) — falls back to Info
+    SimpleLogger fresh("FreshLogger");
+    EXPECT_EQ(fresh.getLevel(), Logger::Level::Info);
+    EXPECT_FALSE(fresh.isLevelExplicitlySet());
+}
+
+TEST_F(SimpleLoggerTest, SetLevelMarksExplicit) {
+    logger.setLevel(Logger::Level::Debug);
+    EXPECT_EQ(logger.getLevel(), Logger::Level::Debug);
+    EXPECT_TRUE(logger.isLevelExplicitlySet());
+}
+
+TEST_F(SimpleLoggerTest, ClearLevelRevertsToDefault) {
+    logger.setLevel(Logger::Level::Warn);
+    logger.clearLevel();
+    EXPECT_FALSE(logger.isLevelExplicitlySet());
+    EXPECT_EQ(logger.getLevel(), Logger::Level::Info);  // root fallback (no parent)
+}
+
+TEST_F(SimpleLoggerTest, IsEnabledReflectsLevel) {
+    logger.setLevel(Logger::Level::Warn);
+    EXPECT_TRUE(logger.isFatalEnabled());
+    EXPECT_TRUE(logger.isErrorEnabled());
+    EXPECT_TRUE(logger.isWarnEnabled());
+    EXPECT_FALSE(logger.isInfoEnabled());
+    EXPECT_FALSE(logger.isDebugEnabled());
+    EXPECT_FALSE(logger.isTraceEnabled());
+}
+

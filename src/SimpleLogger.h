@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 21, 2026
  */
 #ifndef SK_SIMPLELOGGER_H
 #define SK_SIMPLELOGGER_H
@@ -34,22 +33,11 @@ public:
 
     const std::string getName() { return m_name; }
 
-    Level getLevel()            { return m_level; }
-    void  setLevel(Level level) { m_level = level; }
-
-    bool isFatalEnabled() const { return (m_level >= Level::Fatal); }
-    bool isErrorEnabled() const { return (m_level >= Level::Error); }
-    bool isWarnEnabled()  const { return (m_level >= Level::Warn);  }
-    bool isInfoEnabled()  const { return (m_level >= Level::Info);  }
-    bool isDebugEnabled() const { return (m_level >= Level::Debug); }
-    bool isTraceEnabled() const { return (m_level >= Level::Trace); }
-
 protected:
     void append(const LogRecord& record) override;
 
 private:
     const std::string m_name;
-    Level             m_level;
 };
 
 }} // namespace sk::logger

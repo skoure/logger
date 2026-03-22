@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: November 08, 2025
  */
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -103,3 +102,32 @@ TEST(Log4CxxLoggerTest, ExceptionFatalOutputsContextAndMessage) {
     EXPECT_THAT(output, ::testing::HasSubstr("unrecoverable error"));
     EXPECT_THAT(output, ::testing::HasSubstr("critical system failure"));
 }
+
+// ---------------------------------------------------------------------------
+// Level management API tests
+// ---------------------------------------------------------------------------
+
+TEST(Log4CxxLoggerTest, DefaultLevelNotExplicitlySet) {
+    Log4CxxLogger fresh("Log4FreshLogger");
+    EXPECT_FALSE(fresh.isLevelExplicitlySet());
+}
+
+TEST(Log4CxxLoggerTest, SetLevelMarksExplicitAndSyncsBackend) {
+    Log4CxxLogger l("Log4SetLevelLogger");
+    l.setLevel(Logger::Level::Debug);
+    EXPECT_TRUE(l.isLevelExplicitlySet());
+    EXPECT_EQ(l.getLevel(), Logger::Level::Debug);
+    EXPECT_TRUE(l.isDebugEnabled());
+}
+
+TEST(Log4CxxLoggerTest, ClearLevelRevertsToInherited) {
+    Log4CxxLogger l("Log4ClearLevelLogger");
+    l.setLevel(Logger::Level::Warn);
+    EXPECT_TRUE(l.isLevelExplicitlySet());
+    l.clearLevel();
+    EXPECT_FALSE(l.isLevelExplicitlySet());
+    // After clearing, getLevel() returns the effective (inherited) level.
+    // log4cxx root logger defaults to DEBUG.
+    EXPECT_EQ(l.getLevel(), Logger::Level::Debug);
+}
+

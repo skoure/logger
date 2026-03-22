@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 15, 2025
- * @date Last modified: November 15, 2025
  */
 #include <gtest/gtest.h>
 #include <SpdlogLogger.h>
@@ -125,3 +124,27 @@ TEST_F(SpdlogLoggerTest, ExceptionErrorSuppressedWhenBelowLevel) {
     std::runtime_error ex("should be suppressed");
     EXPECT_NO_THROW(logger.error("suppressed", ex));
 }
+
+// ---------------------------------------------------------------------------
+// Level management API tests
+// ---------------------------------------------------------------------------
+
+TEST_F(SpdlogLoggerTest, DefaultLevelNotExplicitlySet) {
+    SpdlogLogger fresh("SpdFreshLogger");
+    EXPECT_FALSE(fresh.isLevelExplicitlySet());
+}
+
+TEST_F(SpdlogLoggerTest, SetLevelMarksExplicitAndSyncsBackend) {
+    logger.setLevel(Logger::Level::Debug);
+    EXPECT_TRUE(logger.isLevelExplicitlySet());
+    EXPECT_EQ(logger.getLevel(), Logger::Level::Debug);
+    EXPECT_TRUE(logger.isDebugEnabled());   // verifies onLevelChanged synced spdlog
+}
+
+TEST_F(SpdlogLoggerTest, ClearLevelRevertsToDefault) {
+    logger.setLevel(Logger::Level::Warn);
+    logger.clearLevel();
+    EXPECT_FALSE(logger.isLevelExplicitlySet());
+    EXPECT_EQ(logger.getLevel(), Logger::Level::Info);  // root fallback (no parent)
+}
+

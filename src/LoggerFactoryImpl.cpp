@@ -6,9 +6,9 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 21, 2026
  */
 #include <LoggerFactoryImpl.h>
+#include <LoggerBase.h>
 #include <logger/LoggerFactory.h>
 
 using namespace sk::logger;
@@ -31,18 +31,6 @@ void LoggerFactoryImpl::setBackend(std::unique_ptr<ILoggerBackend> backend)
     m_backend = std::move(backend);
 }
 
-bool LoggerFactoryImpl::applyParentConfiguration(LoggerPtr childLogger, LoggerPtr parentLogger)
-{
-    if (!childLogger || !parentLogger) return false;
-
-    childLogger->setLevel(parentLogger->getLevel());
-
-    if (m_backend) {
-        m_backend->applyParentSinks(childLogger, parentLogger);
-    }
-    return true;
-}
-
 LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);
@@ -53,15 +41,18 @@ LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
     if (!m_backend) return nullptr;
 
     LoggerPtr pLogger = m_backend->createLogger(name);
-    m_hierarchy.addLogger(name, pLogger, true);
+    m_hierarchy.addLogger(name, pLogger);
 
-    if (m_backend->supportsNativeHierarchy()) {
-        return pLogger;
-    }
-
-    auto parentLogger = m_hierarchy.getParent(name);
+    // Wire parent pointer so getLevel() can walk up the chain dynamically.
+    LoggerPtr parentLogger = m_hierarchy.getParent(name);
     if (parentLogger) {
-        applyParentConfiguration(pLogger, parentLogger);
+        auto* base = dynamic_cast<LoggerBase*>(pLogger.get());
+        if (base) base->setParent(parentLogger);
+
+        // For backends without native sink inheritance, propagate sinks.
+        if (!m_backend->supportsNativeHierarchy()) {
+            m_backend->applyParentSinks(pLogger, parentLogger);
+        }
     }
 
     return pLogger;

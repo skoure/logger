@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 15, 2025
- * @date Last modified: March 21, 2026
  */
 #include <SpdlogLogger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -14,7 +13,7 @@
 using namespace sk::logger;
 
 SpdlogLogger::SpdlogLogger(std::string name)
-    : m_name(std::move(name)), m_level(Level::Info)
+    : m_name(std::move(name))
 {
     m_pLogger = spdlog::get(m_name);
     if (!m_pLogger)
@@ -44,38 +43,10 @@ spdlog::level::level_enum SpdlogLogger::toSpdlogLevel(Level level)
     }
 }
 
-Logger::Level SpdlogLogger::fromSpdlogLevel(spdlog::level::level_enum level)
+void SpdlogLogger::onLevelChanged(Level level)
 {
-    switch (level)
-    {
-    case spdlog::level::critical: return Level::Fatal;
-    case spdlog::level::err:      return Level::Error;
-    case spdlog::level::warn:     return Level::Warn;
-    case spdlog::level::info:     return Level::Info;
-    case spdlog::level::debug:    return Level::Debug;
-    case spdlog::level::trace:    return Level::Trace;
-    default:                      return Level::Info;
-    }
-}
-
-Logger::Level SpdlogLogger::getLevel()
-{
-    m_level = fromSpdlogLevel(m_pLogger->level());
-    return m_level;
-}
-
-void SpdlogLogger::setLevel(Level level)
-{
-    m_level = level;
     m_pLogger->set_level(toSpdlogLevel(level));
 }
-
-bool SpdlogLogger::isFatalEnabled() const { return m_pLogger->should_log(spdlog::level::critical); }
-bool SpdlogLogger::isErrorEnabled() const { return m_pLogger->should_log(spdlog::level::err);      }
-bool SpdlogLogger::isWarnEnabled()  const { return m_pLogger->should_log(spdlog::level::warn);     }
-bool SpdlogLogger::isInfoEnabled()  const { return m_pLogger->should_log(spdlog::level::info);     }
-bool SpdlogLogger::isDebugEnabled() const { return m_pLogger->should_log(spdlog::level::debug);    }
-bool SpdlogLogger::isTraceEnabled() const { return m_pLogger->should_log(spdlog::level::trace);    }
 
 void SpdlogLogger::append(const LogRecord& record)
 {

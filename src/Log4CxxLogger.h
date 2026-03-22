@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 21, 2026
  */
 #ifndef SK_LOG4CXX_LOGGER_H
 #define SK_LOG4CXX_LOGGER_H
@@ -35,15 +34,21 @@ public:
 
     const std::string getName() { return m_name; }
 
-    Level getLevel();
-    void  setLevel(Level level);
+    // Log4cxx handles level inheritance natively via its dot-separated name
+    // registry.  Override all four level methods to delegate to log4cxx so
+    // that native log4cxx configuration (e.g. from a config file) is honoured.
+    Level getLevel() const override;
+    void  setLevel(Level level) override;
+    void  clearLevel() override;
+    bool  isLevelExplicitlySet() const override;
 
-    bool isFatalEnabled() const { return m_pLogger->isFatalEnabled(); }
-    bool isErrorEnabled() const { return m_pLogger->isErrorEnabled(); }
-    bool isWarnEnabled()  const { return m_pLogger->isWarnEnabled();  }
-    bool isInfoEnabled()  const { return m_pLogger->isInfoEnabled();  }
-    bool isDebugEnabled() const { return m_pLogger->isDebugEnabled(); }
-    bool isTraceEnabled() const { return m_pLogger->isTraceEnabled(); }
+    // Delegate isXxxEnabled to log4cxx's native checks.
+    bool isFatalEnabled() const override { return m_pLogger->isFatalEnabled(); }
+    bool isErrorEnabled() const override { return m_pLogger->isErrorEnabled(); }
+    bool isWarnEnabled()  const override { return m_pLogger->isWarnEnabled();  }
+    bool isInfoEnabled()  const override { return m_pLogger->isInfoEnabled();  }
+    bool isDebugEnabled() const override { return m_pLogger->isDebugEnabled(); }
+    bool isTraceEnabled() const override { return m_pLogger->isTraceEnabled(); }
 
     log4cxx::LoggerPtr getInternalLogger() const { return m_pLogger; }
 
