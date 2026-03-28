@@ -19,6 +19,8 @@ public:
     LoggerPtr createLogger(const std::string& name) override;
     void      applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
     bool      supportsNativeHierarchy() const override { return false; }
+    void      configureLogger(LoggerPtr logger,
+                              const std::vector<SinkConfig>& sinks) override;
 };
 
 /**

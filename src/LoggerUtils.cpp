@@ -18,6 +18,10 @@
 #  include <cstdlib>
 #endif
 
+#ifdef __linux__
+#  include <pthread.h>
+#endif
+
 #include <sstream>
 #include <typeinfo>
 
@@ -49,6 +53,16 @@ std::string formatException(const char* msg, const std::exception& ex)
     oss << cpptrace::generate_trace(1).to_string();
 #endif
     return oss.str();
+}
+
+std::string getCurrentThreadName()
+{
+#ifdef __linux__
+    char name[64] = {};
+    if (pthread_getname_np(pthread_self(), name, sizeof(name)) == 0)
+        return std::string(name);
+#endif
+    return {};
 }
 
 }} // namespace sk::logger

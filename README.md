@@ -47,6 +47,40 @@ int main() {
 }
 ```
 
+## Runtime Configuration
+
+The facade supports JSON-driven configuration of logger levels and output sinks.
+
+```cpp
+#include <logger/LoggerFactory.h>
+
+// Call once at startup, before retrieving any loggers
+sk::logger::LoggerFactory::configure("config/logger.json");
+```
+
+See [CONFIGURATION.md](CONFIGURATION.md) for the full JSON schema, pattern
+token reference, and per-backend translation tables.
+
+---
+
+## Markers
+
+Markers are named tags that categorise individual log events.
+
+```cpp
+#include <logger/MarkerFactory.h>
+
+auto marker = sk::logger::MarkerFactory::getMarker("SQL");
+
+logger->info(*marker, "SELECT completed in %d ms", elapsed);
+logger->error(*marker, "Query failed", ex);
+```
+
+The `%M` pattern token in a configured sink pattern expands to the marker name
+(or an empty string when no marker is attached to the event).
+
+---
+
 ## How to Link
 
 The build produces an auto-registering wrapper target for each backend. Link exactly one:
@@ -150,5 +184,4 @@ cmake --build ./build/linux --target doc
 cmake --build ./build/windows --target doc
 ```
 
----
 For more details, see the [CMakePresets.json](CMakePresets.json) and [conan/conanfile.py](conan/conanfile.py) files.

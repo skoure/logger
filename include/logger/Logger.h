@@ -13,6 +13,7 @@
 #include <exception>
 #include <memory>
 #include <string>
+#include <logger/Marker.h>
 
 namespace sk { namespace logger {
 
@@ -180,6 +181,46 @@ public:
      * @param ex  The exception to log.
      */
     virtual void fatal(const char* msg, const std::exception& ex) = 0;
+
+    // -----------------------------------------------------------------------
+    // Marker overloads
+    // -----------------------------------------------------------------------
+
+    /** @brief Logs a formatted fatal message tagged with @p marker. */
+    virtual void fatal(const Marker& marker, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted error message tagged with @p marker. */
+    virtual void error(const Marker& marker, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted warn message tagged with @p marker. */
+    virtual void warn (const Marker& marker, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted info message tagged with @p marker. */
+    virtual void info (const Marker& marker, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted debug message tagged with @p marker. */
+    virtual void debug(const Marker& marker, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted trace message tagged with @p marker. */
+    virtual void trace(const Marker& marker, const char* fmt, ...) = 0;
+
+    /**
+     * @brief Logs an exception at ERROR level with a marker.
+     * @param marker  Marker to attach to the log event.
+     * @param msg     Context message.
+     * @param ex      Exception to log.
+     */
+    virtual void error(const Marker& marker, const char* msg,
+                       const std::exception& ex) = 0;
+
+    /**
+     * @brief Logs an exception at FATAL level with a marker.
+     * @param marker  Marker to attach to the log event.
+     * @param msg     Context message.
+     * @param ex      Exception to log.
+     */
+    virtual void fatal(const Marker& marker, const char* msg,
+                       const std::exception& ex) = 0;
 
 protected:
 

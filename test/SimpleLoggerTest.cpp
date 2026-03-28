@@ -9,6 +9,7 @@
  */
 #include <gtest/gtest.h>
 #include <SimpleLogger.h>
+#include <logger/MarkerFactory.h>
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
@@ -130,5 +131,64 @@ TEST_F(SimpleLoggerTest, IsEnabledReflectsLevel) {
     EXPECT_FALSE(logger.isInfoEnabled());
     EXPECT_FALSE(logger.isDebugEnabled());
     EXPECT_FALSE(logger.isTraceEnabled());
+}
+
+// ---------------------------------------------------------------------------
+// Marker overload tests
+// ---------------------------------------------------------------------------
+
+TEST(SimpleLoggerMarkerTest, MarkerNameAppearsInPatternOutput)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    SimpleLogger logger("SL.Marker");
+    logger.setLevel(Logger::Level::Trace);
+    logger.setSinks({{ buf, "%M %p %m%n" }});
+
+    auto marker = MarkerFactory::getMarker("SQL");
+    logger.info(*marker, "query done");
+
+    EXPECT_NE(buf->str().find("SQL"), std::string::npos);
+    EXPECT_NE(buf->str().find("query done"), std::string::npos);
+}
+
+TEST(SimpleLoggerMarkerTest, NoMarkerRendersEmptyInPattern)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    SimpleLogger logger("SL.NoMarker");
+    logger.setLevel(Logger::Level::Info);
+    logger.setSinks({{ buf, "[%M] %m%n" }});
+
+    logger.info("plain message");
+
+    // %M expands to empty — opening bracket immediately followed by closing
+    EXPECT_NE(buf->str().find("[] plain message"), std::string::npos);
+}
+
+TEST(SimpleLoggerMarkerTest, MarkerWithExceptionAppearsInOutput)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    SimpleLogger logger("SL.ExMarker");
+    logger.setLevel(Logger::Level::Error);
+    logger.setSinks({{ buf, "%M %p %m%n" }});
+
+    auto marker = MarkerFactory::getMarker("DB");
+    std::runtime_error ex("connection refused");
+    logger.error(*marker, "query failed", ex);
+
+    EXPECT_NE(buf->str().find("DB"), std::string::npos);
+    EXPECT_NE(buf->str().find("query failed"), std::string::npos);
+}
+
+TEST(SimpleLoggerMarkerTest, MarkerSuppressedBelowLevel)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    SimpleLogger logger("SL.MarkerSuppressed");
+    logger.setLevel(Logger::Level::Fatal);
+    logger.setSinks({{ buf, "%M %p %m%n" }});
+
+    auto marker = MarkerFactory::getMarker("NET");
+    logger.debug(*marker, "should not appear");
+
+    EXPECT_EQ(buf->str(), "");
 }
 

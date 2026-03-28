@@ -67,6 +67,20 @@ public:
     void error(const char* msg, const std::exception& ex) override;
     void fatal(const char* msg, const std::exception& ex) override;
 
+    // --- Marker overloads ---
+
+    void fatal(const Marker& marker, const char* fmt, ...) override;
+    void error(const Marker& marker, const char* fmt, ...) override;
+    void warn (const Marker& marker, const char* fmt, ...) override;
+    void info (const Marker& marker, const char* fmt, ...) override;
+    void debug(const Marker& marker, const char* fmt, ...) override;
+    void trace(const Marker& marker, const char* fmt, ...) override;
+
+    void error(const Marker& marker, const char* msg,
+               const std::exception& ex) override;
+    void fatal(const Marker& marker, const char* msg,
+               const std::exception& ex) override;
+
     /**
      * @brief Converts a Level value to its uppercase string name.
      * @param level The log level.
@@ -118,6 +132,16 @@ private:
      * @param args  va_list for the format arguments.
      */
     void logImpl(Level level, const char* fmt, va_list args);
+
+    /**
+     * @brief Like logImpl() but also sets record.marker from @p marker.
+     * @param level  Severity level for this event.
+     * @param marker Marker to attach to the log record.
+     * @param fmt    printf-style format string.
+     * @param args   va_list for the format arguments.
+     */
+    void logImplWithMarker(Level level, const Marker& marker,
+                           const char* fmt, va_list args);
 };
 
 }} // namespace sk::logger

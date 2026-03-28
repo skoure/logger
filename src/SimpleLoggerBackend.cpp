@@ -11,6 +11,11 @@
 #include <SimpleLogger.h>
 #include <LoggerFactoryImpl.h>
 
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+
 using namespace sk::logger;
 
 namespace {
@@ -28,6 +33,69 @@ LoggerPtr SimpleLoggerBackend::createLogger(const std::string& name)
 void SimpleLoggerBackend::applyParentSinks(LoggerPtr /*child*/, LoggerPtr /*parent*/)
 {
     // SimpleLogger writes directly to std::clog — no explicit sink objects to copy.
+}
+
+void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
+                                           const std::vector<SinkConfig>& sinks)
+{
+    if (sinks.empty()) return;
+
+    auto* sl = dynamic_cast<SimpleLogger*>(loggerPtr.get());
+    if (!sl) return;
+
+    std::vector<SimpleSink> simpleSinks;
+    simpleSinks.reserve(sinks.size());
+
+    for (const SinkConfig& sc : sinks)
+    {
+        SimpleSink sink;
+        sink.pattern = sc.pattern;
+
+        if (sc.type == "console")
+        {
+            // shared_ptr to clog — non-owning (no-op deleter)
+            sink.stream = std::shared_ptr<std::ostream>(
+                &std::clog, [](std::ostream*) {});
+        }
+        else if (sc.type == "file")
+        {
+            auto it = sc.properties.find("path");
+            if (it == sc.properties.end())
+                throw std::runtime_error(
+                    "SimpleLoggerBackend::configureLogger: 'file' sink missing 'path'");
+
+            auto fs = std::make_shared<std::ofstream>(it->second, std::ios::app);
+            if (!fs->is_open())
+                throw std::runtime_error(
+                    std::string("SimpleLoggerBackend::configureLogger: cannot open file: ")
+                    + it->second);
+            sink.stream = fs;
+        }
+        else if (sc.type == "rotating_file")
+        {
+            // SimpleLogger does not support rotation — treat as a plain file.
+            auto it = sc.properties.find("path");
+            if (it == sc.properties.end())
+                throw std::runtime_error(
+                    "SimpleLoggerBackend::configureLogger: 'rotating_file' sink missing 'path'");
+
+            auto fs = std::make_shared<std::ofstream>(it->second, std::ios::app);
+            if (!fs->is_open())
+                throw std::runtime_error(
+                    std::string("SimpleLoggerBackend::configureLogger: cannot open file: ")
+                    + it->second);
+            sink.stream = fs;
+        }
+        else
+        {
+            // Unknown type — skip
+            continue;
+        }
+
+        simpleSinks.push_back(std::move(sink));
+    }
+
+    sl->setSinks(std::move(simpleSinks));
 }
 
 void sk::logger::useSimpleLoggerBackend()

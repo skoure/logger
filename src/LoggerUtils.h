@@ -12,6 +12,7 @@
 
 #include <exception>
 #include <string>
+#include <thread>
 
 namespace sk { namespace logger {
 
@@ -29,6 +30,16 @@ namespace sk { namespace logger {
  * @return    Formatted string: "<msg>: <type>: <what()>\nStacktrace:\n<frames>"
  */
 std::string formatException(const char* msg, const std::exception& ex);
+
+/**
+ * @brief Returns the OS-level name of the calling thread.
+ *
+ * On Linux this uses pthread_getname_np().  On platforms where thread naming
+ * is not available, returns an empty string.
+ *
+ * @return Thread name string, or empty string if unavailable.
+ */
+std::string getCurrentThreadName();
 
 }} // namespace sk::logger
 

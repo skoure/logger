@@ -12,7 +12,9 @@
 
 #include <chrono>
 #include <string>
+#include <thread>
 #include <logger/Logger.h>
+#include <logger/Marker.h>
 
 namespace sk { namespace logger {
 
@@ -31,6 +33,9 @@ struct LogRecord
     std::string                           loggerName;
     std::string                           message;
     std::chrono::system_clock::time_point timestamp;
+    const Marker*                         marker     = nullptr;
+    std::thread::id                       threadId;
+    std::string                           threadName;
 };
 
 }} // namespace sk::logger

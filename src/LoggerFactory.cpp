@@ -10,6 +10,7 @@
  */
 #include <logger/LoggerFactory.h>
 #include "LoggerFactoryImpl.h"
+#include "LoggerConfigurator.h"
 
 using namespace sk::logger;
 
@@ -22,4 +23,9 @@ LoggerFactory::~LoggerFactory(void) {}
 
 LoggerPtr LoggerFactory::getLogger(const char* pName){
     return LoggerFactoryImpl::getInstance().getLogger(std::string(pName));
+}
+
+void LoggerFactory::configure(const std::string& filePath)
+{
+    LoggerConfigurator::configure(filePath);
 }

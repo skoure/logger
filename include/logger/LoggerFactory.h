@@ -12,6 +12,7 @@
 #define SK_LOGGER_FACTORY_H
 
 #include <logger/Logger.h>
+#include <string>
 
 namespace sk { namespace logger {
 
@@ -38,6 +39,18 @@ public:
      * @return LoggerPtr instance
      */
     static LoggerPtr getLogger(const char* pName);
+
+    /**
+     * @brief Apply a JSON configuration file to the active backend.
+     *
+     * Parses the file and, for each named logger entry, sets its level and
+     * delegates sink configuration to the active backend.
+     *
+     * Throws std::runtime_error if the file is missing or contains invalid JSON.
+     *
+     * @param filePath Path to the JSON logging configuration file.
+     */
+    static void configure(const std::string& filePath);
 
 };
 

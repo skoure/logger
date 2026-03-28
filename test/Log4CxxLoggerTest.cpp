@@ -12,6 +12,7 @@
 #include <log4cxx/appenderskeleton.h>
 #include <Log4CxxLogger.h>
 #include <logger/LoggerFactory.h>
+#include <logger/MarkerFactory.h>
 #include <stdexcept>
 
 using namespace sk::logger;
@@ -22,6 +23,23 @@ public:
 
     void append(const log4cxx::spi::LoggingEventPtr& event, log4cxx::helpers::Pool&) override {
         buffer << event->getRenderedMessage() << std::endl;
+    }
+
+    void close() override {}
+    bool requiresLayout() const override { return false; }
+};
+
+// Captures the rendered message and the "marker" MDC value from each log event.
+class MarkerCapturingAppender : public log4cxx::AppenderSkeleton {
+public:
+    std::string capturedMessage;
+    std::string capturedMarker;
+
+    void append(const log4cxx::spi::LoggingEventPtr& event, log4cxx::helpers::Pool&) override {
+        capturedMessage = event->getRenderedMessage();
+        log4cxx::LogString val;
+        event->getMDC(LOG4CXX_STR("marker"), val);
+        capturedMarker = val;
     }
 
     void close() override {}
@@ -129,5 +147,73 @@ TEST(Log4CxxLoggerTest, ClearLevelRevertsToInherited) {
     // After clearing, getLevel() returns the effective (inherited) level.
     // log4cxx root logger defaults to DEBUG.
     EXPECT_EQ(l.getLevel(), Logger::Level::Debug);
+}
+
+// ---------------------------------------------------------------------------
+// Marker overload tests
+// ---------------------------------------------------------------------------
+
+TEST(Log4CxxLoggerTest, MarkerStoredInMDCDuringInfoLog)
+{
+    LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("Log4MarkerInfo");
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(log4cxxLogger, nullptr);
+
+    auto* capturer = new MarkerCapturingAppender();
+    log4cxx::AppenderPtr appender(capturer);
+    log4cxxLogger->getInternalLogger()->addAppender(appender);
+    log4cxxLogger->setLevel(Logger::Level::Info);
+
+    auto marker = MarkerFactory::getMarker("SQL");
+    logger->info(*marker, "select done");
+
+    log4cxxLogger->getInternalLogger()->removeAppender(appender);
+
+    EXPECT_EQ(capturer->capturedMarker, "SQL");
+    EXPECT_THAT(capturer->capturedMessage, ::testing::HasSubstr("select done"));
+}
+
+TEST(Log4CxxLoggerTest, MarkerStoredInMDCDuringErrorException)
+{
+    LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("Log4MarkerError");
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(log4cxxLogger, nullptr);
+
+    auto* capturer = new MarkerCapturingAppender();
+    log4cxx::AppenderPtr appender(capturer);
+    log4cxxLogger->getInternalLogger()->addAppender(appender);
+    log4cxxLogger->setLevel(Logger::Level::Error);
+
+    auto marker = MarkerFactory::getMarker("DB");
+    std::runtime_error ex("connection lost");
+    logger->error(*marker, "query failed", ex);
+
+    log4cxxLogger->getInternalLogger()->removeAppender(appender);
+
+    EXPECT_EQ(capturer->capturedMarker, "DB");
+    EXPECT_THAT(capturer->capturedMessage, ::testing::HasSubstr("query failed"));
+}
+
+TEST(Log4CxxLoggerTest, MDCClearedAfterMarkerLog)
+{
+    LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("Log4MarkerCleanup");
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(log4cxxLogger, nullptr);
+
+    auto* capturer = new MarkerCapturingAppender();
+    log4cxx::AppenderPtr appender(capturer);
+    log4cxxLogger->getInternalLogger()->addAppender(appender);
+    log4cxxLogger->setLevel(Logger::Level::Info);
+
+    auto marker = MarkerFactory::getMarker("CLEANUP");
+    logger->info(*marker, "first message");
+
+    // Plain log — no marker — MDC should have been cleared after the first call
+    logger->info("second message");
+
+    log4cxxLogger->getInternalLogger()->removeAppender(appender);
+
+    // capturer holds the last event; marker should be absent on the second call
+    EXPECT_TRUE(capturer->capturedMarker.empty());
 }
 

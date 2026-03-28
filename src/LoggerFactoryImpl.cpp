@@ -31,6 +31,14 @@ void LoggerFactoryImpl::setBackend(std::unique_ptr<ILoggerBackend> backend)
     m_backend = std::move(backend);
 }
 
+void LoggerFactoryImpl::configureLogger(LoggerPtr logger,
+                                         const std::vector<SinkConfig>& sinks)
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    if (m_backend && logger)
+        m_backend->configureLogger(logger, sinks);
+}
+
 LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);

@@ -35,6 +35,11 @@ if(USE_CPPTRACE)
 endif()
 
 # ---------------------------------------------------------------------------
+# nlohmann_json (header-only, used by JsonConfigParser)
+# ---------------------------------------------------------------------------
+find_package(nlohmann_json REQUIRED)
+
+# ---------------------------------------------------------------------------
 # Core library — backend-independent code
 # ---------------------------------------------------------------------------
 add_library(logger_core STATIC
@@ -43,9 +48,13 @@ add_library(logger_core STATIC
     src/LoggerHierarchy.cpp
     src/LoggerBase.cpp
     src/LoggerUtils.cpp
+    src/JsonConfigParser.cpp
+    src/LoggerConfigurator.cpp
+    src/MarkerFactory.cpp
 )
 target_compile_definitions(logger_core PUBLIC ${CPPTRACE_DEFINES})
 target_link_libraries(logger_core PUBLIC sk::common ${CPPTRACE_LIBS})
+target_link_libraries(logger_core PRIVATE nlohmann_json::nlohmann_json)
 
 # ---------------------------------------------------------------------------
 # SimpleLogger backend — liblogger_simple
@@ -53,6 +62,7 @@ target_link_libraries(logger_core PUBLIC sk::common ${CPPTRACE_LIBS})
 add_library(logger_simple STATIC
     src/SimpleLogger.cpp
     src/SimpleLoggerBackend.cpp
+    src/SimpleLoggerPattern.cpp
 )
 target_link_libraries(logger_simple PUBLIC logger_core)
 
@@ -68,6 +78,8 @@ if(spdlog_FOUND)
     add_library(logger_spdlog STATIC
         src/SpdlogLogger.cpp
         src/SpdlogBackend.cpp
+        src/SpdlogPatternTranslator.cpp
+        src/SpdlogThreadLocal.cpp
     )
     target_link_libraries(logger_spdlog PUBLIC logger_core spdlog::spdlog)
 
@@ -86,6 +98,7 @@ if(log4cxx_FOUND)
     add_library(logger_log4cxx STATIC
         src/Log4CxxLogger.cpp
         src/Log4CxxBackend.cpp
+        src/Log4CxxPatternTranslator.cpp
     )
     target_include_directories(logger_log4cxx PRIVATE ${log4cxx_INCLUDE_DIRS})
     target_link_libraries(logger_log4cxx PUBLIC logger_core log4cxx)
@@ -140,6 +153,10 @@ if(PROJECT_IS_TOP_LEVEL)
             test/LoggerFactoryTest.cpp
             test/LoggerHierarchyTest.cpp
             test/LoggerUtilsTest.cpp
+            test/MarkerFactoryTest.cpp
+            test/JsonConfigParserTest.cpp
+            test/LoggerConfiguratorTest.cpp
+            test/MarkerOverloadTest.cpp
         )
 
         # SimpleLogger tests
@@ -147,6 +164,7 @@ if(PROJECT_IS_TOP_LEVEL)
             ${COMMON_TEST_SOURCES}
             test/SimpleLoggerTest.cpp
             test/SimpleLoggerBackendTest.cpp
+            test/SimpleLoggerPatternTest.cpp
         )
         target_link_libraries(logger_tests_simple PRIVATE logger_simple_auto GTest::gtest_main)
         gtest_discover_tests(logger_tests_simple TEST_PREFIX "simple.")
@@ -157,6 +175,7 @@ if(PROJECT_IS_TOP_LEVEL)
                 ${COMMON_TEST_SOURCES}
                 test/SpdlogLoggerTest.cpp
                 test/SpdlogBackendTest.cpp
+                test/SpdlogPatternTranslatorTest.cpp
             )
             target_link_libraries(logger_tests_spdlog PRIVATE logger_spdlog_auto GTest::gtest_main)
             gtest_discover_tests(logger_tests_spdlog TEST_PREFIX "spdlog.")
@@ -168,6 +187,7 @@ if(PROJECT_IS_TOP_LEVEL)
                 ${COMMON_TEST_SOURCES}
                 test/Log4CxxLoggerTest.cpp
                 test/Log4CxxBackendTest.cpp
+                test/Log4CxxPatternTranslatorTest.cpp
             )
             target_link_libraries(logger_tests_log4cxx PRIVATE logger_log4cxx_auto GTest::gtest_main)
             gtest_discover_tests(logger_tests_log4cxx TEST_PREFIX "log4cxx.")

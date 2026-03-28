@@ -9,9 +9,35 @@
  */
 #include <gtest/gtest.h>
 #include <SpdlogLogger.h>
+#include <SpdlogThreadLocal.h>
+#include <logger/MarkerFactory.h>
+#include <spdlog/sinks/base_sink.h>
+#include <mutex>
 #include <stdexcept>
 
 using namespace sk::logger;
+
+// ---------------------------------------------------------------------------
+// Sink that captures the marker name and message payload during sink_it_().
+// spdlog_tls::markerName is set by SpdlogLogger::append() before the spdlog
+// call, so it is still live when sink_it_() fires synchronously.
+// ---------------------------------------------------------------------------
+
+class MarkerCapturingSink : public spdlog::sinks::base_sink<std::mutex>
+{
+public:
+    std::string capturedMarker;
+    std::string capturedMessage;
+
+protected:
+    void sink_it_(const spdlog::details::log_msg& msg) override
+    {
+        capturedMarker  = spdlog_tls::markerName ? spdlog_tls::markerName : "";
+        capturedMessage = std::string(msg.payload.begin(), msg.payload.end());
+    }
+
+    void flush_() override {}
+};
 
 class SpdlogLoggerTest : public ::testing::Test {
 protected:
@@ -146,5 +172,73 @@ TEST_F(SpdlogLoggerTest, ClearLevelRevertsToDefault) {
     logger.clearLevel();
     EXPECT_FALSE(logger.isLevelExplicitlySet());
     EXPECT_EQ(logger.getLevel(), Logger::Level::Info);  // root fallback (no parent)
+}
+
+// ---------------------------------------------------------------------------
+// Marker overload tests
+// ---------------------------------------------------------------------------
+
+// Helper: replace the internal spdlog logger's sinks with the given sink.
+static std::shared_ptr<MarkerCapturingSink> attachCapturingSink(SpdlogLogger& logger)
+{
+    auto sink = std::make_shared<MarkerCapturingSink>();
+    logger.getInternalLogger()->sinks() = { sink };
+    return sink;
+}
+
+TEST_F(SpdlogLoggerTest, MarkerNamePassedToSinkOnInfo)
+{
+    auto sink   = attachCapturingSink(logger);
+    auto marker = MarkerFactory::getMarker("SQL");
+
+    logger.info(*marker, "query done");
+
+    EXPECT_EQ(sink->capturedMarker, "SQL");
+    EXPECT_NE(sink->capturedMessage.find("query done"), std::string::npos);
+}
+
+TEST_F(SpdlogLoggerTest, MarkerNamePassedToSinkOnError)
+{
+    auto sink   = attachCapturingSink(logger);
+    auto marker = MarkerFactory::getMarker("DB");
+
+    logger.error(*marker, "write failed");
+
+    EXPECT_EQ(sink->capturedMarker, "DB");
+}
+
+TEST_F(SpdlogLoggerTest, MarkerNamePassedToSinkOnException)
+{
+    auto sink   = attachCapturingSink(logger);
+    auto marker = MarkerFactory::getMarker("NET");
+    std::runtime_error ex("timeout");
+
+    logger.error(*marker, "request failed", ex);
+
+    EXPECT_EQ(sink->capturedMarker, "NET");
+    EXPECT_NE(sink->capturedMessage.find("request failed"), std::string::npos);
+}
+
+TEST_F(SpdlogLoggerTest, NoMarkerLeavesCaptureSinkMarkerEmpty)
+{
+    auto sink = attachCapturingSink(logger);
+
+    logger.info("plain message");
+
+    EXPECT_EQ(sink->capturedMarker, "");
+}
+
+TEST_F(SpdlogLoggerTest, MarkerSuppressedBelowLevel)
+{
+    auto sink   = attachCapturingSink(logger);
+    logger.setLevel(Logger::Level::Fatal);
+    auto marker = MarkerFactory::getMarker("Spd.Suppressed");
+
+    logger.debug(*marker, "should not log");
+    logger.info (*marker, "should not log");
+
+    // sink_it_() should never have fired
+    EXPECT_EQ(sink->capturedMarker, "");
+    EXPECT_EQ(sink->capturedMessage, "");
 }
 

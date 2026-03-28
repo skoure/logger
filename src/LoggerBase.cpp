@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdio>
 #include <stdarg.h>
+#include <thread>
 
 using namespace sk::logger;
 
@@ -106,6 +107,22 @@ void LoggerBase::logImpl(Level level, const char* fmt, va_list args)
     record.loggerName = getName();
     record.message    = formatMessage(fmt, args);
     record.timestamp  = std::chrono::system_clock::now();
+    record.threadId   = std::this_thread::get_id();
+    record.threadName = getCurrentThreadName();
+    append(record);
+}
+
+void LoggerBase::logImplWithMarker(Level level, const Marker& marker,
+                                    const char* fmt, va_list args)
+{
+    LogRecord record;
+    record.level      = level;
+    record.loggerName = getName();
+    record.message    = formatMessage(fmt, args);
+    record.timestamp  = std::chrono::system_clock::now();
+    record.threadId   = std::this_thread::get_id();
+    record.threadName = getCurrentThreadName();
+    record.marker     = &marker;
     append(record);
 }
 
@@ -184,6 +201,8 @@ void LoggerBase::error(const char* msg, const std::exception& ex)
         record.loggerName = getName();
         record.message    = formatException(msg, ex);
         record.timestamp  = std::chrono::system_clock::now();
+        record.threadId   = std::this_thread::get_id();
+        record.threadName = getCurrentThreadName();
         append(record);
     }
 }
@@ -197,6 +216,112 @@ void LoggerBase::fatal(const char* msg, const std::exception& ex)
         record.loggerName = getName();
         record.message    = formatException(msg, ex);
         record.timestamp  = std::chrono::system_clock::now();
+        record.threadId   = std::this_thread::get_id();
+        record.threadName = getCurrentThreadName();
+        append(record);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Marker overloads
+// ---------------------------------------------------------------------------
+
+void LoggerBase::fatal(const Marker& marker, const char* fmt, ...)
+{
+    if (isFatalEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarker(Level::Fatal, marker, fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::error(const Marker& marker, const char* fmt, ...)
+{
+    if (isErrorEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarker(Level::Error, marker, fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::warn(const Marker& marker, const char* fmt, ...)
+{
+    if (isWarnEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarker(Level::Warn, marker, fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::info(const Marker& marker, const char* fmt, ...)
+{
+    if (isInfoEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarker(Level::Info, marker, fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::debug(const Marker& marker, const char* fmt, ...)
+{
+    if (isDebugEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarker(Level::Debug, marker, fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::trace(const Marker& marker, const char* fmt, ...)
+{
+    if (isTraceEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarker(Level::Trace, marker, fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::error(const Marker& marker, const char* msg,
+                        const std::exception& ex)
+{
+    if (isErrorEnabled())
+    {
+        LogRecord record;
+        record.level      = Level::Error;
+        record.loggerName = getName();
+        record.message    = formatException(msg, ex);
+        record.timestamp  = std::chrono::system_clock::now();
+        record.threadId   = std::this_thread::get_id();
+        record.threadName = getCurrentThreadName();
+        record.marker     = &marker;
+        append(record);
+    }
+}
+
+void LoggerBase::fatal(const Marker& marker, const char* msg,
+                        const std::exception& ex)
+{
+    if (isFatalEnabled())
+    {
+        LogRecord record;
+        record.level      = Level::Fatal;
+        record.loggerName = getName();
+        record.message    = formatException(msg, ex);
+        record.timestamp  = std::chrono::system_clock::now();
+        record.threadId   = std::this_thread::get_id();
+        record.threadName = getCurrentThreadName();
+        record.marker     = &marker;
         append(record);
     }
 }

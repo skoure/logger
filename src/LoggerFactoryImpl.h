@@ -13,9 +13,11 @@
 #include <logger/Logger.h>
 #include <ILoggerBackend.h>
 #include <LoggerHierarchy.h>
+#include <SinkConfig.h>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger {
 
@@ -30,6 +32,16 @@ public:
     void setBackend(std::unique_ptr<ILoggerBackend> backend);
 
     LoggerPtr getLogger(const std::string& name);
+
+    /**
+     * @brief Forward a sink configuration request to the active backend.
+     *
+     * Called by LoggerConfigurator after setLevel() has been applied.
+     *
+     * @param logger Logger instance to configure.
+     * @param sinks  Ordered list of sink descriptors.
+     */
+    void configureLogger(LoggerPtr logger, const std::vector<SinkConfig>& sinks);
 
 private:
     LoggerFactoryImpl() = default;

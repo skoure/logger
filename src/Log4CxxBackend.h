@@ -24,6 +24,9 @@ public:
      * internally — no parent configuration step is needed from our side.
      */
     bool supportsNativeHierarchy() const override { return true; }
+
+    void configureLogger(LoggerPtr logger,
+                         const std::vector<SinkConfig>& sinks) override;
 };
 
 /**

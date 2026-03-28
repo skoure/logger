@@ -17,7 +17,9 @@
 #define SK_ILOGGER_BACKEND_H
 
 #include <logger/Logger.h>
+#include <SinkConfig.h>
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger {
 
@@ -57,6 +59,19 @@ public:
      * Log4cxx returns true; SimpleLogger and spdlog return false.
      */
     virtual bool supportsNativeHierarchy() const = 0;
+
+    /**
+     * @brief Configure a logger's sinks from the provided SinkConfig list.
+     *
+     * Called by LoggerConfigurator after it has set the logger's level.
+     * The default implementation is a no-op so that backends that do not
+     * yet support programmatic sink configuration still compile and work.
+     *
+     * @param logger Logger instance to configure.
+     * @param sinks  Ordered list of sink descriptors.
+     */
+    virtual void configureLogger(LoggerPtr /*logger*/,
+                                 const std::vector<SinkConfig>& /*sinks*/) {}
 };
 
 }} // namespace sk::logger

@@ -12,6 +12,7 @@ class LoggerConan(ConanFile):
         self.requires("gtest/1.16.0")
         self.requires("spdlog/1.16.0")
         self.requires("log4cxx/1.5.0")
+        self.requires("nlohmann_json/3.11.3")
 
         if self.options.with_cpptrace:
             self.requires("cpptrace/0.7.5")

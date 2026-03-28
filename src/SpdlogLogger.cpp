@@ -8,6 +8,7 @@
  * @date Created: November 15, 2025
  */
 #include <SpdlogLogger.h>
+#include <SpdlogThreadLocal.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 using namespace sk::logger;
@@ -50,6 +51,10 @@ void SpdlogLogger::onLevelChanged(Level level)
 
 void SpdlogLogger::append(const LogRecord& record)
 {
+    // Populate thread-local bridge so custom formatters can read LogRecord fields.
+    spdlog_tls::markerName = record.marker ? record.marker->getName().c_str() : nullptr;
+    spdlog_tls::threadName = record.threadName;
+
     switch (record.level)
     {
     case Level::Fatal: m_pLogger->critical(record.message); break;
@@ -59,4 +64,8 @@ void SpdlogLogger::append(const LogRecord& record)
     case Level::Debug: m_pLogger->debug   (record.message); break;
     case Level::Trace: m_pLogger->trace   (record.message); break;
     }
+
+    // Clear after call to avoid stale data leaking to other threads.
+    spdlog_tls::markerName = nullptr;
+    spdlog_tls::threadName.clear();
 }
