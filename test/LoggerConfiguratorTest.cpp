@@ -20,16 +20,29 @@ using namespace sk::logger;
 // Helpers
 // ---------------------------------------------------------------------------
 
-// Write a minimal JSON config to a temp file and return its path.
-static std::string writeTempConfig(const std::string& json)
+// RAII wrapper that deletes the file on destruction, including on test failure.
+struct TempFile
 {
-    std::string path = "/tmp/test_logger_config_" +
+    std::string path;
+    explicit TempFile(std::string p) : path(std::move(p)) {}
+    ~TempFile() { if (!path.empty()) std::remove(path.c_str()); }
+    TempFile(TempFile&&) = default;
+    TempFile(const TempFile&) = delete;
+    TempFile& operator=(const TempFile&) = delete;
+};
+
+// Write a minimal JSON config to a temp file and return a RAII handle.
+// TEST_CONFIG_DIR is injected by CMake and points to test/config/ in the
+// source tree, which is committed to the repo and always exists.
+static TempFile writeTempConfig(const std::string& json)
+{
+    std::string path = std::string(TEST_CONFIG_DIR) + "/test_logger_config_" +
                        std::to_string(reinterpret_cast<std::uintptr_t>(&json)) + ".json";
     std::FILE* f = std::fopen(path.c_str(), "w");
-    if (!f) return {};
+    if (!f) return TempFile{{}};
     std::fwrite(json.c_str(), 1, json.size(), f);
     std::fclose(f);
-    return path;
+    return TempFile{path};
 }
 
 // ---------------------------------------------------------------------------
@@ -41,10 +54,10 @@ TEST(LoggerConfiguratorTest, LevelFromJsonAppliedToNamedLogger)
     std::string cfg = R"({
         "loggers":[{"name":"LogCfgTest.LevelTest","level":"DEBUG","sinks":[]}]
     })";
-    std::string path = writeTempConfig(cfg);
-    ASSERT_FALSE(path.empty());
+    TempFile tmp = writeTempConfig(cfg);
+    ASSERT_FALSE(tmp.path.empty());
 
-    LoggerConfigurator::configure(path);
+    LoggerConfigurator::configure(tmp.path);
 
     LoggerPtr logger = LoggerFactory::getLogger("LogCfgTest.LevelTest");
     ASSERT_NE(logger, nullptr);
@@ -56,14 +69,14 @@ TEST(LoggerConfiguratorTest, RootLoggerLevelApplied)
     std::string cfg = R"({
         "loggers":[{"name":"root","level":"WARN","sinks":[]}]
     })";
-    std::string path = writeTempConfig(cfg);
-    ASSERT_FALSE(path.empty());
+    TempFile tmp = writeTempConfig(cfg);
+    ASSERT_FALSE(tmp.path.empty());
 
     // Get "root" before configuring so it exists
     LoggerPtr root = LoggerFactory::getLogger("root");
     ASSERT_NE(root, nullptr);
 
-    LoggerConfigurator::configure(path);
+    LoggerConfigurator::configure(tmp.path);
     EXPECT_EQ(root->getLevel(), Logger::Level::Warn);
 }
 
@@ -72,11 +85,11 @@ TEST(LoggerConfiguratorTest, ConfigureCalledTwiceIsIdempotent)
     std::string cfg = R"({
         "loggers":[{"name":"LogCfgTest.Idem","level":"ERROR","sinks":[]}]
     })";
-    std::string path = writeTempConfig(cfg);
-    ASSERT_FALSE(path.empty());
+    TempFile tmp = writeTempConfig(cfg);
+    ASSERT_FALSE(tmp.path.empty());
 
-    EXPECT_NO_THROW(LoggerConfigurator::configure(path));
-    EXPECT_NO_THROW(LoggerConfigurator::configure(path));
+    EXPECT_NO_THROW(LoggerConfigurator::configure(tmp.path));
+    EXPECT_NO_THROW(LoggerConfigurator::configure(tmp.path));
 
     LoggerPtr logger = LoggerFactory::getLogger("LogCfgTest.Idem");
     ASSERT_NE(logger, nullptr);
@@ -86,7 +99,7 @@ TEST(LoggerConfiguratorTest, ConfigureCalledTwiceIsIdempotent)
 TEST(LoggerConfiguratorTest, ThrowsOnMissingFile)
 {
     EXPECT_THROW(
-        LoggerConfigurator::configure("/tmp/this_does_not_exist_xyz.json"),
+        LoggerConfigurator::configure(std::string(TEST_CONFIG_DIR) + "/this_does_not_exist_xyz.json"),
         std::runtime_error);
 }
 
@@ -95,10 +108,10 @@ TEST(LoggerConfiguratorTest, PublicApiViaLoggerFactory)
     std::string cfg = R"({
         "loggers":[{"name":"LogCfgTest.PublicApi","level":"TRACE","sinks":[]}]
     })";
-    std::string path = writeTempConfig(cfg);
-    ASSERT_FALSE(path.empty());
+    TempFile tmp = writeTempConfig(cfg);
+    ASSERT_FALSE(tmp.path.empty());
 
-    EXPECT_NO_THROW(LoggerFactory::configure(path));
+    EXPECT_NO_THROW(LoggerFactory::configure(tmp.path));
 
     LoggerPtr logger = LoggerFactory::getLogger("LogCfgTest.PublicApi");
     ASSERT_NE(logger, nullptr);

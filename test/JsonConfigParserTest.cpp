@@ -138,7 +138,7 @@ TEST(JsonConfigParserTest, UnknownJsonFieldsAreIgnored)
 TEST(JsonConfigParserTest, ThrowsOnMissingFile)
 {
     EXPECT_THROW(
-        JsonConfigParser::parse("/tmp/this_file_should_not_exist_xyz.json"),
+        JsonConfigParser::parse(std::string(TEST_CONFIG_DIR) + "/this_file_should_not_exist_xyz.json"),
         std::runtime_error);
 }
 
