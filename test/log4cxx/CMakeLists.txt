@@ -1,0 +1,10 @@
+if(TARGET logger_log4cxx)
+    file(GLOB CORE_SOURCES    CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/test/core/*.cpp")
+    file(GLOB BACKEND_SOURCES CONFIGURE_DEPENDS "*.cpp")
+    add_executable(logger_tests_log4cxx ${CORE_SOURCES} ${BACKEND_SOURCES})
+    target_include_directories(logger_tests_log4cxx PRIVATE ${CMAKE_SOURCE_DIR}/src/log4cxx)
+    target_compile_definitions(logger_tests_log4cxx PRIVATE
+        TEST_CONFIG_DIR="${CMAKE_SOURCE_DIR}/test/config")
+    target_link_libraries(logger_tests_log4cxx PRIVATE logger_log4cxx_auto GTest::gtest_main)
+    gtest_discover_tests(logger_tests_log4cxx TEST_PREFIX "log4cxx.")
+endif()

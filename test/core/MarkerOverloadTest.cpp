@@ -13,8 +13,6 @@
 #include <logger/MarkerFactory.h>
 #include <LogRecord.h>
 #include <LoggerBase.h>
-#include <SimpleLogger.h>
-#include <SimpleLoggerBackend.h>
 
 #include <memory>
 #include <sstream>

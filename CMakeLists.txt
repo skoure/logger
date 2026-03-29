@@ -17,8 +17,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sk_common)
 
-include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
-
 if(EXISTS ${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
     include(${CMAKE_SOURCE_DIR}/build/conan/conan_toolchain.cmake)
 endif()
@@ -40,75 +38,12 @@ endif()
 find_package(nlohmann_json REQUIRED)
 
 # ---------------------------------------------------------------------------
-# Core library — backend-independent code
+# Backends
 # ---------------------------------------------------------------------------
-add_library(logger_core STATIC
-    src/LoggerFactory.cpp
-    src/LoggerFactoryImpl.cpp
-    src/LoggerHierarchy.cpp
-    src/LoggerBase.cpp
-    src/LoggerUtils.cpp
-    src/JsonConfigParser.cpp
-    src/LoggerConfigurator.cpp
-    src/MarkerFactory.cpp
-)
-target_compile_definitions(logger_core PUBLIC ${CPPTRACE_DEFINES})
-target_link_libraries(logger_core PUBLIC sk::common ${CPPTRACE_LIBS})
-target_link_libraries(logger_core PRIVATE nlohmann_json::nlohmann_json)
-
-# ---------------------------------------------------------------------------
-# SimpleLogger backend — liblogger_simple
-# ---------------------------------------------------------------------------
-add_library(logger_simple STATIC
-    src/SimpleLogger.cpp
-    src/SimpleLoggerBackend.cpp
-    src/SimpleLoggerPattern.cpp
-)
-target_link_libraries(logger_simple PUBLIC logger_core)
-
-add_library(logger_simple_auto INTERFACE)
-target_link_libraries(logger_simple_auto INTERFACE
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,logger_simple>)
-
-# ---------------------------------------------------------------------------
-# spdlog backend — liblogger_spdlog (built if spdlog is available)
-# ---------------------------------------------------------------------------
-find_package(spdlog QUIET)
-if(spdlog_FOUND)
-    add_library(logger_spdlog STATIC
-        src/SpdlogLogger.cpp
-        src/SpdlogBackend.cpp
-        src/SpdlogPatternTranslator.cpp
-        src/SpdlogThreadLocal.cpp
-    )
-    target_link_libraries(logger_spdlog PUBLIC logger_core spdlog::spdlog)
-
-    add_library(logger_spdlog_auto INTERFACE)
-    target_link_libraries(logger_spdlog_auto INTERFACE
-        $<LINK_LIBRARY:WHOLE_ARCHIVE,logger_spdlog>)
-else()
-    message(STATUS "spdlog not found — logger_spdlog will not be built")
-endif()
-
-# ---------------------------------------------------------------------------
-# Log4cxx backend — liblogger_log4cxx (built if log4cxx is available)
-# ---------------------------------------------------------------------------
-find_package(log4cxx QUIET)
-if(log4cxx_FOUND)
-    add_library(logger_log4cxx STATIC
-        src/Log4CxxLogger.cpp
-        src/Log4CxxBackend.cpp
-        src/Log4CxxPatternTranslator.cpp
-    )
-    target_include_directories(logger_log4cxx PRIVATE ${log4cxx_INCLUDE_DIRS})
-    target_link_libraries(logger_log4cxx PUBLIC logger_core log4cxx)
-
-    add_library(logger_log4cxx_auto INTERFACE)
-    target_link_libraries(logger_log4cxx_auto INTERFACE
-        $<LINK_LIBRARY:WHOLE_ARCHIVE,logger_log4cxx>)
-else()
-    message(STATUS "log4cxx not found — logger_log4cxx will not be built")
-endif()
+add_subdirectory(src/core)
+add_subdirectory(src/simple)
+add_subdirectory(src/spdlog)
+add_subdirectory(src/log4cxx)
 
 # ---------------------------------------------------------------------------
 # Install / doc / test targets (top-level builds only)
@@ -148,57 +83,9 @@ if(PROJECT_IS_TOP_LEVEL)
 
     if(GTest_FOUND)
         enable_testing()
-
-        set(COMMON_TEST_SOURCES
-            test/LoggerFactoryTest.cpp
-            test/LoggerHierarchyTest.cpp
-            test/LoggerUtilsTest.cpp
-            test/MarkerFactoryTest.cpp
-            test/JsonConfigParserTest.cpp
-            test/LoggerConfiguratorTest.cpp
-            test/MarkerOverloadTest.cpp
-        )
-
-        # SimpleLogger tests
-        add_executable(logger_tests_simple
-            ${COMMON_TEST_SOURCES}
-            test/SimpleLoggerTest.cpp
-            test/SimpleLoggerBackendTest.cpp
-            test/SimpleLoggerPatternTest.cpp
-        )
-        target_compile_definitions(logger_tests_simple PRIVATE
-            TEST_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/config")
-        target_link_libraries(logger_tests_simple PRIVATE logger_simple_auto GTest::gtest_main)
-        gtest_discover_tests(logger_tests_simple TEST_PREFIX "simple.")
-
-        # spdlog tests
-        if(TARGET logger_spdlog)
-            add_executable(logger_tests_spdlog
-                ${COMMON_TEST_SOURCES}
-                test/SpdlogLoggerTest.cpp
-                test/SpdlogBackendTest.cpp
-                test/SpdlogPatternTranslatorTest.cpp
-            )
-            target_compile_definitions(logger_tests_spdlog PRIVATE
-                TEST_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/config")
-            target_link_libraries(logger_tests_spdlog PRIVATE logger_spdlog_auto GTest::gtest_main)
-            gtest_discover_tests(logger_tests_spdlog TEST_PREFIX "spdlog.")
-        endif()
-
-        # Log4cxx tests
-        if(TARGET logger_log4cxx)
-            add_executable(logger_tests_log4cxx
-                ${COMMON_TEST_SOURCES}
-                test/Log4CxxLoggerTest.cpp
-                test/Log4CxxBackendTest.cpp
-                test/Log4CxxPatternTranslatorTest.cpp
-            )
-            target_compile_definitions(logger_tests_log4cxx PRIVATE
-                TEST_CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/config")
-            target_link_libraries(logger_tests_log4cxx PRIVATE logger_log4cxx_auto GTest::gtest_main)
-            gtest_discover_tests(logger_tests_log4cxx TEST_PREFIX "log4cxx.")
-        endif()
-
+        add_subdirectory(test/simple)
+        add_subdirectory(test/spdlog)
+        add_subdirectory(test/log4cxx)
     else()
         message(WARNING "GTest not found: unit tests will not be built")
     endif()

@@ -1,0 +1,10 @@
+if(TARGET logger_spdlog)
+    file(GLOB CORE_SOURCES    CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/test/core/*.cpp")
+    file(GLOB BACKEND_SOURCES CONFIGURE_DEPENDS "*.cpp")
+    add_executable(logger_tests_spdlog ${CORE_SOURCES} ${BACKEND_SOURCES})
+    target_include_directories(logger_tests_spdlog PRIVATE ${CMAKE_SOURCE_DIR}/src/spdlog)
+    target_compile_definitions(logger_tests_spdlog PRIVATE
+        TEST_CONFIG_DIR="${CMAKE_SOURCE_DIR}/test/config")
+    target_link_libraries(logger_tests_spdlog PRIVATE logger_spdlog_auto GTest::gtest_main)
+    gtest_discover_tests(logger_tests_spdlog TEST_PREFIX "spdlog.")
+endif()
