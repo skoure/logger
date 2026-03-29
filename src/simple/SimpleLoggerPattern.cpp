@@ -29,6 +29,84 @@ static std::string threadIdToString(std::thread::id id)
 }
 
 // ---------------------------------------------------------------------------
+// Internal modifier support
+// ---------------------------------------------------------------------------
+
+namespace {
+
+struct PatternModifier {
+    bool leftAlign = false;
+    int  minWidth  = 0;   // 0 = no minimum
+    int  maxWidth  = -1;  // -1 = no maximum
+};
+
+static PatternModifier parseModifier(const std::string& s, std::size_t& i, std::size_t n)
+{
+    PatternModifier mod;
+    if (i < n && s[i] == '-') { mod.leftAlign = true; ++i; }
+    while (i < n && std::isdigit(static_cast<unsigned char>(s[i])))
+        mod.minWidth = mod.minWidth * 10 + (s[i++] - '0');
+    if (i < n && s[i] == '.') {
+        ++i;
+        mod.maxWidth = 0;
+        while (i < n && std::isdigit(static_cast<unsigned char>(s[i])))
+            mod.maxWidth = mod.maxWidth * 10 + (s[i++] - '0');
+    }
+    return mod;
+}
+
+static std::string applyModifier(std::string value, const PatternModifier& mod)
+{
+    // Truncate from the left (log4j default: removes leading characters)
+    if (mod.maxWidth >= 0 && static_cast<int>(value.size()) > mod.maxWidth)
+        value = value.substr(value.size() - static_cast<std::size_t>(mod.maxWidth));
+
+    // Pad with spaces to reach minimum width
+    if (mod.minWidth > 0 && static_cast<int>(value.size()) < mod.minWidth) {
+        int pad = mod.minWidth - static_cast<int>(value.size());
+        if (mod.leftAlign) value.append(static_cast<std::size_t>(pad), ' ');
+        else               value.insert(0, static_cast<std::size_t>(pad), ' ');
+    }
+
+    return value;
+}
+
+static std::string expandDate(const std::string& pattern,
+                               std::size_t& i, std::size_t n,
+                               const LogRecord& record)
+{
+    const char* fmt = "%Y-%m-%d %H:%M:%S";
+    std::string fmtBuf;
+
+    if (i < n && pattern[i] == '{')
+    {
+        std::size_t close = pattern.find('}', i + 1);
+        if (close == std::string::npos)
+        {
+            // Malformed — emit literally and stop
+            return "%d{";
+        }
+        fmtBuf = pattern.substr(i + 1, close - i - 1);
+        i = close + 1;
+        fmt = fmtBuf.c_str();
+    }
+
+    auto tt = std::chrono::system_clock::to_time_t(record.timestamp);
+    std::tm tm_val;
+#ifdef _WIN32
+    localtime_s(&tm_val, &tt);
+#else
+    localtime_r(&tt, &tm_val);
+#endif
+    char buf[256];
+    if (std::strftime(buf, sizeof(buf), fmt, &tm_val) > 0)
+        return buf;
+    return {};
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
 // SimpleLoggerPattern::render
 // ---------------------------------------------------------------------------
 
@@ -49,7 +127,7 @@ std::string SimpleLoggerPattern::render(const std::string& pattern,
             continue;
         }
 
-        // We have '%'
+        // Trailing '%' with nothing after it
         if (i + 1 >= n)
         {
             result += '%';
@@ -57,102 +135,65 @@ std::string SimpleLoggerPattern::render(const std::string& pattern,
             continue;
         }
 
-        char next = pattern[i + 1];
+        ++i; // consume '%'
 
-        switch (next)
+        PatternModifier mod = parseModifier(pattern, i, n);
+
+        if (i >= n)
         {
-        case '%':
             result += '%';
-            i += 2;
             break;
+        }
 
+        char token = pattern[i++];
+
+        // %% — literal percent; modifier is ignored
+        if (token == '%')
+        {
+            result += '%';
+            continue;
+        }
+
+        switch (token)
+        {
         case 'm':
-            result += record.message;
-            i += 2;
+            result += applyModifier(record.message, mod);
             break;
 
         case 'p':
-            result += LoggerBase::levelToString(record.level);
-            i += 2;
+            result += applyModifier(LoggerBase::levelToString(record.level), mod);
             break;
 
         case 'c':
-            result += record.loggerName;
-            i += 2;
+            result += applyModifier(record.loggerName, mod);
             break;
 
         case 't':
-            result += threadIdToString(record.threadId);
-            i += 2;
+            result += applyModifier(threadIdToString(record.threadId), mod);
             break;
 
         case 'T':
-            result += record.threadName;
-            i += 2;
+            result += applyModifier(record.threadName, mod);
             break;
 
         case 'M':
-            if (record.marker)
-                result += record.marker->getName();
-            i += 2;
+            result += applyModifier(
+                record.marker ? record.marker->getName() : std::string{}, mod);
             break;
 
         case 'n':
+            // Newline — modifier is ignored
             result += '\n';
-            i += 2;
             break;
 
         case 'd':
-        {
-            i += 2; // skip '%d'
-            if (i < n && pattern[i] == '{')
-            {
-                std::size_t close = pattern.find('}', i + 1);
-                if (close == std::string::npos)
-                {
-                    // Malformed — emit literally
-                    result += "%d{";
-                    ++i;
-                    break;
-                }
-
-                std::string fmt = pattern.substr(i + 1, close - i - 1);
-                i = close + 1;
-
-                // Convert timestamp to time_t then format with strftime
-                auto tt = std::chrono::system_clock::to_time_t(record.timestamp);
-                std::tm tm_val;
-#ifdef _WIN32
-                localtime_s(&tm_val, &tt);
-#else
-                localtime_r(&tt, &tm_val);
-#endif
-                char buf[256];
-                if (std::strftime(buf, sizeof(buf), fmt.c_str(), &tm_val) > 0)
-                    result += buf;
-            }
-            else
-            {
-                // bare %d — emit ISO timestamp
-                auto tt = std::chrono::system_clock::to_time_t(record.timestamp);
-                std::tm tm_val;
-#ifdef _WIN32
-                localtime_s(&tm_val, &tt);
-#else
-                localtime_r(&tt, &tm_val);
-#endif
-                char buf[64];
-                std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_val);
-                result += buf;
-            }
+            result += applyModifier(expandDate(pattern, i, n, record), mod);
             break;
-        }
 
         default:
             // Unknown token — pass through
             result += '%';
-            result += next;
-            i += 2;
+            result += token;
             break;
         }
     }

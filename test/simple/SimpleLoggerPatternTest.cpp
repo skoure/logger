@@ -121,3 +121,120 @@ TEST(SimpleLoggerPatternTest, LiteralPercentEscaping)
     LogRecord r = makeRecord();
     EXPECT_EQ(SimpleLoggerPattern::render("%%", r), "%");
 }
+
+// ---------------------------------------------------------------------------
+// Modifier tests
+// ---------------------------------------------------------------------------
+
+TEST(SimpleLoggerPatternTest, MinWidthPadsLeft)
+{
+    // Right-align (default): pad on left
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "foo");
+    EXPECT_EQ(SimpleLoggerPattern::render("%10m", r), "       foo");
+}
+
+TEST(SimpleLoggerPatternTest, MinWidthLeftAlign)
+{
+    // Left-align: pad on right
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "foo");
+    EXPECT_EQ(SimpleLoggerPattern::render("%-10m", r), "foo       ");
+}
+
+TEST(SimpleLoggerPatternTest, MinWidthExact_NoPad)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "foo");
+    EXPECT_EQ(SimpleLoggerPattern::render("%3m", r), "foo");
+}
+
+TEST(SimpleLoggerPatternTest, MinWidthLonger_NoTrunc)
+{
+    // min-width never truncates
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "0123456789");
+    EXPECT_EQ(SimpleLoggerPattern::render("%3m", r), "0123456789");
+}
+
+TEST(SimpleLoggerPatternTest, MaxWidthTruncatesLeft)
+{
+    // Truncates from the left (log4j default)
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "hello world");
+    EXPECT_EQ(SimpleLoggerPattern::render("%.5m", r), "world");
+}
+
+TEST(SimpleLoggerPatternTest, MaxWidthExact_NoChange)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "hello");
+    EXPECT_EQ(SimpleLoggerPattern::render("%.5m", r), "hello");
+}
+
+TEST(SimpleLoggerPatternTest, MaxWidthShorter_NoChange)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "hi");
+    EXPECT_EQ(SimpleLoggerPattern::render("%.5m", r), "hi");
+}
+
+TEST(SimpleLoggerPatternTest, MaxWidthZero_EmptyOutput)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "hello");
+    EXPECT_EQ(SimpleLoggerPattern::render("%.0m", r), "");
+}
+
+TEST(SimpleLoggerPatternTest, MinAndMaxWidth_TruncateThenPad)
+{
+    // Truncate "hello world" to 5 chars → "world", then pad to 10 (left-align)
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "hello world");
+    EXPECT_EQ(SimpleLoggerPattern::render("%-10.5m", r), "world     ");
+}
+
+TEST(SimpleLoggerPatternTest, MinAndMaxWidth_PadOnly)
+{
+    // "hi" is shorter than max (5) so no truncation, then pad to 10 (right-align)
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "hi");
+    EXPECT_EQ(SimpleLoggerPattern::render("%10.5m", r), "        hi");
+}
+
+TEST(SimpleLoggerPatternTest, ModifierOnLevel)
+{
+    LogRecord r = makeRecord(Logger::Level::Info);
+    EXPECT_EQ(SimpleLoggerPattern::render("%-10p", r), "INFO      ");
+}
+
+TEST(SimpleLoggerPatternTest, ModifierOnLoggerName)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "App");
+    EXPECT_EQ(SimpleLoggerPattern::render("%20c", r), "                 App");
+}
+
+TEST(SimpleLoggerPatternTest, ModifierOnDate)
+{
+    LogRecord r = makeRecord();
+    std::string result = SimpleLoggerPattern::render("%10d{%Y}", r);
+    // 4-digit year right-padded to 10 chars
+    EXPECT_EQ(result.size(), 10u);
+    EXPECT_EQ(result.substr(0, 6), "      "); // 6 leading spaces
+    EXPECT_NE(result.find("20"), std::string::npos);
+}
+
+TEST(SimpleLoggerPatternTest, ModifierOnMarkerEmpty)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", nullptr);
+    EXPECT_EQ(SimpleLoggerPattern::render("%10M", r), "          ");
+}
+
+TEST(SimpleLoggerPatternTest, ModifierOnMarkerPresent)
+{
+    auto markerPtr = MarkerFactory::getMarker("DB");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", markerPtr.get());
+    EXPECT_EQ(SimpleLoggerPattern::render("%-10M", r), "DB        ");
+}
+
+TEST(SimpleLoggerPatternTest, ModifierOnNewlineIgnored)
+{
+    LogRecord r = makeRecord();
+    EXPECT_EQ(SimpleLoggerPattern::render("%-5n", r), "\n");
+}
+
+TEST(SimpleLoggerPatternTest, DoublePercent_Unaffected)
+{
+    LogRecord r = makeRecord();
+    EXPECT_EQ(SimpleLoggerPattern::render("%%", r), "%");
+}

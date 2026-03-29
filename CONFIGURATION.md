@@ -163,6 +163,63 @@ tokens into its own native format.
 
 ---
 
+## Width and Alignment Modifiers
+
+Any token (except `%n` and `%%`) can be prefixed with an optional modifier
+that controls field width and alignment.  The full syntax is:
+
+```
+%[-][min-width][.max-width]token
+```
+
+| Part         | Description                                                         |
+|--------------|---------------------------------------------------------------------|
+| `-`          | Left-align the field (default is right-align).                      |
+| `min-width`  | Pad the value with spaces to at least this many characters.         |
+| `.max-width` | Truncate the value to at most this many characters (from the left). |
+
+Padding always uses spaces.  Truncation removes leading characters.
+
+### Modifier examples
+
+| Pattern    | Value        | Output         | Notes                            |
+|------------|--------------|----------------|----------------------------------|
+| `%-5p`     | `INFO`       | `INFO `        | Left-align, pad to 5 chars       |
+| `%-5p`     | `WARN`       | `WARN `        | Left-align, pad to 5 chars       |
+| `%-5p`     | `FATAL`      | `FATAL`        | Exact fit — no padding           |
+| `%10m`     | `hello`      | `     hello`   | Right-align, pad to 10 chars     |
+| `%-10M`    | `SQL`        | `SQL       `   | Left-align marker to 10 chars    |
+| `%-10M`    | *(none)*     | `          `   | Empty marker — 10 spaces         |
+| `%.20c`    | `App.Database.SQL` | `atabase.SQL` | Truncate from left to 20 chars |
+| `%-20.20c` | `App`        | `App                 ` | Left-align, min+max 20 chars |
+
+### Typical use: fixed-width level field
+
+All built-in level names are at most 5 characters (`FATAL`, `ERROR`, `TRACE`,
+`DEBUG`).  Use `%-5p` to ensure every level field is exactly 5 characters wide,
+keeping subsequent fields column-aligned:
+
+```
+[2026-03-29 14:05:30] [INFO ] [SQL       ] msg...
+[2026-03-29 14:05:30] [FATAL] [          ] msg...
+[2026-03-29 14:05:30] [DEBUG] [SQL       ] msg...
+```
+
+### Backend notes
+
+| Backend      | Modifier support                                                    |
+|--------------|---------------------------------------------------------------------|
+| SimpleLogger | Full support — padding and truncation applied in C++.               |
+| spdlog       | Full support for all tokens except `%d` (see note below).           |
+| log4cxx      | Full support — modifiers are passed through in native log4j syntax. |
+
+> **spdlog `%d` limitation:** spdlog inlines strftime tokens directly into its
+> pattern string, so a width modifier on `%d{...}` cannot be applied to the
+> resulting multi-token sequence.  The modifier is silently dropped for spdlog.
+> Use SimpleLogger or log4cxx if you need a fixed-width timestamp field.
+
+---
+
 ## Markers
 
 Markers are named tags that can be attached to individual log events.

@@ -77,3 +77,60 @@ TEST(SpdlogPatternTranslatorTest, FullPatternWithDate)
         "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n");
     EXPECT_EQ(result, "[%Y-%m-%d %H:%M:%S] [%l] %v\n");
 }
+
+// ---------------------------------------------------------------------------
+// Modifier tests
+// ---------------------------------------------------------------------------
+
+TEST(SpdlogPatternTranslatorTest, MinWidthRightAlign)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%10m"), "%10v");
+}
+
+TEST(SpdlogPatternTranslatorTest, MinWidthLeftAlign)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%-10p"), "%-10l");
+}
+
+TEST(SpdlogPatternTranslatorTest, MaxWidthOnly)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%.5c"), "%.5n");
+}
+
+TEST(SpdlogPatternTranslatorTest, MinAndMaxWidth)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%-20.30m"), "%-20.30v");
+}
+
+TEST(SpdlogPatternTranslatorTest, ModifierOnThreadName)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%-10T"), "%-10*");
+}
+
+TEST(SpdlogPatternTranslatorTest, ModifierOnMarker)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%10M"), "%10&");
+}
+
+TEST(SpdlogPatternTranslatorTest, ModifierOnThreadId)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%5t"), "%5t");
+}
+
+TEST(SpdlogPatternTranslatorTest, ModifierOnDateDropped)
+{
+    // Width modifier on %d cannot be applied to a multi-token strftime sequence
+    // in spdlog — the modifier is silently dropped and the inner format is emitted as-is
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%-25d{%H:%M:%S}"), "%H:%M:%S");
+}
+
+TEST(SpdlogPatternTranslatorTest, ModifierOnUnknownToken)
+{
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%-5q"), "%-5q");
+}
+
+TEST(SpdlogPatternTranslatorTest, ModifierInFullPattern)
+{
+    std::string result = SpdlogPatternTranslator::translate("[%-5p] %-20c: %m%n");
+    EXPECT_EQ(result, "[%-5l] %-20n: %v\n");
+}

@@ -66,3 +66,59 @@ TEST(Log4CxxPatternTranslatorTest, MarkerInFullPattern)
         "[%p] [%M] %m%n");
     EXPECT_EQ(result, "[%p] [%X{marker}] %m%n");
 }
+
+// ---------------------------------------------------------------------------
+// Modifier tests
+// ---------------------------------------------------------------------------
+
+TEST(Log4CxxPatternTranslatorTest, MinWidthRightAlign)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%10m"), "%10m");
+}
+
+TEST(Log4CxxPatternTranslatorTest, MinWidthLeftAlign)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10p"), "%-10p");
+}
+
+TEST(Log4CxxPatternTranslatorTest, MaxWidthOnly)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%.5c"), "%.5c");
+}
+
+TEST(Log4CxxPatternTranslatorTest, MinAndMaxWidth)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-20.30m"), "%-20.30m");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ModifierOnThreadName)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10T"), "%-10t");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ModifierOnMarker)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10M"), "%-10X{marker}");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ModifierOnDateWithFmt)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-25d{%Y-%m-%d %H:%M:%S}"),
+              "%-25d{yyyy-MM-dd HH:mm:ss}");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ModifierOnBareDate)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%10d"), "%10d");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ModifierOnUnknownToken)
+{
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-5q"), "%-5q");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ModifierInFullPattern)
+{
+    std::string result = Log4CxxPatternTranslator::translate("[%-5p] %-20c: %m%n");
+    EXPECT_EQ(result, "[%-5p] %-20c: %m%n");
+}
