@@ -30,9 +30,14 @@ LoggerPtr SimpleLoggerBackend::createLogger(const std::string& name)
     return std::make_shared<SimpleLogger>(name);
 }
 
-void SimpleLoggerBackend::applyParentSinks(LoggerPtr /*child*/, LoggerPtr /*parent*/)
+void SimpleLoggerBackend::applyParentSinks(LoggerPtr child, LoggerPtr parent)
 {
-    // SimpleLogger writes directly to std::clog — no explicit sink objects to copy.
+    auto* sl = dynamic_cast<SimpleLogger*>(child.get());
+    auto* pl = dynamic_cast<SimpleLogger*>(parent.get());
+    if (!sl || !pl) return;
+
+    if (sl->getSinks().empty() && !pl->getSinks().empty())
+        sl->setSinks(pl->getSinks());
 }
 
 void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
