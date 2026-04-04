@@ -8,12 +8,15 @@
  * @date Created: November 15, 2025
  */
 #include <gtest/gtest.h>
+#include <SpdlogBackend.h>
 #include <SpdlogLogger.h>
 #include <SpdlogThreadLocal.h>
 #include <logger/MarkerFactory.h>
 #include <spdlog/sinks/base_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <mutex>
 #include <stdexcept>
+#include <string>
 
 using namespace sk::logger;
 
@@ -240,5 +243,85 @@ TEST_F(SpdlogLoggerTest, MarkerSuppressedBelowLevel)
     // sink_it_() should never have fired
     EXPECT_EQ(sink->capturedMarker, "");
     EXPECT_EQ(sink->capturedMessage, "");
+}
+
+// ---------------------------------------------------------------------------
+// Padding tests
+//
+// Configure a logger with a console sink, disable ANSI colour codes, capture
+// stdout, and verify the formatted line contains the expected padded fields.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+static std::string captureConsoleLine(const std::string& canonicalPattern,
+                                      const std::string& message,
+                                      const Marker* marker = nullptr)
+{
+    SpdlogBackend backend;
+    LoggerPtr loggerPtr = backend.createLogger("Padding.Capture");
+    auto* logger = dynamic_cast<SpdlogLogger*>(loggerPtr.get());
+    logger->setLevel(Logger::Level::Trace);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = canonicalPattern;
+    backend.configureLogger(loggerPtr, {sc});
+
+    // Disable ANSI colour codes so the captured string is plain text
+    auto colorSink = std::dynamic_pointer_cast<spdlog::sinks::stdout_color_sink_mt>(
+        logger->getInternalLogger()->sinks().front());
+    if (colorSink)
+        colorSink->set_color_mode(spdlog::color_mode::never);
+
+    testing::internal::CaptureStdout();
+    if (marker)
+        logger->info(*marker, "%s", message.c_str());
+    else
+        logger->info("%s", message.c_str());
+    return testing::internal::GetCapturedStdout();
+}
+
+} // namespace
+
+TEST(SpdlogPaddingTest, MarkerLeftAlignedShorterThanWidth)
+{
+    auto marker = MarkerFactory::getMarker("HI");
+    std::string out = captureConsoleLine("[%-10M] %m%n", "msg", marker.get());
+    EXPECT_NE(out.find("[HI        ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, MarkerLeftAlignedEmptyIsAllSpaces)
+{
+    std::string out = captureConsoleLine("[%-10M] %m%n", "msg");
+    EXPECT_NE(out.find("[          ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, MarkerRightAligned)
+{
+    auto marker = MarkerFactory::getMarker("HI");
+    std::string out = captureConsoleLine("[%10M] %m%n", "msg", marker.get());
+    EXPECT_NE(out.find("[        HI]"), std::string::npos) << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, MarkerExceedsWidthIsNotTruncated)
+{
+    auto marker = MarkerFactory::getMarker("VERYLONGMARKER");
+    std::string out = captureConsoleLine("[%-5M] %m%n", "msg", marker.get());
+    EXPECT_NE(out.find("[VERYLONGMARKER]"), std::string::npos) << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, LevelLeftAligned)
+{
+    std::string out = captureConsoleLine("[%-5p] %m%n", "msg");
+    EXPECT_NE(out.find("[info ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, FullPatternMatchesExpectedLayout)
+{
+    auto marker = MarkerFactory::getMarker("GREET");
+    std::string out = captureConsoleLine("[%-5p] [%-10M] %m%n", "Hello", marker.get());
+    EXPECT_NE(out.find("[info ] [GREET     ] Hello"), std::string::npos)
+        << "output: " << out;
 }
 

@@ -10,10 +10,14 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <log4cxx/appenderskeleton.h>
+#include <log4cxx/patternlayout.h>
+#include <Log4CxxBackend.h>
 #include <Log4CxxLogger.h>
+#include <Log4CxxPatternTranslator.h>
 #include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
 #include <stdexcept>
+#include <string>
 
 using namespace sk::logger;
 
@@ -215,5 +219,102 @@ TEST(Log4CxxLoggerTest, MDCClearedAfterMarkerLog)
 
     // capturer holds the last event; marker should be absent on the second call
     EXPECT_TRUE(capturer->capturedMarker.empty());
+}
+
+// ---------------------------------------------------------------------------
+// Padding tests
+//
+// Uses a FormattedCapturingAppender (requiresLayout=true) to get the full
+// formatted line via PatternLayout::format(), then checks that the canonical
+// pattern's width/alignment modifiers produce the expected padded output.
+// ---------------------------------------------------------------------------
+
+class FormattedCapturingAppender : public log4cxx::AppenderSkeleton {
+public:
+    std::string lastLine;
+    bool requiresLayout() const override { return true; }
+    void close() override {}
+    void append(const log4cxx::spi::LoggingEventPtr& event,
+                log4cxx::helpers::Pool& pool) override {
+        log4cxx::LogString output;
+        this->getLayout()->format(output, event, pool);
+        lastLine = std::string(output.begin(), output.end());
+    }
+};
+
+namespace {
+
+static std::string captureLog4CxxLine(const std::string& canonicalPattern,
+                                      const std::string& message,
+                                      const Marker* marker = nullptr)
+{
+    const std::string log4cxxPattern =
+        Log4CxxPatternTranslator::translate(canonicalPattern);
+
+    Log4CxxLogger logger("Log4CxxPadding.Capture");
+    logger.setLevel(Logger::Level::Trace);
+    logger.getInternalLogger()->setAdditivity(false);
+
+    auto* capturer = new FormattedCapturingAppender();
+    auto layout = std::make_shared<log4cxx::PatternLayout>(
+        log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()));
+    capturer->setLayout(layout);
+    log4cxx::helpers::Pool pool;
+    capturer->activateOptions(pool);
+
+    log4cxx::AppenderPtr appender(capturer);
+    logger.getInternalLogger()->addAppender(appender);
+
+    if (marker)
+        logger.info(*marker, "%s", message.c_str());
+    else
+        logger.info("%s", message.c_str());
+
+    logger.getInternalLogger()->removeAppender(appender);
+    return capturer->lastLine;
+}
+
+} // namespace
+
+TEST(Log4CxxPaddingTest, MarkerLeftAlignedShorterThanWidth)
+{
+    auto marker = MarkerFactory::getMarker("HI");
+    std::string out = captureLog4CxxLine("[%-10M] %m%n", "msg", marker.get());
+    EXPECT_NE(out.find("[HI        ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(Log4CxxPaddingTest, MarkerLeftAlignedEmptyIsAllSpaces)
+{
+    std::string out = captureLog4CxxLine("[%-10M] %m%n", "msg");
+    EXPECT_NE(out.find("[          ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(Log4CxxPaddingTest, MarkerRightAligned)
+{
+    auto marker = MarkerFactory::getMarker("HI");
+    std::string out = captureLog4CxxLine("[%10M] %m%n", "msg", marker.get());
+    EXPECT_NE(out.find("[        HI]"), std::string::npos) << "output: " << out;
+}
+
+TEST(Log4CxxPaddingTest, MarkerExceedsWidthIsNotTruncated)
+{
+    auto marker = MarkerFactory::getMarker("VERYLONGMARKER");
+    std::string out = captureLog4CxxLine("[%-5M] %m%n", "msg", marker.get());
+    EXPECT_NE(out.find("[VERYLONGMARKER]"), std::string::npos) << "output: " << out;
+}
+
+TEST(Log4CxxPaddingTest, LevelLeftAligned)
+{
+    // log4cxx emits levels as e.g. "INFO ", "WARN " — check "INFO " padded to 5
+    std::string out = captureLog4CxxLine("[%-5p] %m%n", "msg");
+    EXPECT_NE(out.find("[INFO ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(Log4CxxPaddingTest, FullPatternMatchesExpectedLayout)
+{
+    auto marker = MarkerFactory::getMarker("GREET");
+    std::string out = captureLog4CxxLine("[%-5p] [%-10M] %m%n", "Hello", marker.get());
+    EXPECT_NE(out.find("[INFO ] [GREET     ] Hello"), std::string::npos)
+        << "output: " << out;
 }
 
