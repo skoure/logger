@@ -12,6 +12,7 @@
 #include <SpdlogPatternTranslator.h>
 #include <SpdlogThreadLocal.h>
 #include <LoggerFactoryImpl.h>
+#include <LoggerBase.h>
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -126,6 +127,51 @@ public:
     }
 };
 
+/**
+ * @brief Maps a spdlog level enum back to the sk::logger::Logger::Level equivalent.
+ *
+ * Used by LevelNameFormatter to look up the configured level name string.
+ */
+static Logger::Level fromSpdlogLevel(spdlog::level::level_enum lvl)
+{
+    switch (lvl)
+    {
+    case spdlog::level::trace:    return Logger::Level::Trace;
+    case spdlog::level::debug:    return Logger::Level::Debug;
+    case spdlog::level::info:     return Logger::Level::Info;
+    case spdlog::level::warn:     return Logger::Level::Warn;
+    case spdlog::level::err:      return Logger::Level::Error;
+    case spdlog::level::critical: return Logger::Level::Fatal;
+    default:                      return Logger::Level::Info;
+    }
+}
+
+/**
+ * @brief Custom spdlog flag '%@' — emits the configured level name.
+ *
+ * Reads from LoggerBase::levelToString() so that the output honours any
+ * application-supplied LevelNames set via LoggerFactory::setLevelNames().
+ * Replaces the native spdlog '%l' token (which outputs lowercase names).
+ * The '@' character is used to avoid clashing with spdlog's built-in flags
+ * (e.g. '%!' is the source function name in spdlog).
+ */
+class LevelNameFormatter final : public spdlog::custom_flag_formatter
+{
+public:
+    void format(const spdlog::details::log_msg& msg,
+                const std::tm& /*tm_time*/,
+                spdlog::memory_buf_t& dest) override
+    {
+        const char* name = LoggerBase::levelToString(fromSpdlogLevel(msg.level));
+        appendPadded({name, std::strlen(name)}, padinfo_, dest);
+    }
+
+    std::unique_ptr<custom_flag_formatter> clone() const override
+    {
+        return spdlog::details::make_unique<LevelNameFormatter>();
+    }
+};
+
 // ---------------------------------------------------------------------------
 // Helper: create a spdlog sink with a custom pattern formatter applied
 // ---------------------------------------------------------------------------
@@ -136,6 +182,7 @@ void applyPattern(const std::shared_ptr<spdlog::sinks::sink>& sink,
     auto formatter = spdlog::details::make_unique<spdlog::pattern_formatter>();
     formatter->add_flag<ThreadNameFormatter>('*');
     formatter->add_flag<MarkerFormatter>('&');
+    formatter->add_flag<LevelNameFormatter>('@');
     formatter->set_pattern(spdlogPattern);
     sink->set_formatter(std::move(formatter));
 }

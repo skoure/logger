@@ -86,16 +86,28 @@ bool LoggerBase::isTraceEnabled() const { return getLevel() >= Level::Trace; }
 // LoggerBase — static helpers
 // ---------------------------------------------------------------------------
 
+LevelNames LoggerBase::s_levelNames;
+
+void LoggerBase::setLevelNames(const LevelNames& names)
+{
+    s_levelNames = names;
+}
+
+const LevelNames& LoggerBase::getLevelNames()
+{
+    return s_levelNames;
+}
+
 const char* LoggerBase::levelToString(Level level)
 {
     switch (level)
     {
-    case Level::Fatal: return "FATAL";
-    case Level::Error: return "ERROR";
-    case Level::Warn:  return "WARN";
-    case Level::Info:  return "INFO";
-    case Level::Debug: return "DEBUG";
-    case Level::Trace: return "TRACE";
+    case Level::Fatal: return s_levelNames.fatal;
+    case Level::Error: return s_levelNames.error;
+    case Level::Warn:  return s_levelNames.warn;
+    case Level::Info:  return s_levelNames.info;
+    case Level::Debug: return s_levelNames.debug;
+    case Level::Trace: return s_levelNames.trace;
     default:           return "UNKNOWN";
     }
 }

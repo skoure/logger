@@ -19,7 +19,7 @@ TEST(SpdlogPatternTranslatorTest, MessageToken)
 
 TEST(SpdlogPatternTranslatorTest, LevelToken)
 {
-    EXPECT_EQ(SpdlogPatternTranslator::translate("%p"), "%l");
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%p"), "%@");
 }
 
 TEST(SpdlogPatternTranslatorTest, LoggerNameToken)
@@ -57,7 +57,7 @@ TEST(SpdlogPatternTranslatorTest, MarkerTokenMapsToCustomFlag)
 TEST(SpdlogPatternTranslatorTest, MultipleTokensInOnePattern)
 {
     std::string result = SpdlogPatternTranslator::translate("[%p] %c: %m%n");
-    EXPECT_EQ(result, "[%l] %n: %v\n");
+    EXPECT_EQ(result, "[%@] %n: %v\n");
 }
 
 TEST(SpdlogPatternTranslatorTest, UnknownTokensPassThrough)
@@ -75,7 +75,7 @@ TEST(SpdlogPatternTranslatorTest, FullPatternWithDate)
 {
     std::string result = SpdlogPatternTranslator::translate(
         "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n");
-    EXPECT_EQ(result, "[%Y-%m-%d %H:%M:%S] [%l] %v\n");
+    EXPECT_EQ(result, "[%Y-%m-%d %H:%M:%S] [%@] %v\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ TEST(SpdlogPatternTranslatorTest, MinWidthRightAlign)
 
 TEST(SpdlogPatternTranslatorTest, MinWidthLeftAlign)
 {
-    EXPECT_EQ(SpdlogPatternTranslator::translate("%-10p"), "%-10l");
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%-10p"), "%-10@");
 }
 
 TEST(SpdlogPatternTranslatorTest, MaxWidthOnly)
@@ -132,5 +132,5 @@ TEST(SpdlogPatternTranslatorTest, ModifierOnUnknownToken)
 TEST(SpdlogPatternTranslatorTest, ModifierInFullPattern)
 {
     std::string result = SpdlogPatternTranslator::translate("[%-5p] %-20c: %m%n");
-    EXPECT_EQ(result, "[%-5l] %-20n: %v\n");
+    EXPECT_EQ(result, "[%-5@] %-20n: %v\n");
 }

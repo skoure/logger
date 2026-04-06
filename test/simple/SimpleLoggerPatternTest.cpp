@@ -9,7 +9,9 @@
  */
 #include <gtest/gtest.h>
 #include <SimpleLoggerPattern.h>
+#include <LoggerBase.h>
 #include <LogRecord.h>
+#include <logger/LevelNames.h>
 #include <logger/MarkerFactory.h>
 #include <chrono>
 #include <string>
@@ -237,4 +239,57 @@ TEST(SimpleLoggerPatternTest, DoublePercent_Unaffected)
 {
     LogRecord r = makeRecord();
     EXPECT_EQ(SimpleLoggerPattern::render("%%", r), "%");
+}
+
+// ---------------------------------------------------------------------------
+// LevelNames customisation tests
+// ---------------------------------------------------------------------------
+
+class LevelNamesTest : public ::testing::Test {
+protected:
+    void TearDown() override {
+        // Restore factory defaults so other tests are unaffected.
+        LoggerBase::setLevelNames(LevelNames{});
+    }
+};
+
+TEST_F(LevelNamesTest, DefaultWarnIsWARN)
+{
+    LogRecord r = makeRecord(Logger::Level::Warn);
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", r), "WARN");
+}
+
+TEST_F(LevelNamesTest, DefaultInfoIsINFO)
+{
+    LogRecord r = makeRecord(Logger::Level::Info);
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", r), "INFO");
+}
+
+TEST_F(LevelNamesTest, CustomWarnName)
+{
+    LevelNames names;
+    names.warn = "WARNING";
+    LoggerBase::setLevelNames(names);
+
+    LogRecord r = makeRecord(Logger::Level::Warn);
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", r), "WARNING");
+}
+
+TEST_F(LevelNamesTest, AllLevelsCustom)
+{
+    LevelNames names;
+    names.fatal = "CRIT";
+    names.error = "ERR";
+    names.warn  = "WRN";
+    names.info  = "INF";
+    names.debug = "DBG";
+    names.trace = "TRC";
+    LoggerBase::setLevelNames(names);
+
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", makeRecord(Logger::Level::Fatal)), "CRIT");
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", makeRecord(Logger::Level::Error)), "ERR");
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", makeRecord(Logger::Level::Warn)),  "WRN");
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", makeRecord(Logger::Level::Info)),  "INF");
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", makeRecord(Logger::Level::Debug)), "DBG");
+    EXPECT_EQ(SimpleLoggerPattern::render("%p", makeRecord(Logger::Level::Trace)), "TRC");
 }

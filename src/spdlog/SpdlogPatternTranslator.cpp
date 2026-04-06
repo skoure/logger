@@ -100,7 +100,7 @@ std::string SpdlogPatternTranslator::translate(const std::string& canonical)
             break;
 
         case 'p':
-            result += '%' + modStr + 'l';
+            result += '%' + modStr + '@';
             break;
 
         case 'c':

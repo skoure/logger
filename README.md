@@ -81,6 +81,34 @@ The `%M` pattern token in a configured sink pattern expands to the marker name
 
 ---
 
+## Customising Level Names
+
+By default the `%p` pattern token outputs uppercase level names consistent across
+all three backends: `FATAL`, `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`.
+
+To override any or all of the six names, call `LoggerFactory::setLevelNames()` once
+at startup before any logging takes place:
+
+```cpp
+#include <logger/LoggerFactory.h>
+#include <logger/LevelNames.h>
+
+int main() {
+  // Optional — override any or all level names before any logging
+  sk::logger::LevelNames names;
+  names.warn = "WARNING";   // only the fields you want to change
+  sk::logger::LoggerFactory::setLevelNames(names);
+
+  auto logger = sk::logger::LoggerFactory::getLogger("App");
+  logger->warn("disk usage at %d%%", 95);  // prints "WARNING" in the level column
+  // ...
+}
+```
+
+The strings pointed to by the `LevelNames` struct must outlive all subsequent logging calls.
+
+---
+
 ## How to Link
 
 The build produces an auto-registering wrapper target for each backend. Link exactly one:

@@ -19,7 +19,7 @@ TEST(Log4CxxPatternTranslatorTest, MessageTokenPassesThrough)
 
 TEST(Log4CxxPatternTranslatorTest, LevelTokenPassesThrough)
 {
-    EXPECT_EQ(Log4CxxPatternTranslator::translate("%p"), "%p");
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%p"), "%X{level}");
 }
 
 TEST(Log4CxxPatternTranslatorTest, LoggerNamePassesThrough)
@@ -57,14 +57,14 @@ TEST(Log4CxxPatternTranslatorTest, MixedPattern)
 {
     std::string result = Log4CxxPatternTranslator::translate(
         "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n");
-    EXPECT_EQ(result, "[%d{yyyy-MM-dd HH:mm:ss}] [%p] %m%n");
+    EXPECT_EQ(result, "[%d{yyyy-MM-dd HH:mm:ss}] [%X{level}] %m%n");
 }
 
 TEST(Log4CxxPatternTranslatorTest, MarkerInFullPattern)
 {
     std::string result = Log4CxxPatternTranslator::translate(
         "[%p] [%M] %m%n");
-    EXPECT_EQ(result, "[%p] [%X{marker}] %m%n");
+    EXPECT_EQ(result, "[%X{level}] [%X{marker}] %m%n");
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ TEST(Log4CxxPatternTranslatorTest, MinWidthRightAlign)
 
 TEST(Log4CxxPatternTranslatorTest, MinWidthLeftAlign)
 {
-    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10p"), "%-10p");
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10p"), "%-10X{level}");
 }
 
 TEST(Log4CxxPatternTranslatorTest, MaxWidthOnly)
@@ -120,5 +120,5 @@ TEST(Log4CxxPatternTranslatorTest, ModifierOnUnknownToken)
 TEST(Log4CxxPatternTranslatorTest, ModifierInFullPattern)
 {
     std::string result = Log4CxxPatternTranslator::translate("[%-5p] %-20c: %m%n");
-    EXPECT_EQ(result, "[%-5p] %-20c: %m%n");
+    EXPECT_EQ(result, "[%-5X{level}] %-20c: %m%n");
 }

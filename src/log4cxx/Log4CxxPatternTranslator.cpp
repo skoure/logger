@@ -145,7 +145,7 @@ std::string Log4CxxPatternTranslator::translate(const std::string& canonical)
         {
         // Native log4cxx tokens — modifier passes through verbatim (same syntax)
         case 'm': result += '%' + modStr + 'm'; break;
-        case 'p': result += '%' + modStr + 'p'; break;
+        case 'p': result += '%' + modStr + "X{level}"; break;
         case 'c': result += '%' + modStr + 'c'; break;
         case 't': result += '%' + modStr + 't'; break;  // canonical %t = thread id; log4cxx %t = thread name (close enough)
         case 'n': result += '%' + modStr + 'n'; break;

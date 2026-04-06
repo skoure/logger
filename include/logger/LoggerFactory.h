@@ -12,6 +12,7 @@
 #define SK_LOGGER_FACTORY_H
 
 #include <logger/Logger.h>
+#include <logger/LevelNames.h>
 #include <string>
 
 namespace sk { namespace logger {
@@ -39,6 +40,18 @@ public:
      * @return LoggerPtr instance
      */
     static LoggerPtr getLogger(const char* pName);
+
+    /**
+     * @brief Set the level name strings used by the %p pattern token.
+     *
+     * Replaces the six level name strings (FATAL, ERROR, WARN, INFO, DEBUG, TRACE)
+     * for all three backends simultaneously. Call once at startup, before any
+     * logging takes place. The strings pointed to by @p names must outlive all
+     * subsequent logging calls.
+     *
+     * @param names Struct containing a name string for each of the six levels.
+     */
+    static void setLevelNames(const LevelNames& names);
 
     /**
      * @brief Apply a JSON configuration file to the active backend.

@@ -25,6 +25,11 @@ LoggerFactoryImpl::~LoggerFactoryImpl()
     m_hierarchy.clear();
 }
 
+void LoggerFactory::setLevelNames(const LevelNames& names)
+{
+    LoggerBase::setLevelNames(names);
+}
+
 void LoggerFactoryImpl::setBackend(std::unique_ptr<ILoggerBackend> backend)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);

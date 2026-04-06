@@ -8,6 +8,7 @@
  * @date Created: November 08, 2025
  */
 #include <Log4CxxLogger.h>
+#include <LoggerBase.h>
 #include <log4cxx/mdc.h>
 
 using namespace sk::logger;
@@ -63,6 +64,10 @@ bool Log4CxxLogger::isLevelExplicitlySet() const
 
 void Log4CxxLogger::append(const LogRecord& record)
 {
+    // Populate the log4cxx MDC with the configured level name so that %X{level}
+    // in a PatternLayout can render the application-supplied level string.
+    log4cxx::MDC::put("level", LoggerBase::levelToString(record.level));
+
     // Populate the log4cxx MDC with the marker name so that %X{marker}
     // in a PatternLayout can render it.
     const bool hasMarker = (record.marker != nullptr);
@@ -81,4 +86,5 @@ void Log4CxxLogger::append(const LogRecord& record)
 
     if (hasMarker)
         log4cxx::MDC::remove("marker");
+    log4cxx::MDC::remove("level");
 }

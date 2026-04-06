@@ -14,6 +14,8 @@
 #include <Log4CxxBackend.h>
 #include <Log4CxxLogger.h>
 #include <Log4CxxPatternTranslator.h>
+#include <LoggerBase.h>
+#include <logger/LevelNames.h>
 #include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
 #include <stdexcept>
@@ -246,6 +248,7 @@ namespace {
 
 static std::string captureLog4CxxLine(const std::string& canonicalPattern,
                                       const std::string& message,
+                                      Logger::Level level = Logger::Level::Info,
                                       const Marker* marker = nullptr)
 {
     const std::string log4cxxPattern =
@@ -265,10 +268,25 @@ static std::string captureLog4CxxLine(const std::string& canonicalPattern,
     log4cxx::AppenderPtr appender(capturer);
     logger.getInternalLogger()->addAppender(appender);
 
-    if (marker)
-        logger.info(*marker, "%s", message.c_str());
-    else
-        logger.info("%s", message.c_str());
+    if (marker) {
+        switch (level) {
+        case Logger::Level::Fatal: logger.fatal(*marker, "%s", message.c_str()); break;
+        case Logger::Level::Error: logger.error(*marker, "%s", message.c_str()); break;
+        case Logger::Level::Warn:  logger.warn (*marker, "%s", message.c_str()); break;
+        case Logger::Level::Info:  logger.info (*marker, "%s", message.c_str()); break;
+        case Logger::Level::Debug: logger.debug(*marker, "%s", message.c_str()); break;
+        case Logger::Level::Trace: logger.trace(*marker, "%s", message.c_str()); break;
+        }
+    } else {
+        switch (level) {
+        case Logger::Level::Fatal: logger.fatal("%s", message.c_str()); break;
+        case Logger::Level::Error: logger.error("%s", message.c_str()); break;
+        case Logger::Level::Warn:  logger.warn ("%s", message.c_str()); break;
+        case Logger::Level::Info:  logger.info ("%s", message.c_str()); break;
+        case Logger::Level::Debug: logger.debug("%s", message.c_str()); break;
+        case Logger::Level::Trace: logger.trace("%s", message.c_str()); break;
+        }
+    }
 
     logger.getInternalLogger()->removeAppender(appender);
     return capturer->lastLine;
@@ -279,7 +297,7 @@ static std::string captureLog4CxxLine(const std::string& canonicalPattern,
 TEST(Log4CxxPaddingTest, MarkerLeftAlignedShorterThanWidth)
 {
     auto marker = MarkerFactory::getMarker("HI");
-    std::string out = captureLog4CxxLine("[%-10M] %m%n", "msg", marker.get());
+    std::string out = captureLog4CxxLine("[%-10M] %m%n", "msg", Logger::Level::Info, marker.get());
     EXPECT_NE(out.find("[HI        ]"), std::string::npos) << "output: " << out;
 }
 
@@ -292,14 +310,14 @@ TEST(Log4CxxPaddingTest, MarkerLeftAlignedEmptyIsAllSpaces)
 TEST(Log4CxxPaddingTest, MarkerRightAligned)
 {
     auto marker = MarkerFactory::getMarker("HI");
-    std::string out = captureLog4CxxLine("[%10M] %m%n", "msg", marker.get());
+    std::string out = captureLog4CxxLine("[%10M] %m%n", "msg", Logger::Level::Info, marker.get());
     EXPECT_NE(out.find("[        HI]"), std::string::npos) << "output: " << out;
 }
 
 TEST(Log4CxxPaddingTest, MarkerExceedsWidthIsNotTruncated)
 {
     auto marker = MarkerFactory::getMarker("VERYLONGMARKER");
-    std::string out = captureLog4CxxLine("[%-5M] %m%n", "msg", marker.get());
+    std::string out = captureLog4CxxLine("[%-5M] %m%n", "msg", Logger::Level::Info, marker.get());
     EXPECT_NE(out.find("[VERYLONGMARKER]"), std::string::npos) << "output: " << out;
 }
 
@@ -313,8 +331,52 @@ TEST(Log4CxxPaddingTest, LevelLeftAligned)
 TEST(Log4CxxPaddingTest, FullPatternMatchesExpectedLayout)
 {
     auto marker = MarkerFactory::getMarker("GREET");
-    std::string out = captureLog4CxxLine("[%-5p] [%-10M] %m%n", "Hello", marker.get());
+    std::string out = captureLog4CxxLine("[%-5p] [%-10M] %m%n", "Hello", Logger::Level::Info, marker.get());
     EXPECT_NE(out.find("[INFO ] [GREET     ] Hello"), std::string::npos)
         << "output: " << out;
+}
+
+// ---------------------------------------------------------------------------
+// LevelNames customisation tests
+// ---------------------------------------------------------------------------
+
+class Log4CxxLevelNamesTest : public ::testing::Test {
+protected:
+    void TearDown() override {
+        // Restore factory defaults so other tests are unaffected.
+        LoggerBase::setLevelNames(LevelNames{});
+    }
+};
+
+TEST_F(Log4CxxLevelNamesTest, DefaultWarnIsWARN)
+{
+    std::string out = captureLog4CxxLine("[%p] %m%n", "msg", Logger::Level::Warn);
+    EXPECT_NE(out.find("[WARN]"), std::string::npos) << "output: " << out;
+}
+
+TEST_F(Log4CxxLevelNamesTest, DefaultInfoIsINFO)
+{
+    std::string out = captureLog4CxxLine("[%p] %m%n", "msg", Logger::Level::Info);
+    EXPECT_NE(out.find("[INFO]"), std::string::npos) << "output: " << out;
+}
+
+TEST_F(Log4CxxLevelNamesTest, CustomWarnName)
+{
+    LevelNames names;
+    names.warn = "WARNING";
+    LoggerBase::setLevelNames(names);
+
+    std::string out = captureLog4CxxLine("[%p] %m%n", "msg", Logger::Level::Warn);
+    EXPECT_NE(out.find("[WARNING]"), std::string::npos) << "output: " << out;
+}
+
+TEST_F(Log4CxxLevelNamesTest, CustomWarnNameWithPadding)
+{
+    LevelNames names;
+    names.warn = "WARNING";
+    LoggerBase::setLevelNames(names);
+
+    std::string out = captureLog4CxxLine("[%-8p] %m%n", "msg", Logger::Level::Warn);
+    EXPECT_NE(out.find("[WARNING ]"), std::string::npos) << "output: " << out;
 }
 

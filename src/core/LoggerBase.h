@@ -11,6 +11,7 @@
 #define SK_LOGGER_BASE_H
 
 #include <logger/Logger.h>
+#include <logger/LevelNames.h>
 #include <LogRecord.h>
 #include <memory>
 #include <stdarg.h>
@@ -82,11 +83,33 @@ public:
                const std::exception& ex) override;
 
     /**
-     * @brief Converts a Level value to its uppercase string name.
+     * @brief Converts a Level value to the currently configured name string.
+     *
+     * Returns the name from the active LevelNames table (see setLevelNames()).
+     * Defaults to uppercase abbreviations: "FATAL", "ERROR", "WARN", "INFO",
+     * "DEBUG", "TRACE".
+     *
      * @param level The log level.
-     * @return Pointer to a static string, e.g. "FATAL", "DEBUG".
+     * @return Pointer to the name string. Lifetime is governed by the LevelNames
+     *         table — callers must not cache this pointer across setLevelNames() calls.
      */
     static const char* levelToString(Level level);
+
+    /**
+     * @brief Replace the global level name table used by all three backends.
+     *
+     * Call once at program startup, before any logging takes place. The strings
+     * pointed to by @p names must outlive all subsequent logging calls.
+     *
+     * @param names Struct containing a name string for each of the six levels.
+     */
+    static void setLevelNames(const LevelNames& names);
+
+    /**
+     * @brief Returns a const reference to the currently active level name table.
+     * @return Reference to the active LevelNames struct.
+     */
+    static const LevelNames& getLevelNames();
 
     /**
      * @brief Sets the parent logger used for level inheritance.
@@ -121,6 +144,8 @@ protected:
     virtual void onLevelChanged(Level /*level*/) {}
 
 private:
+    static LevelNames     s_levelNames;
+
     Level                 m_level              = Level::Info;
     bool                  m_levelExplicitlySet = false;
     std::weak_ptr<Logger> m_parent;
