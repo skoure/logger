@@ -15,8 +15,8 @@
 #include <logger/LevelNames.h>
 #include <logger/MarkerFactory.h>
 #include <spdlog/sinks/base_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -266,18 +266,12 @@ static std::string captureConsoleLine(const std::string& canonicalPattern,
     auto* logger = dynamic_cast<SpdlogLogger*>(loggerPtr.get());
     logger->setLevel(Logger::Level::Trace);
 
-    SinkConfig sc;
-    sc.type    = "console";
-    sc.pattern = canonicalPattern;
-    backend.configureLogger(loggerPtr, {sc});
+    // Use an ostream sink so output goes into a string buffer regardless of
+    // platform.  On Windows, stdout_color_sink_mt writes through the Windows
+    // Console HANDLE (not the C-runtime FILE), so CaptureStdout() misses it.
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(loggerPtr, oss, canonicalPattern);
 
-    // Disable ANSI colour codes so the captured string is plain text
-    auto colorSink = std::dynamic_pointer_cast<spdlog::sinks::stdout_color_sink_mt>(
-        logger->getInternalLogger()->sinks().front());
-    if (colorSink)
-        colorSink->set_color_mode(spdlog::color_mode::never);
-
-    testing::internal::CaptureStdout();
     if (marker) {
         switch (level) {
         case Logger::Level::Fatal: logger->fatal(*marker, "%s", message.c_str()); break;
@@ -297,7 +291,7 @@ static std::string captureConsoleLine(const std::string& canonicalPattern,
         case Logger::Level::Trace: logger->trace("%s", message.c_str()); break;
         }
     }
-    return testing::internal::GetCapturedStdout();
+    return oss.str();
 }
 
 } // namespace

@@ -17,6 +17,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/sinks/ostream_sink.h>
 #include <spdlog/pattern_formatter.h>
 
 #include <memory>
@@ -298,6 +299,22 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
 
     if (!newSinks.empty())
         internalLogger->sinks() = newSinks;
+}
+
+void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
+                                               std::ostream& os,
+                                               const std::string& canonicalPattern)
+{
+    auto* spLogger = dynamic_cast<SpdlogLogger*>(loggerPtr.get());
+    if (!spLogger) return;
+
+    auto internalLogger = spLogger->getInternalLogger();
+    if (!internalLogger) return;
+
+    const std::string spdlogPattern = SpdlogPatternTranslator::translate(canonicalPattern);
+    auto sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(os);
+    applyPattern(sink, spdlogPattern);
+    internalLogger->sinks() = {sink};
 }
 
 void sk::logger::useSpdlogBackend()
