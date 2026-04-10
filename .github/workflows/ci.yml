@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            preset: linux
+            profile: linux
+          - os: windows-latest
+            preset: windows
+            profile: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install GCC 11 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y gcc-11 g++-11
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 110
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ matrix.os }}-${{ hashFiles('conan/conanfile.py', 'conan/profile/**') }}
+          restore-keys: conan-${{ matrix.os }}-
+
+      - name: Install dependencies with Conan
+        run: |
+          conan install ./conan/conanfile.py \
+            --output-folder=build/conan \
+            --build=missing \
+            --profile:all=./conan/profile/${{ matrix.profile }} \
+            -s:a build_type=Release
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}-release
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}-test
