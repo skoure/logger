@@ -277,6 +277,36 @@ Each backend translates the canonical pattern into its own format:
 
 ---
 
+## Programmatic Sink Configuration
+
+For situations where you need log output captured in memory — such as unit tests,
+in-process diagnostics, or custom stream wrappers — use the programmatic API instead
+of a JSON file:
+
+```cpp
+#include <logger/LoggerFactory.h>
+#include <sstream>
+
+std::ostringstream buffer;
+sk::logger::LoggerFactory::configureLoggerWithOstream(
+    "App.Database", buffer, "[%p] [%c] %m%n");
+
+auto log = sk::logger::LoggerFactory::getLogger("App.Database");
+log->info("Connected");
+
+std::string output = buffer.str();  // e.g. "[INFO] [App.Database] Connected\n"
+```
+
+The canonical pattern syntax is identical to the JSON configuration format (see
+[Pattern Tokens](#pattern-tokens) above).
+
+> **Lifetime:** The `std::ostream` passed to `configureLoggerWithOstream` is held
+> by non-owning reference.  Ensure it outlives every logger configured against it.
+
+This API is supported by all three backends (simple, spdlog, log4cxx).
+
+---
+
 ## Calling `configure()` Multiple Times
 
 `LoggerFactory::configure()` may be called more than once.  Each call

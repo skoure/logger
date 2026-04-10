@@ -12,6 +12,7 @@
 #include <SimpleLogger.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
+#include <sstream>
 
 using namespace sk::logger;
 
@@ -64,6 +65,19 @@ TEST_F(SimpleLoggerBackendTest, ApplyParentSinksNullParentNocrash) {
 
 TEST_F(SimpleLoggerBackendTest, ApplyParentSinksBothNullNocrash) {
     EXPECT_NO_THROW(backend.applyParentSinks(nullptr, nullptr));
+}
+
+TEST_F(SimpleLoggerBackendTest, ConfigureWithOstreamWritesFormattedOutput)
+{
+    LoggerPtr logger = backend.createLogger("Simple.OStream.Test");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+
+    logger->info("hello simple");
+    EXPECT_NE(oss.str().find("[INFO] hello simple"), std::string::npos)
+        << "output: " << oss.str();
 }
 
 // Integration: LoggerFactoryImpl copies parent level to child when supportsNativeHierarchy() = false

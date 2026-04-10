@@ -21,6 +21,8 @@ public:
     bool      supportsNativeHierarchy() const override { return false; }
     void      configureLogger(LoggerPtr logger,
                               const std::vector<SinkConfig>& sinks) override;
+    void      configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
+                                         const std::string& canonicalPattern) override;
 };
 
 /**

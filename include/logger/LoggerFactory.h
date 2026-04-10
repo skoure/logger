@@ -13,6 +13,7 @@
 
 #include <logger/Logger.h>
 #include <logger/LevelNames.h>
+#include <ostream>
 #include <string>
 
 namespace sk { namespace logger {
@@ -64,6 +65,24 @@ public:
      * @param filePath Path to the JSON logging configuration file.
      */
     static void configure(const std::string& filePath);
+
+    /**
+     * @brief Configure a logger to write to an arbitrary std::ostream.
+     *
+     * Translates @p canonicalPattern and attaches the backend's ostream sink
+     * to the named logger (creating it if absent).
+     *
+     * Supported by all three backends (simple, spdlog, log4cxx).
+     *
+     * @warning The caller must ensure @p os outlives all loggers configured
+     *          against it.
+     *
+     * @param name             Logger name (e.g. "App.Database").
+     * @param os               Output stream to write to.
+     * @param canonicalPattern Log4j-style pattern (e.g. "[%p] [%c] %m%n").
+     */
+    static void configureLoggerWithOstream(const char* name, std::ostream& os,
+                                           const std::string& canonicalPattern);
 
 };
 

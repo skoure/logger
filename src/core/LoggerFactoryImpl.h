@@ -16,6 +16,7 @@
 #include <SinkConfig.h>
 #include <memory>
 #include <mutex>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,15 @@ public:
      * @param sinks  Ordered list of sink descriptors.
      */
     void configureLogger(LoggerPtr logger, const std::vector<SinkConfig>& sinks);
+
+    /**
+     * @brief Forward an ostream sink configuration request to the active backend.
+     * @param logger           Logger instance to configure.
+     * @param os               Output stream to write to.
+     * @param canonicalPattern Log4j-style pattern.
+     */
+    void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
+                                    const std::string& canonicalPattern);
 
 private:
     LoggerFactoryImpl() = default;

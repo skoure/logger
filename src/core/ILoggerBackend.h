@@ -18,6 +18,7 @@
 
 #include <logger/Logger.h>
 #include <SinkConfig.h>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -72,6 +73,21 @@ public:
      */
     virtual void configureLogger(LoggerPtr /*logger*/,
                                  const std::vector<SinkConfig>& /*sinks*/) {}
+
+    /**
+     * @brief Configure a logger to write to an arbitrary std::ostream.
+     *
+     * The caller must ensure @p os outlives the logger.  The default
+     * implementation is a no-op so that backends which do not yet provide
+     * this capability still compile and link correctly.
+     *
+     * @param logger           Logger instance to configure.
+     * @param os               Output stream to write to.
+     * @param canonicalPattern Log4j-style pattern (e.g. "[%p] %m%n").
+     */
+    virtual void configureLoggerWithOstream(LoggerPtr /*logger*/,
+                                            std::ostream& /*os*/,
+                                            const std::string& /*canonicalPattern*/) {}
 };
 
 }} // namespace sk::logger

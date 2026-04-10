@@ -13,6 +13,7 @@
 #include <SpdlogThreadLocal.h>
 #include <LoggerBase.h>
 #include <logger/LevelNames.h>
+#include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
 #include <spdlog/sinks/base_sink.h>
 #include <mutex>
@@ -381,3 +382,18 @@ TEST_F(SpdlogLevelNamesTest, CustomWarnNameWithPadding)
     EXPECT_NE(out.find("[WARNING ]"), std::string::npos) << "output: " << out;
 }
 
+// ---------------------------------------------------------------------------
+// LoggerFactory public API — ostream sink
+// ---------------------------------------------------------------------------
+
+TEST(SpdlogOStreamTest, LoggerFactoryPublicApiRoutesToOstream)
+{
+    std::ostringstream oss;
+    LoggerFactory::configureLoggerWithOstream("Spdlog.OStream.Factory", oss, "[%p] %m%n");
+    auto logger = LoggerFactory::getLogger("Spdlog.OStream.Factory");
+    logger->setLevel(Logger::Level::Trace);
+
+    logger->info("hello factory");
+    EXPECT_NE(oss.str().find("[INFO] hello factory"), std::string::npos)
+        << "output: " << oss.str();
+}

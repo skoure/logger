@@ -12,6 +12,7 @@
 #include <Log4CxxLogger.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
+#include <sstream>
 
 using namespace sk::logger;
 
@@ -64,6 +65,19 @@ TEST_F(Log4CxxBackendTest, ApplyParentSinksNullParentNocrash) {
 
 TEST_F(Log4CxxBackendTest, ApplyParentSinksBothNullNocrash) {
     EXPECT_NO_THROW(backend.applyParentSinks(nullptr, nullptr));
+}
+
+TEST_F(Log4CxxBackendTest, ConfigureWithOstreamWritesFormattedOutput)
+{
+    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Test");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+
+    logger->info("hello log4cxx");
+    EXPECT_NE(oss.str().find("hello log4cxx"), std::string::npos)
+        << "output: " << oss.str();
 }
 
 // Integration: factory returns valid parent and child loggers when supportsNativeHierarchy() = true

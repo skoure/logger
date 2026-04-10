@@ -44,6 +44,23 @@ void LoggerFactoryImpl::configureLogger(LoggerPtr logger,
         m_backend->configureLogger(logger, sinks);
 }
 
+void LoggerFactory::configureLoggerWithOstream(const char* name, std::ostream& os,
+                                               const std::string& canonicalPattern)
+{
+    LoggerFactoryImpl& impl = LoggerFactoryImpl::getInstance();
+    LoggerPtr logger = impl.getLogger(name);
+    if (logger)
+        impl.configureLoggerWithOstream(logger, os, canonicalPattern);
+}
+
+void LoggerFactoryImpl::configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
+                                                   const std::string& canonicalPattern)
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    if (m_backend && logger)
+        m_backend->configureLoggerWithOstream(logger, os, canonicalPattern);
+}
+
 LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);

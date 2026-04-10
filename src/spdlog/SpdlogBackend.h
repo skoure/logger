@@ -33,7 +33,7 @@ public:
      * HANDLE, not the C-runtime FILE).
      */
     void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
-                                    const std::string& canonicalPattern);
+                                    const std::string& canonicalPattern) override;
 };
 
 /**

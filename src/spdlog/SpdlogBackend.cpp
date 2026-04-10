@@ -314,7 +314,7 @@ void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     const std::string spdlogPattern = SpdlogPatternTranslator::translate(canonicalPattern);
     auto sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(os);
     applyPattern(sink, spdlogPattern);
-    internalLogger->sinks() = {sink};
+    internalLogger->sinks().push_back(sink);
 }
 
 void sk::logger::useSpdlogBackend()

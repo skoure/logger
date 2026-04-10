@@ -103,6 +103,21 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
     sl->setSinks(std::move(simpleSinks));
 }
 
+void SimpleLoggerBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
+                                                     std::ostream& os,
+                                                     const std::string& canonicalPattern)
+{
+    auto* sl = dynamic_cast<SimpleLogger*>(loggerPtr.get());
+    if (!sl) return;
+
+    SimpleSink sink;
+    sink.pattern = canonicalPattern;
+    sink.stream  = std::shared_ptr<std::ostream>(&os, [](std::ostream*) {});  // non-owning
+    auto sinks = sl->getSinks();
+    sinks.push_back(std::move(sink));
+    sl->setSinks(std::move(sinks));
+}
+
 void sk::logger::useSimpleLoggerBackend()
 {
     LoggerFactoryImpl::getInstance().setBackend(std::make_unique<SimpleLoggerBackend>());
