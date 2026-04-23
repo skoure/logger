@@ -17,7 +17,7 @@ namespace sk { namespace logger {
 
 class SpdlogBackend : public ILoggerBackend {
 public:
-    LoggerPtr createLogger(const std::string& name) override;
+    LoggerBasePtr createLogger(const std::string& name) override;
     void      applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
     bool      supportsNativeHierarchy() const override { return false; }
     void      configureLogger(LoggerPtr logger,

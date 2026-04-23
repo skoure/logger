@@ -25,7 +25,7 @@ namespace {
     }();
 }
 
-LoggerPtr SimpleLoggerBackend::createLogger(const std::string& name)
+LoggerBasePtr SimpleLoggerBackend::createLogger(const std::string& name)
 {
     return std::make_shared<SimpleLogger>(name);
 }

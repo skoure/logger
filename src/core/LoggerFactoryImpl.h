@@ -49,7 +49,7 @@ public:
      * @param name Logger name (must already exist in the hierarchy as a LazyLogger).
      * @return Real backend LoggerPtr, or nullptr if backend not yet registered.
      */
-    LoggerPtr createBackendLogger(const std::string& name);
+    LoggerBasePtr createBackendLogger(const std::string& name);
 
     /**
      * @brief Forward a sink configuration request to the active backend.

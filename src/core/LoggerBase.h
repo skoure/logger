@@ -173,6 +173,16 @@ private:
                            const char* fmt, va_list args);
 };
 
+/**
+ * @typedef LoggerBasePtr
+ * @brief Shared pointer type for LoggerBase instances.
+ *
+ * Used internally for backend logger creation, where the concrete type is
+ * known to be a LoggerBase subclass. Prefer this over LoggerPtr in internal
+ * APIs to avoid unnecessary casts.
+ */
+typedef std::shared_ptr<LoggerBase> LoggerBasePtr;
+
 }} // namespace sk::logger
 
 #endif // SK_LOGGER_BASE_H

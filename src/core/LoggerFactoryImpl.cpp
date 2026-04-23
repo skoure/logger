@@ -71,13 +71,12 @@ LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
 
     // Fast path: backend ready — create real logger directly (no proxy overhead).
     if (m_backend) {
-        LoggerPtr pLogger = m_backend->createLogger(name);
+        LoggerBasePtr pLogger = m_backend->createLogger(name);
         m_hierarchy.addLogger(name, pLogger);
 
         LoggerPtr parentLogger = m_hierarchy.getParent(name);
         if (parentLogger) {
-            auto* base = dynamic_cast<LoggerBase*>(pLogger.get());
-            if (base) base->setParent(parentLogger);
+            pLogger->setParent(parentLogger);
 
             if (!m_backend->supportsNativeHierarchy())
                 m_backend->applyParentSinks(pLogger, parentLogger);
@@ -101,17 +100,16 @@ LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
     return pLazy;
 }
 
-LoggerPtr LoggerFactoryImpl::createBackendLogger(const std::string& name)
+LoggerBasePtr LoggerFactoryImpl::createBackendLogger(const std::string& name)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);
     if (!m_backend) return nullptr;
 
-    LoggerPtr pLogger = m_backend->createLogger(name);
+    LoggerBasePtr pLogger = m_backend->createLogger(name);
 
     LoggerPtr parentLogger = m_hierarchy.getParent(name);
     if (parentLogger) {
-        auto* base = dynamic_cast<LoggerBase*>(pLogger.get());
-        if (base) base->setParent(parentLogger);
+        pLogger->setParent(parentLogger);
 
         if (!m_backend->supportsNativeHierarchy())
             m_backend->applyParentSinks(pLogger, parentLogger);

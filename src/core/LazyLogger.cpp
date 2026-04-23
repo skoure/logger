@@ -29,7 +29,7 @@ void LazyLogger::append(const LogRecord& record)
     });
 
     if (m_real) {
-        static_cast<LoggerBase*>(m_real.get())->append(record);
+        m_real->append(record);
     } else {
         // Backend still not registered (called from a static initializer before
         // the backend's own static init ran). Write to cerr so the message is

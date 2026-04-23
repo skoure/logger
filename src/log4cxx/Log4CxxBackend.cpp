@@ -96,7 +96,7 @@ namespace {
     }();
 }
 
-LoggerPtr Log4CxxBackend::createLogger(const std::string& name)
+LoggerBasePtr Log4CxxBackend::createLogger(const std::string& name)
 {
     return std::make_shared<Log4CxxLogger>(name);
 }

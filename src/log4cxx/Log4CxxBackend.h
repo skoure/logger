@@ -16,7 +16,7 @@ namespace sk { namespace logger {
 
 class Log4CxxBackend : public ILoggerBackend {
 public:
-    LoggerPtr createLogger(const std::string& name) override;
+    LoggerBasePtr createLogger(const std::string& name) override;
     void      applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
 
     /**

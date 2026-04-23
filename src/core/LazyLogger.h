@@ -69,9 +69,9 @@ public:
     void append(const LogRecord& record) override;
 
 private:
-    const std::string m_name;
-    LoggerPtr         m_real;      // null until first append(); written once via call_once
-    std::once_flag    m_initFlag;
+    const std::string           m_name;
+    LoggerBasePtr m_real;      // null until first append(); written once via call_once
+    std::once_flag              m_initFlag;
 };
 
 }} // namespace sk::logger

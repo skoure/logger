@@ -17,6 +17,7 @@
 #define SK_ILOGGER_BACKEND_H
 
 #include <logger/Logger.h>
+#include <LoggerBase.h>
 #include <SinkConfig.h>
 #include <ostream>
 #include <string>
@@ -35,9 +36,9 @@ public:
     /**
      * @brief Create a new logger instance for the given name.
      * @param name Logger name (e.g. "App.Database")
-     * @return Newly constructed logger
+     * @return Newly constructed logger (always a LoggerBase subclass)
      */
-    virtual LoggerPtr createLogger(const std::string& name) = 0;
+    virtual LoggerBasePtr createLogger(const std::string& name) = 0;
 
     /**
      * @brief Copy or link the parent's appenders/sinks into the child.
