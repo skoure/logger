@@ -8,6 +8,7 @@
  * @date Created: November 08, 2025
  */
 #include <LoggerFactoryImpl.h>
+#include <LazyLogger.h>
 #include <LoggerBase.h>
 #include <logger/LoggerFactory.h>
 
@@ -68,22 +69,52 @@ LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
     LoggerPtr logger = m_hierarchy.getLogger(name);
     if (logger) return logger;
 
+    // Fast path: backend ready — create real logger directly (no proxy overhead).
+    if (m_backend) {
+        LoggerPtr pLogger = m_backend->createLogger(name);
+        m_hierarchy.addLogger(name, pLogger);
+
+        LoggerPtr parentLogger = m_hierarchy.getParent(name);
+        if (parentLogger) {
+            auto* base = dynamic_cast<LoggerBase*>(pLogger.get());
+            if (base) base->setParent(parentLogger);
+
+            if (!m_backend->supportsNativeHierarchy())
+                m_backend->applyParentSinks(pLogger, parentLogger);
+        }
+        return pLogger;
+    }
+
+    // SIOF window: backend not yet registered — return a lazy proxy.
+    // The LazyLogger defers real backend creation until append() is first called,
+    // by which point all static initializers have run and the backend is ready.
+    auto pLazy = std::make_shared<LazyLogger>(name);
+    m_hierarchy.addLogger(name, pLazy);
+
+    // Wire parent for level inheritance. Parent may also be a LazyLogger; that's
+    // fine — LoggerBase::getLevel() walks the weak_ptr chain regardless of type.
+    LoggerPtr parentLogger = m_hierarchy.getParent(name);
+    if (parentLogger)
+        pLazy->setParent(parentLogger);
+    // No applyParentSinks — LazyLogger has no sinks; deferred to createBackendLogger.
+
+    return pLazy;
+}
+
+LoggerPtr LoggerFactoryImpl::createBackendLogger(const std::string& name)
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
     if (!m_backend) return nullptr;
 
     LoggerPtr pLogger = m_backend->createLogger(name);
-    m_hierarchy.addLogger(name, pLogger);
 
-    // Wire parent pointer so getLevel() can walk up the chain dynamically.
     LoggerPtr parentLogger = m_hierarchy.getParent(name);
     if (parentLogger) {
         auto* base = dynamic_cast<LoggerBase*>(pLogger.get());
         if (base) base->setParent(parentLogger);
 
-        // For backends without native sink inheritance, propagate sinks.
-        if (!m_backend->supportsNativeHierarchy()) {
+        if (!m_backend->supportsNativeHierarchy())
             m_backend->applyParentSinks(pLogger, parentLogger);
-        }
     }
-
     return pLogger;
 }

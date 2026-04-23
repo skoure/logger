@@ -121,7 +121,6 @@ public:
      */
     void setParent(const std::weak_ptr<Logger>& parent);
 
-protected:
     /**
      * @brief Delivers a fully-formed LogRecord to the backend.
      *
@@ -129,10 +128,15 @@ protected:
      * LogRecord populated. Implementations should write or forward the
      * record without any further formatting of level/name/message.
      *
+     * Public so that LazyLogger can forward records to a delegate backend
+     * logger of a different subclass type (C++ protected access rules prevent
+     * calling a protected method on a sibling-derived object).
+     *
      * @param record The log record to append.
      */
     virtual void append(const LogRecord& record) = 0;
 
+protected:
     /**
      * @brief Called after setLevel() stores a new explicit level.
      *
