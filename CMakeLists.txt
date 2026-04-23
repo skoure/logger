@@ -5,7 +5,7 @@ project(logger)
 
 option(USE_CPPTRACE "Enable stacktrace support via cpptrace" ON)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Fetch sk::common for HierarchicalNode and other shared utilities

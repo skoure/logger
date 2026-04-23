@@ -3,7 +3,7 @@ arch=x86_64
 compiler=msvc
 
 # 14 is the absolute minimum for C++ support in Visual Studio 2015+
-compiler.cppstd=14
+compiler.cppstd=17
 compiler.runtime=dynamic
 
 # I believe the following table is an example of how conan maps the compiler.version and 
@@ -21,7 +21,7 @@ compiler.runtime=dynamic
 # 194              | 2               | v143  (14.42)    | 17.12 Visual Studio 2022
 #
 # If no compiler.update is specified, the latest update for the compiler version should be used.
-compiler.version=193
+compiler.version=194
 os=Windows
 
 [conf]
