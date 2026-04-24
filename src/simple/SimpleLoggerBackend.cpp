@@ -58,7 +58,9 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
 
         if (sc.type == "console")
         {
-            // shared_ptr to clog — non-owning (no-op deleter)
+            auto colorIt = sc.properties.find("color");
+            sink.color  = (colorIt != sc.properties.end())
+                          && (colorIt->second == "true");
             sink.stream = std::shared_ptr<std::ostream>(
                 &std::clog, [](std::ostream*) {});
         }

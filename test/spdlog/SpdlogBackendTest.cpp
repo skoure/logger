@@ -11,6 +11,9 @@
 #include <SpdlogBackend.h>
 #include <SpdlogLogger.h>
 #include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <SinkConfig.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <sstream>
@@ -84,6 +87,45 @@ TEST_F(SpdlogBackendTest, ApplyParentSinksNullParentNocrash) {
 
 TEST_F(SpdlogBackendTest, ApplyParentSinksBothNullNocrash) {
     EXPECT_NO_THROW(backend.applyParentSinks(nullptr, nullptr));
+}
+
+TEST_F(SpdlogBackendTest, ConsoleSinkDefaultIsPlainSink)
+{
+    LoggerPtr logger = backend.createLogger("SpdlogBackend.Console.DefaultNoColor");
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+
+    backend.configureLogger(logger, {sc});
+
+    auto& sinks = sl->getInternalLogger()->sinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_NE(
+        dynamic_cast<spdlog::sinks::stdout_sink_mt*>(sinks[0].get()),
+        nullptr) << "Default console sink should be stdout_sink_mt";
+}
+
+TEST_F(SpdlogBackendTest, ConsoleSinkColorFalseUsesPlainSink)
+{
+    LoggerPtr logger = backend.createLogger("SpdlogBackend.Console.NoColor");
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+    sc.properties["color"] = "false";
+
+    backend.configureLogger(logger, {sc});
+
+    auto& sinks = sl->getInternalLogger()->sinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_NE(
+        dynamic_cast<spdlog::sinks::stdout_sink_mt*>(sinks[0].get()),
+        nullptr) << "color=false console sink should be stdout_sink_mt";
 }
 
 // Integration: LoggerFactoryImpl copies parent level to child (spdlog is IManagedSinkBackend)

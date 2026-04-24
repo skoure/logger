@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 28, 2026
  */
 #ifndef SK_SIMPLELOGGER_H
 #define SK_SIMPLELOGGER_H
@@ -29,6 +28,7 @@ struct SimpleSink
 {
     std::shared_ptr<std::ostream> stream;
     std::string                   pattern; ///< canonical log4j-style; empty → default
+    bool                          color = false;
 };
 
 /**

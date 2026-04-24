@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: March 28, 2026
  */
 #include <SimpleLogger.h>
 #include <SimpleLoggerPattern.h>
@@ -14,6 +13,20 @@
 
 using namespace sk::logger;
 using namespace std;
+
+static const char* levelToAnsiCode(Logger::Level level)
+{
+    switch (level)
+    {
+    case Logger::Level::Fatal: return "\x1b[35m"; // magenta
+    case Logger::Level::Error: return "\x1b[31m"; // red
+    case Logger::Level::Warn:  return "\x1b[33m"; // yellow
+    case Logger::Level::Info:  return "\x1b[32m"; // green
+    case Logger::Level::Debug: return "\x1b[36m"; // cyan
+    case Logger::Level::Trace: return "\x1b[34m"; // blue
+    default:                   return "";
+    }
+}
 
 SimpleLogger::SimpleLogger(std::string name)
     : m_name(std::move(name))
@@ -58,7 +71,11 @@ void SimpleLogger::append(const LogRecord& record)
     {
         if (sink.stream)
         {
+            if (sink.color)
+                *sink.stream << levelToAnsiCode(record.level);
             writeToStream(*sink.stream, sink.pattern, record);
+            if (sink.color)
+                *sink.stream << "\x1b[0m";
             sink.stream->flush();
         }
     }

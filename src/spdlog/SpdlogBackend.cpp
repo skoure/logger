@@ -15,6 +15,7 @@
 #include <LoggerBase.h>
 
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/ostream_sink.h>
@@ -247,10 +248,14 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
 
         if (sc.type == "console")
         {
-            auto consoleSink =
-                std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-            applyPattern(consoleSink, spdlogPattern);
-            sink = consoleSink;
+            auto colorIt = sc.properties.find("color");
+            const bool useColor = (colorIt != sc.properties.end())
+                                  && (colorIt->second == "true");
+            sink = useColor
+                ? std::make_shared<spdlog::sinks::stdout_color_sink_mt>()
+                : std::shared_ptr<spdlog::sinks::sink>(
+                      std::make_shared<spdlog::sinks::stdout_sink_mt>());
+            applyPattern(sink, spdlogPattern);
         }
         else if (sc.type == "file")
         {

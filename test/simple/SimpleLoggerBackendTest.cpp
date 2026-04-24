@@ -81,6 +81,64 @@ TEST_F(SimpleLoggerBackendTest, ConfigureWithOstreamWritesFormattedOutput)
         << "output: " << oss.str();
 }
 
+TEST_F(SimpleLoggerBackendTest, ConsoleSinkDefaultHasColorFalse)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Console.DefaultNoColor");
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+
+    backend.configureLogger(logger, {sc});
+
+    const auto& sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_FALSE(sinks[0].color) << "Default console sink should have color=false";
+}
+
+TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueSetsFlag)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Console.WithColor");
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+    sc.properties["color"] = "true";
+
+    backend.configureLogger(logger, {sc});
+
+    const auto& sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_TRUE(sinks[0].color) << "color=true should set the color flag on the sink";
+}
+
+TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueEmitsAnsiCodes)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Console.AnsiOutput");
+    logger->setLevel(Logger::Level::Trace);
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+
+    // Manually enable color on the captured sink
+    auto sinks = sl->getSinks();
+    sinks.back().color = true;
+    sl->setSinks(std::move(sinks));
+
+    logger->info("colortest");
+
+    EXPECT_NE(oss.str().find("\x1b["), std::string::npos)
+        << "color=true should emit ANSI escape codes; output: " << oss.str();
+    EXPECT_NE(oss.str().find("\x1b[0m"), std::string::npos)
+        << "color=true should emit ANSI reset code; output: " << oss.str();
+}
+
 // Integration: LoggerFactoryImpl copies parent level to child (SimpleLogger is IManagedSinkBackend)
 TEST(SimpleLoggerBackendFactoryTest, ChildInheritsParentLevel) {
     LoggerFactory& factory = LoggerFactory::getInstance();

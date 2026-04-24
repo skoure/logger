@@ -13,6 +13,8 @@
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <sstream>
+#include <log4cxx/patternlayout.h>
+#include <SinkConfig.h>
 
 using namespace sk::logger;
 
@@ -50,6 +52,59 @@ TEST_F(Log4CxxBackendTest, ConfigureWithOstreamWritesFormattedOutput)
     logger->info("hello log4cxx");
     EXPECT_NE(oss.str().find("hello log4cxx"), std::string::npos)
         << "output: " << oss.str();
+}
+
+TEST_F(Log4CxxBackendTest, ConsoleSinkDefaultHasNoColorTokens)
+{
+    LoggerPtr logger = backend.createLogger("Log4CxxBackend.Console.DefaultNoColor");
+    auto* l4 = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(l4, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+
+    backend.configureLogger(logger, {sc});
+
+    auto internalLogger = l4->getInternalLogger();
+    auto appenders = internalLogger->getAllAppenders();
+    ASSERT_EQ(appenders.size(), 1u);
+
+    auto patternLayout = log4cxx::cast<log4cxx::PatternLayout>(appenders[0]->getLayout());
+    ASSERT_NE(patternLayout, nullptr);
+
+    log4cxx::LogString ls = patternLayout->getConversionPattern();
+    std::string pattern(ls.begin(), ls.end());
+    EXPECT_EQ(pattern.find("%Y"), std::string::npos)
+        << "Default console (no color property) should not contain %Y";
+}
+
+TEST_F(Log4CxxBackendTest, ConsoleSinkColorTrueWrapsPatternWithColorTokens)
+{
+    LoggerPtr logger = backend.createLogger("Log4CxxBackend.Console.WithColor");
+    auto* l4 = dynamic_cast<Log4CxxLogger*>(logger.get());
+    ASSERT_NE(l4, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+    sc.properties["color"] = "true";
+
+    backend.configureLogger(logger, {sc});
+
+    auto internalLogger = l4->getInternalLogger();
+    auto appenders = internalLogger->getAllAppenders();
+    ASSERT_EQ(appenders.size(), 1u);
+
+    auto patternLayout = log4cxx::cast<log4cxx::PatternLayout>(appenders[0]->getLayout());
+    ASSERT_NE(patternLayout, nullptr);
+
+    log4cxx::LogString ls = patternLayout->getConversionPattern();
+    std::string pattern(ls.begin(), ls.end());
+    EXPECT_EQ(pattern.substr(0, 2), "%Y")
+        << "color=true should prepend %Y to pattern";
+    EXPECT_NE(pattern.find("%y"), std::string::npos)
+        << "color=true should append %y to pattern";
 }
 
 // Integration: factory returns valid parent and child loggers (Log4cxx owns hierarchy natively)

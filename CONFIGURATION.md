@@ -81,7 +81,7 @@ log->info("Application started");
 
 ### `console`
 
-Writes to standard output (or the configured console stream).
+Writes to standard output with optional ANSI color coding.
 
 ```json
 {
@@ -89,6 +89,18 @@ Writes to standard output (or the configured console stream).
   "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n"
 }
 ```
+
+| Property | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `color`  | no       | backend-dependent (see below) | Set to `"true"` to enable ANSI color coding, `"false"` to disable. |
+
+> **Backend support for `color`:**
+> - **spdlog**: supported. Default is `"false"` (color off). Uses `stdout_color_sink_mt` when
+>   enabled, `stdout_sink_mt` when disabled.
+> - **log4cxx**: supported. Default is `"false"` (color off). When enabled, wraps the pattern
+>   with `%Y`/`%y` (level-based ANSI colors via `PatternLayout`).
+> - **SimpleLogger**: supported. Default is `"false"` (color off). When enabled, wraps each
+>   log line with level-based ANSI escape codes.
 
 ### `file`
 

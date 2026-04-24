@@ -129,6 +129,17 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
 
         if (sc.type == "console")
         {
+            auto colorIt = sc.properties.find("color");
+            const bool useColor = (colorIt != sc.properties.end())
+                                  && (colorIt->second == "true");
+
+            if (useColor)
+            {
+                std::string coloredPattern = "%Y" + log4cxxPattern + "%y";
+                layout = std::make_shared<log4cxx::PatternLayout>(
+                    log4cxx::LogString(coloredPattern.begin(), coloredPattern.end()));
+            }
+
             auto consoleAppender = std::make_shared<log4cxx::ConsoleAppender>();
             consoleAppender->setLayout(layout);
             log4cxx::helpers::Pool pool;
