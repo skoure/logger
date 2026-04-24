@@ -26,6 +26,8 @@ void LazyLogger::append(const LogRecord& record)
 {
     std::call_once(m_initFlag, [this]() {
         m_real = LoggerFactoryImpl::getInstance().createBackendLogger(m_name);
+        if (m_real && isLevelExplicitlySet())
+            m_real->setLevel(getLevel());
     });
 
     if (m_real) {

@@ -89,8 +89,7 @@ public:
      * @brief Propagate sinks top-down to loggers not listed in @p configured.
      *
      * Walks all loggers in parent-before-child order and calls applyParentSinks()
-     * for any logger whose name is not in the configured set. Uses
-     * getEffectiveParent() to skip placeholder nodes.
+     * for any logger whose name is not in the configured set.
      *
      * @param configured Set of logger names that received explicit sinks this cycle.
      */

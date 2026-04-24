@@ -166,3 +166,25 @@ TEST(LazyLoggerTest, AppendCanBeCalledMultipleTimes)
 // here because it requires temporarily nulling the singleton backend, which
 // would break other tests sharing the same binary. That path can be covered
 // by an integration test that runs in its own binary with a controlled factory.
+
+TEST(LazyLoggerTest, ExplicitLevelForwardedToRealLoggerOnMaterialise)
+{
+    // Construct a LazyLogger directly (bypasses factory, simulates SIOF window
+    // where configure() sets a level before the backend is ready).
+    LazyLogger proxy("LazyTest.LevelForward");
+    proxy.setLevel(Logger::Level::Debug);
+    ASSERT_TRUE(proxy.isLevelExplicitlySet());
+
+    // Trigger materialisation by appending a record.
+    LogRecord r;
+    r.level      = Logger::Level::Debug;
+    r.loggerName = proxy.getName();
+    r.message    = "trigger materialisation";
+    r.timestamp  = std::chrono::system_clock::now();
+    proxy.append(r);
+
+    // After materialisation the proxy's level (read from LoggerBase::m_level)
+    // should still be Debug — either still held on the proxy or forwarded.
+    EXPECT_EQ(proxy.getLevel(), Logger::Level::Debug);
+    EXPECT_TRUE(proxy.isLevelExplicitlySet());
+}

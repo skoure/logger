@@ -196,17 +196,14 @@ TEST(LoggerConfiguratorTest, PlaceholderAncestorLevelInheritanceAtCreation)
     ASSERT_FALSE(tmp.path.empty());
     LoggerConfigurator::configure(tmp.path);
 
-    // Create a logger whose intermediate ancestors are all placeholder nodes.
-    // "PlaceholderLvl.Deep.Child" causes "PlaceholderLvl" and
-    // "PlaceholderLvl.Deep" to be added as data-less placeholder nodes.
+    // Create a deep logger. Intermediate ancestors "PlaceholderLvl" and
+    // "PlaceholderLvl.Deep" are created as real loggers automatically, so the
+    // full parent chain is wired and level walks up to root.
     LoggerPtr child = LoggerFactory::getLogger("PlaceholderLvl.Deep.Child");
     ASSERT_NE(child, nullptr);
 
-    // getEffectiveParent() must skip the placeholder nodes and find root,
-    // so the child's setParent() is called with root as the parent.
     EXPECT_EQ(child->getLevel(), Logger::Level::Warn)
-        << "Child under placeholder nodes should inherit root's level via "
-           "getEffectiveParent()";
+        << "Child under auto-created intermediate loggers should inherit root's level";
 }
 
 TEST(LoggerConfiguratorTest, PlaceholderAncestorSinkInheritanceAtCreation)
@@ -215,14 +212,12 @@ TEST(LoggerConfiguratorTest, PlaceholderAncestorSinkInheritanceAtCreation)
     std::ostringstream stream;
     LoggerFactory::configureLoggerWithOstream("root", stream, "[%p] %m%n");
 
-    // Create a deep logger whose intermediate ancestors are placeholder nodes.
+    // Create a deep logger. Intermediate ancestors are created as real loggers
+    // automatically, so applyParentSinks() wires root's sink through the chain.
     LoggerPtr child = LoggerFactory::getLogger("PlaceholderSnk.Deep.Child");
     ASSERT_NE(child, nullptr);
 
-    // getEffectiveParent() in getLogger() finds root, so applyParentSinks()
-    // copies root's ostream sink to the child at creation time.
     child->info("placeholder-sink-test");
     EXPECT_TRUE(stream.str().find("placeholder-sink-test") != std::string::npos)
-        << "Child under placeholder nodes should inherit root's sink via "
-           "getEffectiveParent() at creation time";
+        << "Child under auto-created intermediate loggers should inherit root's sink";
 }
