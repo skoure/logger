@@ -17,14 +17,6 @@ namespace sk { namespace logger {
 class Log4CxxBackend : public ILoggerBackend {
 public:
     LoggerBasePtr createLogger(const std::string& name) override;
-    void      applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
-
-    /**
-     * Log4cxx manages its own logger hierarchy and appender inheritance
-     * internally — no parent configuration step is needed from our side.
-     */
-    bool supportsNativeHierarchy() const override { return true; }
-
     void configureLogger(LoggerPtr logger,
                          const std::vector<SinkConfig>& sinks) override;
     void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,

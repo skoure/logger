@@ -65,6 +65,8 @@ void SpdlogLogger::append(const LogRecord& record)
     case Level::Trace: m_pLogger->trace   (record.message); break;
     }
 
+    m_pLogger->flush();
+
     // Clear after call to avoid stale data leaking to other threads.
     spdlog_tls::markerName = nullptr;
     spdlog_tls::threadName.clear();

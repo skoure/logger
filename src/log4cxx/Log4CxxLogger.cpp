@@ -15,8 +15,15 @@ using namespace sk::logger;
 
 Log4CxxLogger::Log4CxxLogger(std::string name)
 {
-    m_name    = std::move(name);
-    m_pLogger = log4cxx::Logger::getLogger(m_name);
+    m_name = std::move(name);
+    // "root" in our hierarchy corresponds to log4cxx's actual root logger,
+    // not a named logger called "root".  getRootLogger() is the top of the
+    // log4cxx name-based inheritance chain, so all descendant loggers
+    // inherit its level and appenders via additivity.
+    if (m_name == "root")
+        m_pLogger = log4cxx::Logger::getRootLogger();
+    else
+        m_pLogger = log4cxx::Logger::getLogger(m_name);
 }
 
 Log4CxxLogger::~Log4CxxLogger()

@@ -118,6 +118,12 @@ void SimpleLoggerBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     sl->setSinks(std::move(sinks));
 }
 
+void SimpleLoggerBackend::clearSinks(LoggerPtr logger)
+{
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    if (sl) sl->setSinks({});
+}
+
 void sk::logger::useSimpleLoggerBackend()
 {
     LoggerFactoryImpl::getInstance().setBackend(std::make_unique<SimpleLoggerBackend>());

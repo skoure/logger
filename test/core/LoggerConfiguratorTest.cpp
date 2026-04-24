@@ -11,6 +11,8 @@
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <LoggerConfigurator.h>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -116,4 +118,111 @@ TEST(LoggerConfiguratorTest, PublicApiViaLoggerFactory)
     LoggerPtr logger = LoggerFactory::getLogger("LogCfgTest.PublicApi");
     ASSERT_NE(logger, nullptr);
     EXPECT_EQ(logger->getLevel(), Logger::Level::Trace);
+}
+
+// ---------------------------------------------------------------------------
+// Helper: replace backslashes with forward slashes for JSON embedding
+// ---------------------------------------------------------------------------
+static std::string toJsonPath(const std::string& p)
+{
+    std::string out;
+    out.reserve(p.size());
+    for (char c : p)
+        out += (c == '\\') ? '/' : c;
+    return out;
+}
+
+TEST(LoggerConfiguratorTest, ReconfigureUpdatesPreexistingChildSinks)
+{
+    // File paths for two successive configure() calls.
+    const std::string logPathA = std::string(TEST_CONFIG_DIR) + "/recfg_sink_a.log";
+    const std::string logPathB = std::string(TEST_CONFIG_DIR) + "/recfg_sink_b.log";
+    std::remove(logPathA.c_str());
+    std::remove(logPathB.c_str());
+
+    // Create the child BEFORE any configure call — it will have no sinks yet.
+    LoggerPtr child = LoggerFactory::getLogger("RecfgSinkTest.Child");
+    ASSERT_NE(child, nullptr);
+
+    // First configure: root → file A.  Phase 3 propagates file A to the child.
+    std::string cfgA =
+        R"({"loggers":[{"name":"root","level":"DEBUG","sinks":[)"
+        R"({"type":"file","pattern":"%m%n","properties":{"path":")" +
+        toJsonPath(logPathA) + R"("}}]}]})";
+    TempFile tmpA = writeTempConfig(cfgA);
+    ASSERT_FALSE(tmpA.path.empty());
+    LoggerConfigurator::configure(tmpA.path);
+
+    child->info("msg-a");
+
+    // Second configure: root → file B.  Phase 3 propagates file B to the child.
+    // clearAllSinks() in phase 1 destroys the file-A ofstream, flushing buffered data.
+    std::string cfgB =
+        R"({"loggers":[{"name":"root","level":"DEBUG","sinks":[)"
+        R"({"type":"file","pattern":"%m%n","properties":{"path":")" +
+        toJsonPath(logPathB) + R"("}}]}]})";
+    TempFile tmpB = writeTempConfig(cfgB);
+    ASSERT_FALSE(tmpB.path.empty());
+    LoggerConfigurator::configure(tmpB.path);
+
+    // File-A sink is now destroyed (clearAllSinks flushed it). Check its content.
+    {
+        std::ifstream f(logPathA);
+        std::string content((std::istreambuf_iterator<char>(f)),
+                             std::istreambuf_iterator<char>());
+        EXPECT_TRUE(content.find("msg-a") != std::string::npos)
+            << "Child should write to file A after first configure";
+    }
+
+    child->info("msg-b");
+
+    {
+        std::ifstream f(logPathB);
+        std::string content((std::istreambuf_iterator<char>(f)),
+                             std::istreambuf_iterator<char>());
+        EXPECT_TRUE(content.find("msg-b") != std::string::npos)
+            << "Child should write to file B after reconfigure";
+    }
+
+    std::remove(logPathA.c_str());
+    std::remove(logPathB.c_str());
+}
+
+TEST(LoggerConfiguratorTest, PlaceholderAncestorLevelInheritanceAtCreation)
+{
+    // Configure root with WARN level first so there is an explicit level to inherit.
+    std::string cfg = R"({"loggers":[{"name":"root","level":"WARN","sinks":[]}]})";
+    TempFile tmp = writeTempConfig(cfg);
+    ASSERT_FALSE(tmp.path.empty());
+    LoggerConfigurator::configure(tmp.path);
+
+    // Create a logger whose intermediate ancestors are all placeholder nodes.
+    // "PlaceholderLvl.Deep.Child" causes "PlaceholderLvl" and
+    // "PlaceholderLvl.Deep" to be added as data-less placeholder nodes.
+    LoggerPtr child = LoggerFactory::getLogger("PlaceholderLvl.Deep.Child");
+    ASSERT_NE(child, nullptr);
+
+    // getEffectiveParent() must skip the placeholder nodes and find root,
+    // so the child's setParent() is called with root as the parent.
+    EXPECT_EQ(child->getLevel(), Logger::Level::Warn)
+        << "Child under placeholder nodes should inherit root's level via "
+           "getEffectiveParent()";
+}
+
+TEST(LoggerConfiguratorTest, PlaceholderAncestorSinkInheritanceAtCreation)
+{
+    // Give root an ostream sink before creating the deep child.
+    std::ostringstream stream;
+    LoggerFactory::configureLoggerWithOstream("root", stream, "[%p] %m%n");
+
+    // Create a deep logger whose intermediate ancestors are placeholder nodes.
+    LoggerPtr child = LoggerFactory::getLogger("PlaceholderSnk.Deep.Child");
+    ASSERT_NE(child, nullptr);
+
+    // getEffectiveParent() in getLogger() finds root, so applyParentSinks()
+    // copies root's ostream sink to the child at creation time.
+    child->info("placeholder-sink-test");
+    EXPECT_TRUE(stream.str().find("placeholder-sink-test") != std::string::npos)
+        << "Child under placeholder nodes should inherit root's sink via "
+           "getEffectiveParent() at creation time";
 }

@@ -12,11 +12,13 @@
 
 #include <logger/Logger.h>
 #include <ILoggerBackend.h>
+#include <IManagedSinkBackend.h>
 #include <LoggerHierarchy.h>
 #include <SinkConfig.h>
 #include <memory>
 #include <mutex>
 #include <ostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -70,6 +72,30 @@ public:
     void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
                                     const std::string& canonicalPattern);
 
+    /**
+     * @brief Clear the explicitly-set level on every logger so all revert to
+     * inherited behaviour before a new configuration is applied.
+     */
+    void clearAllLevels();
+
+    /**
+     * @brief Remove all sinks from every logger in the hierarchy.
+     *
+     * Called at the start of configure() to establish a clean slate.
+     */
+    void clearAllSinks();
+
+    /**
+     * @brief Propagate sinks top-down to loggers not listed in @p configured.
+     *
+     * Walks all loggers in parent-before-child order and calls applyParentSinks()
+     * for any logger whose name is not in the configured set. Uses
+     * getEffectiveParent() to skip placeholder nodes.
+     *
+     * @param configured Set of logger names that received explicit sinks this cycle.
+     */
+    void propagateInheritedSinks(const std::set<std::string>& configured);
+
 private:
     LoggerFactoryImpl() = default;
     ~LoggerFactoryImpl();
@@ -77,6 +103,7 @@ private:
     std::mutex                      m_factoryLock;
     LoggerHierarchy                 m_hierarchy;
     std::unique_ptr<ILoggerBackend> m_backend;
+    IManagedSinkBackend*            m_sinkManagedBackend = nullptr;
 
 };
 

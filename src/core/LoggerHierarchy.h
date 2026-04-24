@@ -15,6 +15,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sk { namespace logger {
@@ -103,6 +104,29 @@ public:
      * @return Total logger count
      */
     size_t getLoggerCount() const;
+
+    /**
+     * @brief Return all (name, logger) pairs that have a logger assigned,
+     * in alphabetical order.
+     *
+     * For dot-separated logger names, alphabetical order is parent-before-child,
+     * making this suitable for top-down traversal during sink propagation.
+     * Placeholder nodes (data == nullptr) are excluded.
+     */
+    std::vector<std::pair<std::string, LoggerPtr>> getAllLoggersTopDown() const;
+
+    /**
+     * @brief Walk up the ancestor chain, skipping placeholder nodes, and return
+     * the nearest ancestor that has a real logger assigned.
+     *
+     * Fixes the gap where loggers created under intermediate placeholders
+     * (e.g. "A.B.C" when "A" and "A.B" are placeholders) cannot inherit
+     * levels or sinks from root via the direct getParent() call.
+     *
+     * @param name Logger name to start from (the name itself is not returned).
+     * @return Nearest ancestor with a real logger, or nullptr if none found.
+     */
+    LoggerPtr getEffectiveParent(const std::string& name) const;
 
 private:
     /**

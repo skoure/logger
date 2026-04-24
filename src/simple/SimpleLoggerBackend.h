@@ -10,19 +10,19 @@
 #ifndef SK_SIMPLE_LOGGER_BACKEND_H
 #define SK_SIMPLE_LOGGER_BACKEND_H
 
-#include <ILoggerBackend.h>
+#include <IManagedSinkBackend.h>
 
 namespace sk { namespace logger {
 
-class SimpleLoggerBackend : public ILoggerBackend {
+class SimpleLoggerBackend : public IManagedSinkBackend {
 public:
     LoggerBasePtr createLogger(const std::string& name) override;
     void      applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
-    bool      supportsNativeHierarchy() const override { return false; }
     void      configureLogger(LoggerPtr logger,
                               const std::vector<SinkConfig>& sinks) override;
     void      configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
                                          const std::string& canonicalPattern) override;
+    void      clearSinks(LoggerPtr logger) override;
 };
 
 /**

@@ -35,6 +35,7 @@ void LoggerFactoryImpl::setBackend(std::unique_ptr<ILoggerBackend> backend)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);
     m_backend = std::move(backend);
+    m_sinkManagedBackend = dynamic_cast<IManagedSinkBackend*>(m_backend.get());
 }
 
 void LoggerFactoryImpl::configureLogger(LoggerPtr logger,
@@ -74,12 +75,15 @@ LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
         LoggerBasePtr pLogger = m_backend->createLogger(name);
         m_hierarchy.addLogger(name, pLogger);
 
-        LoggerPtr parentLogger = m_hierarchy.getParent(name);
+        // Use getEffectiveParent to skip placeholder nodes so loggers under
+        // intermediate placeholders (e.g. "A.B.C" when "A" and "A.B" are
+        // placeholders) still inherit from root.
+        LoggerPtr parentLogger = m_hierarchy.getEffectiveParent(name);
         if (parentLogger) {
             pLogger->setParent(parentLogger);
 
-            if (!m_backend->supportsNativeHierarchy())
-                m_backend->applyParentSinks(pLogger, parentLogger);
+            if (m_sinkManagedBackend)
+                m_sinkManagedBackend->applyParentSinks(pLogger, parentLogger);
         }
         return pLogger;
     }
@@ -92,7 +96,7 @@ LoggerPtr LoggerFactoryImpl::getLogger(const std::string& name)
 
     // Wire parent for level inheritance. Parent may also be a LazyLogger; that's
     // fine — LoggerBase::getLevel() walks the weak_ptr chain regardless of type.
-    LoggerPtr parentLogger = m_hierarchy.getParent(name);
+    LoggerPtr parentLogger = m_hierarchy.getEffectiveParent(name);
     if (parentLogger)
         pLazy->setParent(parentLogger);
     // No applyParentSinks — LazyLogger has no sinks; deferred to createBackendLogger.
@@ -107,12 +111,43 @@ LoggerBasePtr LoggerFactoryImpl::createBackendLogger(const std::string& name)
 
     LoggerBasePtr pLogger = m_backend->createLogger(name);
 
-    LoggerPtr parentLogger = m_hierarchy.getParent(name);
+    // KNOWN LIMITATION: if this logger's name appeared in a configure() JSON
+    // with explicit sinks while it was still a LazyLogger, those explicit sinks
+    // are not replayed here — configureLogger() was a no-op on the proxy.
+    // The logger receives inherited sinks from its effective parent instead.
+    LoggerPtr parentLogger = m_hierarchy.getEffectiveParent(name);
     if (parentLogger) {
         pLogger->setParent(parentLogger);
 
-        if (!m_backend->supportsNativeHierarchy())
-            m_backend->applyParentSinks(pLogger, parentLogger);
+        if (m_sinkManagedBackend)
+            m_sinkManagedBackend->applyParentSinks(pLogger, parentLogger);
     }
     return pLogger;
+}
+
+void LoggerFactoryImpl::clearAllLevels()
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    for (const auto& entry : m_hierarchy.getAllLoggersTopDown())
+        entry.second->clearLevel();
+}
+
+void LoggerFactoryImpl::clearAllSinks()
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    if (!m_sinkManagedBackend) return;
+    for (const auto& entry : m_hierarchy.getAllLoggersTopDown())
+        m_sinkManagedBackend->clearSinks(entry.second);
+}
+
+void LoggerFactoryImpl::propagateInheritedSinks(const std::set<std::string>& configured)
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    if (!m_sinkManagedBackend) return;
+    for (const auto& entry : m_hierarchy.getAllLoggersTopDown()) {
+        if (configured.count(entry.first)) continue;
+        LoggerPtr parent = m_hierarchy.getEffectiveParent(entry.first);
+        if (parent)
+            m_sinkManagedBackend->applyParentSinks(entry.second, parent);
+    }
 }

@@ -131,3 +131,27 @@ size_t LoggerHierarchy::getLoggerCount() const
 {
     return loggerMap_.size();
 }
+
+std::vector<std::pair<std::string, LoggerPtr>> LoggerHierarchy::getAllLoggersTopDown() const
+{
+    std::vector<std::pair<std::string, LoggerPtr>> result;
+    for (const auto& entry : loggerMap_) {
+        if (entry.second->data)
+            result.emplace_back(entry.first, entry.second->data);
+    }
+    return result;
+}
+
+LoggerPtr LoggerHierarchy::getEffectiveParent(const std::string& name) const
+{
+    std::string current = name;
+    while (true) {
+        std::string parentPath = getParentPath(current);
+        if (parentPath == current)
+            return nullptr;  // reached root with no parent above it
+        auto it = loggerMap_.find(parentPath);
+        if (it != loggerMap_.end() && it->second->data)
+            return it->second->data;
+        current = parentPath;
+    }
+}

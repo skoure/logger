@@ -14,6 +14,9 @@
 
 #include <logger/Logger.h>
 
+#include <set>
+#include <string>
+
 using namespace sk::logger;
 
 // ---------------------------------------------------------------------------
@@ -41,9 +44,15 @@ void LoggerConfigurator::configure(const std::string& filePath)
 
     LoggerFactoryImpl& impl = LoggerFactoryImpl::getInstance();
 
+    // Step 1: clean slate — clear all explicit levels and sinks so that
+    // loggers not listed in this config revert to inherited behaviour.
+    impl.clearAllLevels();
+    impl.clearAllSinks();
+
+    // Step 2: apply explicit levels and sinks from the config.
+    std::set<std::string> configured;
     for (const LoggerConfig& lc : configs)
     {
-        // "root" maps to the special root logger name used by the hierarchy
         const std::string& name = lc.name;
 
         LoggerPtr logger = impl.getLogger(name);
@@ -54,5 +63,12 @@ void LoggerConfigurator::configure(const std::string& filePath)
             logger->setLevel(parseLevel(lc.level));
 
         impl.configureLogger(logger, lc.sinks);
+        if (!lc.sinks.empty())
+            configured.insert(name);
     }
+
+    // Step 3: propagate parent sinks to all loggers not listed in the config,
+    // walking in parent-before-child order so intermediate unconfigured loggers
+    // receive correct sinks before their descendants inherit from them.
+    impl.propagateInheritedSinks(configured);
 }

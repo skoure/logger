@@ -317,6 +317,14 @@ void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     internalLogger->sinks().push_back(sink);
 }
 
+void SpdlogBackend::clearSinks(LoggerPtr logger)
+{
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    if (!sl) return;
+    auto internal = sl->getInternalLogger();
+    if (internal) internal->sinks().clear();
+}
+
 void sk::logger::useSpdlogBackend()
 {
     LoggerFactoryImpl::getInstance().setBackend(std::make_unique<SpdlogBackend>());

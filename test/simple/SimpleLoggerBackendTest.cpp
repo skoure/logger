@@ -38,8 +38,9 @@ TEST_F(SimpleLoggerBackendTest, CreateLoggerReturnsSimpleLoggerType) {
     EXPECT_NE(dynamic_cast<SimpleLogger*>(logger.get()), nullptr);
 }
 
-TEST_F(SimpleLoggerBackendTest, SupportsNativeHierarchyReturnsFalse) {
-    EXPECT_FALSE(backend.supportsNativeHierarchy());
+TEST_F(SimpleLoggerBackendTest, ImplementsManagedSinkBackend) {
+    // SimpleLogger relies on the factory for sink inheritance — must be an IManagedSinkBackend.
+    EXPECT_NE(dynamic_cast<IManagedSinkBackend*>(&backend), nullptr);
 }
 
 TEST_F(SimpleLoggerBackendTest, ApplyParentSinksIsNoOp) {
@@ -80,7 +81,7 @@ TEST_F(SimpleLoggerBackendTest, ConfigureWithOstreamWritesFormattedOutput)
         << "output: " << oss.str();
 }
 
-// Integration: LoggerFactoryImpl copies parent level to child when supportsNativeHierarchy() = false
+// Integration: LoggerFactoryImpl copies parent level to child (SimpleLogger is IManagedSinkBackend)
 TEST(SimpleLoggerBackendFactoryTest, ChildInheritsParentLevel) {
     LoggerFactory& factory = LoggerFactory::getInstance();
 

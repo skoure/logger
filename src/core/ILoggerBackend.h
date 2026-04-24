@@ -1,15 +1,18 @@
 /**
  * @file ILoggerBackend.h
- * @brief Pure abstract interface for logger backend implementations.
+ * @brief Base interface for logger backend implementations.
  *
  * Copyright (c) 2026 Stephen Kouretas. All Rights Reserved.
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: March 21, 2026
  *
- * Each backend (SimpleLogger, spdlog, Log4cxx) implements this interface and
- * is packaged as a separate static library.  LoggerFactoryImpl holds a
- * unique_ptr<ILoggerBackend> and delegates all backend-specific work through it.
+ * Each backend implements ILoggerBackend and is packaged as a separate static
+ * library.  LoggerFactoryImpl holds a unique_ptr<ILoggerBackend> and delegates
+ * all backend-specific work through it.
+ *
+ * Backends where the factory is responsible for propagating sink inheritance
+ * additionally implement IManagedSinkBackend (see IManagedSinkBackend.h).
  *
  * This header is internal (not installed alongside the public API).
  */
@@ -41,33 +44,11 @@ public:
     virtual LoggerBasePtr createLogger(const std::string& name) = 0;
 
     /**
-     * @brief Copy or link the parent's appenders/sinks into the child.
-     *
-     * Called by LoggerFactoryImpl after a new child logger is created.
-     * Backends that manage their own hierarchy (e.g. Log4cxx) may leave
-     * this as a no-op and return early via supportsNativeHierarchy().
-     *
-     * @param child  Newly created child logger
-     * @param parent Parent logger whose sinks should be inherited
-     */
-    virtual void applyParentSinks(LoggerPtr child, LoggerPtr parent) = 0;
-
-    /**
-     * @brief Returns true if the backend handles hierarchy internally.
-     *
-     * When true, LoggerFactoryImpl skips the parent-configuration step
-     * entirely (level copy + applyParentSinks) because the backend's own
-     * framework already manages those relationships.
-     * Log4cxx returns true; SimpleLogger and spdlog return false.
-     */
-    virtual bool supportsNativeHierarchy() const = 0;
-
-    /**
      * @brief Configure a logger's sinks from the provided SinkConfig list.
      *
      * Called by LoggerConfigurator after it has set the logger's level.
-     * The default implementation is a no-op so that backends that do not
-     * yet support programmatic sink configuration still compile and work.
+     * The default implementation is a no-op; backends that do not support
+     * programmatic sink configuration do not need to override it.
      *
      * @param logger Logger instance to configure.
      * @param sinks  Ordered list of sink descriptors.
@@ -79,8 +60,8 @@ public:
      * @brief Configure a logger to write to an arbitrary std::ostream.
      *
      * The caller must ensure @p os outlives the logger.  The default
-     * implementation is a no-op so that backends which do not yet provide
-     * this capability still compile and link correctly.
+     * implementation is a no-op; backends that do not support ostream
+     * output do not need to override it.
      *
      * @param logger           Logger instance to configure.
      * @param os               Output stream to write to.

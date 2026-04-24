@@ -10,16 +10,15 @@
 #ifndef SK_SPDLOG_BACKEND_H
 #define SK_SPDLOG_BACKEND_H
 
-#include <ILoggerBackend.h>
+#include <IManagedSinkBackend.h>
 #include <ostream>
 
 namespace sk { namespace logger {
 
-class SpdlogBackend : public ILoggerBackend {
+class SpdlogBackend : public IManagedSinkBackend {
 public:
     LoggerBasePtr createLogger(const std::string& name) override;
     void      applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
-    bool      supportsNativeHierarchy() const override { return false; }
     void      configureLogger(LoggerPtr logger,
                               const std::vector<SinkConfig>& sinks) override;
 
@@ -34,6 +33,7 @@ public:
      */
     void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
                                     const std::string& canonicalPattern) override;
+    void clearSinks(LoggerPtr logger) override;
 };
 
 /**

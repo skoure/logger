@@ -57,6 +57,9 @@ void SimpleLogger::append(const LogRecord& record)
     for (const SimpleSink& sink : m_sinks)
     {
         if (sink.stream)
+        {
             writeToStream(*sink.stream, sink.pattern, record);
+            sink.stream->flush();
+        }
     }
 }

@@ -101,11 +101,6 @@ LoggerBasePtr Log4CxxBackend::createLogger(const std::string& name)
     return std::make_shared<Log4CxxLogger>(name);
 }
 
-void Log4CxxBackend::applyParentSinks(LoggerPtr /*child*/, LoggerPtr /*parent*/)
-{
-    // Log4cxx manages its own appender inheritance — nothing to do here.
-}
-
 void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
                                       const std::vector<SinkConfig>& sinks)
 {

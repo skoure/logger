@@ -39,8 +39,9 @@ TEST_F(SpdlogBackendTest, CreateLoggerReturnsSpdlogLoggerType) {
     EXPECT_NE(dynamic_cast<SpdlogLogger*>(logger.get()), nullptr);
 }
 
-TEST_F(SpdlogBackendTest, SupportsNativeHierarchyReturnsFalse) {
-    EXPECT_FALSE(backend.supportsNativeHierarchy());
+TEST_F(SpdlogBackendTest, ImplementsManagedSinkBackend) {
+    // spdlog relies on the factory for sink inheritance — must be an IManagedSinkBackend.
+    EXPECT_NE(dynamic_cast<IManagedSinkBackend*>(&backend), nullptr);
 }
 
 TEST_F(SpdlogBackendTest, ApplyParentSinksCopiesSinksToChild) {
@@ -85,7 +86,7 @@ TEST_F(SpdlogBackendTest, ApplyParentSinksBothNullNocrash) {
     EXPECT_NO_THROW(backend.applyParentSinks(nullptr, nullptr));
 }
 
-// Integration: LoggerFactoryImpl copies parent level to child when supportsNativeHierarchy() = false
+// Integration: LoggerFactoryImpl copies parent level to child (spdlog is IManagedSinkBackend)
 TEST(SpdlogBackendFactoryTest, ChildInheritsParentLevel) {
     LoggerFactory& factory = LoggerFactory::getInstance();
 

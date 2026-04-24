@@ -38,34 +38,6 @@ TEST_F(Log4CxxBackendTest, CreateLoggerReturnsLog4CxxLoggerType) {
     EXPECT_NE(dynamic_cast<Log4CxxLogger*>(logger.get()), nullptr);
 }
 
-TEST_F(Log4CxxBackendTest, SupportsNativeHierarchyReturnsTrue) {
-    EXPECT_TRUE(backend.supportsNativeHierarchy());
-}
-
-TEST_F(Log4CxxBackendTest, ApplyParentSinksIsNoOp) {
-    LoggerPtr parent = backend.createLogger("Log4CxxBackend.NoOp.Parent");
-    LoggerPtr child  = backend.createLogger("Log4CxxBackend.NoOp.Child");
-    child->setLevel(Logger::Level::Debug);
-
-    EXPECT_NO_THROW(backend.applyParentSinks(child, parent));
-
-    // applyParentSinks must not change the child's level
-    EXPECT_EQ(child->getLevel(), Logger::Level::Debug);
-}
-
-TEST_F(Log4CxxBackendTest, ApplyParentSinksNullChildNocrash) {
-    LoggerPtr parent = backend.createLogger("Log4CxxBackend.NullChild.Parent");
-    EXPECT_NO_THROW(backend.applyParentSinks(nullptr, parent));
-}
-
-TEST_F(Log4CxxBackendTest, ApplyParentSinksNullParentNocrash) {
-    LoggerPtr child = backend.createLogger("Log4CxxBackend.NullParent.Child");
-    EXPECT_NO_THROW(backend.applyParentSinks(child, nullptr));
-}
-
-TEST_F(Log4CxxBackendTest, ApplyParentSinksBothNullNocrash) {
-    EXPECT_NO_THROW(backend.applyParentSinks(nullptr, nullptr));
-}
 
 TEST_F(Log4CxxBackendTest, ConfigureWithOstreamWritesFormattedOutput)
 {
@@ -80,7 +52,7 @@ TEST_F(Log4CxxBackendTest, ConfigureWithOstreamWritesFormattedOutput)
         << "output: " << oss.str();
 }
 
-// Integration: factory returns valid parent and child loggers when supportsNativeHierarchy() = true
+// Integration: factory returns valid parent and child loggers (Log4cxx owns hierarchy natively)
 TEST(Log4CxxBackendFactoryTest, FactoryReturnsValidChildLogger) {
     LoggerFactory& factory = LoggerFactory::getInstance();
 
