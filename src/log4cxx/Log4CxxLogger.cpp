@@ -10,6 +10,7 @@
 #include <Log4CxxLogger.h>
 #include <LoggerBase.h>
 #include <log4cxx/mdc.h>
+#include <log4cxx/writerappender.h>
 
 using namespace sk::logger;
 
@@ -71,6 +72,22 @@ bool Log4CxxLogger::isLevelExplicitlySet() const
 
 void Log4CxxLogger::append(const LogRecord& record)
 {
+    // When flush_on is configured, set immediateFlush on each WriterAppender
+    // before the write.  log4cxx defaults to immediateFlush=true, so we must
+    // set it to false for below-threshold writes as well to achieve selective
+    // buffering.  Must be done before the LOG4CXX_* macro, not after.
+    auto flushOn = getFlushOn();
+    if (flushOn.has_value())
+    {
+        const bool shouldFlush = record.level <= *flushOn;
+        auto appenders = m_pLogger->getAllAppenders();
+        for (const log4cxx::AppenderPtr& appender : appenders)
+        {
+            auto* wa = dynamic_cast<log4cxx::WriterAppender*>(appender.get());
+            if (wa) wa->setImmediateFlush(shouldFlush);
+        }
+    }
+
     // Populate the log4cxx MDC with the configured level name so that %X{level}
     // in a PatternLayout can render the application-supplied level string.
     log4cxx::MDC::put("level", LoggerBase::levelToString(record.level));

@@ -152,6 +152,9 @@ TEST(LoggerConfiguratorTest, ReconfigureUpdatesPreexistingChildSinks)
     TempFile tmpA = writeTempConfig(cfgA);
     ASSERT_FALSE(tmpA.path.empty());
     LoggerConfigurator::configure(tmpA.path);
+    // Set flush_on so file writes are immediately visible when checked below.
+    // clearAllFlushOn() in the next configure() will reset this.
+    child->setFlushOn(Logger::Level::Info);
 
     child->info("msg-a");
 
@@ -164,6 +167,9 @@ TEST(LoggerConfiguratorTest, ReconfigureUpdatesPreexistingChildSinks)
     TempFile tmpB = writeTempConfig(cfgB);
     ASSERT_FALSE(tmpB.path.empty());
     LoggerConfigurator::configure(tmpB.path);
+
+    // Set flush_on again — clearAllFlushOn() in configure(cfgB) reset it.
+    child->setFlushOn(Logger::Level::Info);
 
     // File-A sink is now destroyed (clearAllSinks flushed it). Check its content.
     {

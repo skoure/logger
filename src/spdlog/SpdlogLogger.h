@@ -36,6 +36,11 @@ public:
 
     std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
 
+    // Delegate flush_on to spdlog's native flush_on() so it handles flushing
+    // internally rather than requiring a manual m_pLogger->flush() call.
+    void setFlushOn(Level level) override;
+    void clearFlushOn() override;
+
 protected:
     void append(const LogRecord& record) override;
     void onLevelChanged(Level level) override;

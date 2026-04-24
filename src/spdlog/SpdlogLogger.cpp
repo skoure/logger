@@ -49,6 +49,18 @@ void SpdlogLogger::onLevelChanged(Level level)
     m_pLogger->set_level(toSpdlogLevel(level));
 }
 
+void SpdlogLogger::setFlushOn(Level level)
+{
+    LoggerBase::setFlushOn(level);
+    m_pLogger->flush_on(toSpdlogLevel(level));
+}
+
+void SpdlogLogger::clearFlushOn()
+{
+    LoggerBase::clearFlushOn();
+    m_pLogger->flush_on(spdlog::level::off);
+}
+
 void SpdlogLogger::append(const LogRecord& record)
 {
     // Populate thread-local bridge so custom formatters can read LogRecord fields.
@@ -64,8 +76,6 @@ void SpdlogLogger::append(const LogRecord& record)
     case Level::Debug: m_pLogger->debug   (record.message); break;
     case Level::Trace: m_pLogger->trace   (record.message); break;
     }
-
-    m_pLogger->flush();
 
     // Clear after call to avoid stale data leaking to other threads.
     spdlog_tls::markerName = nullptr;

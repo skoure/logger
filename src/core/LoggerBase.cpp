@@ -75,6 +75,17 @@ void LoggerBase::setParent(const std::weak_ptr<Logger>& parent)
     m_parent = parent;
 }
 
+void LoggerBase::setFlushOn(Level level) { m_flushOn = level; }
+void LoggerBase::clearFlushOn()          { m_flushOn.reset(); }
+
+std::optional<Logger::Level> LoggerBase::getFlushOn() const
+{
+    if (m_flushOn.has_value())
+        return m_flushOn;
+    auto parent = m_parent.lock();
+    return parent ? parent->getFlushOn() : std::nullopt;
+}
+
 bool LoggerBase::isFatalEnabled() const { return getLevel() >= Level::Fatal; }
 bool LoggerBase::isErrorEnabled() const { return getLevel() >= Level::Error; }
 bool LoggerBase::isWarnEnabled()  const { return getLevel() >= Level::Warn;  }

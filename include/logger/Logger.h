@@ -12,6 +12,7 @@
 
 #include <exception>
 #include <memory>
+#include <optional>
 #include <string>
 #include <logger/Marker.h>
 
@@ -83,6 +84,35 @@ public:
      * @return True if the level was explicitly set; false if inherited.
      */
     virtual bool isLevelExplicitlySet() const = 0;
+
+    /**
+     * @brief Sets the minimum severity that triggers an immediate flush after each append.
+     *
+     * Events at this level or more severe cause the backend to flush after writing.
+     * Level ordering: Fatal=0 (most severe) … Trace=5 (least severe);
+     * "meets threshold" means record.level <= threshold.
+     *
+     * @param level Flush threshold.
+     */
+    virtual void setFlushOn(Level level) = 0;
+
+    /**
+     * @brief Removes the explicit flush threshold from this logger.
+     *
+     * After calling clearFlushOn(), this logger has no explicit threshold
+     * and reverts to inherited behaviour.
+     */
+    virtual void clearFlushOn() = 0;
+
+    /**
+     * @brief Returns the effective flush threshold for this logger.
+     *
+     * If no threshold is set on this logger, walks the parent chain.
+     * Returns nullopt if no ancestor has a threshold configured.
+     *
+     * @return Flush threshold level, or nullopt if none is configured.
+     */
+    virtual std::optional<Level> getFlushOn() const = 0;
 
     /**
      * @brief Checks if FATAL level logging is enabled.

@@ -86,6 +86,12 @@ public:
     void clearAllSinks();
 
     /**
+     * @brief Clear the flush_on threshold on every logger so all revert to
+     * no-flush behaviour before a new configuration is applied.
+     */
+    void clearAllFlushOn();
+
+    /**
      * @brief Propagate sinks top-down to loggers not listed in @p configured.
      *
      * Walks all loggers in parent-before-child order and calls applyParentSinks()

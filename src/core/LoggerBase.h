@@ -14,6 +14,7 @@
 #include <logger/LevelNames.h>
 #include <LogRecord.h>
 #include <memory>
+#include <optional>
 #include <stdarg.h>
 
 namespace sk { namespace logger {
@@ -46,6 +47,12 @@ public:
     void  setLevel(Level level) override;
     void  clearLevel() override;
     bool  isLevelExplicitlySet() const override;
+
+    // --- Flush threshold (Logger overrides) ---
+
+    void setFlushOn(Level level) override;
+    void clearFlushOn() override;
+    std::optional<Level> getFlushOn() const override;
 
     // --- Level checks (Logger overrides) ---
 
@@ -152,6 +159,7 @@ private:
 
     Level                 m_level              = Level::Info;
     bool                  m_levelExplicitlySet = false;
+    std::optional<Level>  m_flushOn;
     std::weak_ptr<Logger> m_parent;
 
     /**

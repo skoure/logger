@@ -46,6 +46,9 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
         if (loggerNode.contains("level") && loggerNode["level"].is_string())
             lc.level = loggerNode["level"].get<std::string>();
 
+        if (loggerNode.contains("flush_on") && loggerNode["flush_on"].is_string())
+            lc.flushOn = loggerNode["flush_on"].get<std::string>();
+
         if (loggerNode.contains("sinks") && loggerNode["sinks"].is_array())
         {
             for (const auto& sinkNode : loggerNode["sinks"])

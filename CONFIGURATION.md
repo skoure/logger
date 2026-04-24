@@ -58,11 +58,12 @@ log->info("Application started");
 
 ## Logger Entry Fields
 
-| Field   | Required | Description                                              |
-|---------|----------|----------------------------------------------------------|
-| `name`  | yes      | Logger name, e.g. `"root"`, `"App"`, `"App.Database"`. |
-| `level` | yes      | Severity threshold (see table below).                   |
-| `sinks` | yes      | Array of sink objects (may be empty).                   |
+| Field      | Required | Description                                              |
+|------------|----------|----------------------------------------------------------|
+| `name`     | yes      | Logger name, e.g. `"root"`, `"App"`, `"App.Database"`. |
+| `level`    | yes      | Severity threshold (see table below).                   |
+| `flush_on` | no       | Minimum severity that triggers an immediate flush after each append (see below). |
+| `sinks`    | yes      | Array of sink objects (may be empty).                   |
 
 ### Log Levels
 
@@ -74,6 +75,60 @@ log->info("Application started");
 | `"INFO"`   | `Logger::Level::Info`  |
 | `"DEBUG"`  | `Logger::Level::Debug` |
 | `"TRACE"`  | `Logger::Level::Trace` |
+
+### flush_on
+
+The optional `flush_on` field sets a minimum severity threshold that causes the
+logger to flush its underlying output stream immediately after each log event at
+or above that level.
+
+| JSON value | Flushes on                                   |
+|------------|----------------------------------------------|
+| `"FATAL"`  | Fatal events only                            |
+| `"ERROR"`  | Error and Fatal events                       |
+| `"WARN"`   | Warn, Error, and Fatal events                |
+| `"INFO"`   | Info, Warn, Error, and Fatal events          |
+| `"DEBUG"`  | Debug, Info, Warn, Error, and Fatal events   |
+| `"TRACE"`  | All events                                   |
+
+**Default behaviour:** if `flush_on` is omitted, no automatic flushing is
+performed after individual log calls.  The backend's default buffering policy
+applies.
+
+**Inheritance:** a logger without an explicit `flush_on` inherits the threshold
+of its nearest ancestor that has one set.
+
+**Backend notes:**
+
+| Backend      | Flush mechanism                                                             |
+|--------------|-----------------------------------------------------------------------------|
+| SimpleLogger | `std::ostream::flush()` called on each configured sink stream after append. |
+| spdlog       | `spdlog::logger::flush()` called after append — flushes all attached sinks. |
+| log4cxx      | `immediateFlush` set to `true`/`false` on each `WriterAppender` before each append, overriding the default-`true` behaviour so only threshold-crossing writes flush. |
+
+**Example:**
+
+```json
+{
+  "name":     "App.Database",
+  "level":    "WARN",
+  "flush_on": "WARN",
+  "sinks": [
+    {
+      "type":    "rotating_file",
+      "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n",
+      "properties": {
+        "path":      "logs/database.log",
+        "max_size":  "5242880",
+        "max_files": "5"
+      }
+    }
+  ]
+}
+```
+
+With `"flush_on": "WARN"`, every WARN, ERROR, and FATAL event written to the
+rotating file is flushed immediately.  INFO and DEBUG events remain buffered.
 
 ---
 

@@ -44,10 +44,11 @@ void LoggerConfigurator::configure(const std::string& filePath)
 
     LoggerFactoryImpl& impl = LoggerFactoryImpl::getInstance();
 
-    // Step 1: clean slate — clear all explicit levels and sinks so that
-    // loggers not listed in this config revert to inherited behaviour.
+    // Step 1: clean slate — clear all explicit levels, flush thresholds, and sinks
+    // so that loggers not listed in this config revert to inherited behaviour.
     impl.clearAllLevels();
     impl.clearAllSinks();
+    impl.clearAllFlushOn();
 
     // Step 2: apply explicit levels and sinks from the config.
     std::set<std::string> configured;
@@ -61,6 +62,9 @@ void LoggerConfigurator::configure(const std::string& filePath)
 
         if (!lc.level.empty())
             logger->setLevel(parseLevel(lc.level));
+
+        if (!lc.flushOn.empty())
+            logger->setFlushOn(parseLevel(lc.flushOn));
 
         impl.configureLogger(logger, lc.sinks);
         if (!lc.sinks.empty())

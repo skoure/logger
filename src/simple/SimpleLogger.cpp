@@ -64,6 +64,9 @@ void SimpleLogger::append(const LogRecord& record)
     if (m_sinks.empty())
     {
         writeToStream(clog, "", record);
+        auto flushOn = getFlushOn();
+        if (flushOn.has_value() && record.level <= *flushOn)
+            clog.flush();
         return;
     }
 
@@ -76,7 +79,13 @@ void SimpleLogger::append(const LogRecord& record)
             writeToStream(*sink.stream, sink.pattern, record);
             if (sink.color)
                 *sink.stream << "\x1b[0m";
-            sink.stream->flush();
         }
+    }
+
+    auto flushOn = getFlushOn();
+    if (flushOn.has_value() && record.level <= *flushOn)
+    {
+        for (const SimpleSink& sink : m_sinks)
+            if (sink.stream) sink.stream->flush();
     }
 }

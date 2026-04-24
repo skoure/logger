@@ -31,6 +31,9 @@ struct LoggerConfig
     /** Raw level string from JSON: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL". */
     std::string level;
 
+    /** Raw flush_on level string from JSON: "TRACE" … "FATAL". Empty = disabled. */
+    std::string flushOn;
+
     /** Ordered list of sinks to configure on this logger. */
     std::vector<SinkConfig> sinks;
 };

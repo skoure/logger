@@ -172,6 +172,13 @@ void LoggerFactoryImpl::clearAllSinks()
         m_sinkManagedBackend->clearSinks(entry.second);
 }
 
+void LoggerFactoryImpl::clearAllFlushOn()
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    for (const auto& entry : m_hierarchy.getAllLoggersTopDown())
+        entry.second->clearFlushOn();
+}
+
 void LoggerFactoryImpl::propagateInheritedSinks(const std::set<std::string>& configured)
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);
