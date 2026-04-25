@@ -134,6 +134,10 @@ rotating file is flushed immediately.  INFO and DEBUG events remain buffered.
 
 ## Sink Types
 
+> **Property value types:** All `properties` values accept JSON strings, booleans, or integers.
+> For example, `"color": true` and `"color": "true"` are both valid; `"max_size": 10485760`
+> and `"max_size": "10485760"` are both valid.
+
 ### `console`
 
 Writes to standard output with optional ANSI color coding.
@@ -141,20 +145,23 @@ Writes to standard output with optional ANSI color coding.
 ```json
 {
   "type":    "console",
-  "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n"
+  "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n",
+  "properties": {
+    "color": true
+  }
 }
 ```
 
 | Property | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `color`  | no       | backend-dependent (see below) | Set to `"true"` to enable ANSI color coding, `"false"` to disable. |
+| `color`  | no       | backend-dependent (see below) | JSON boolean `true`/`false` (or string `"true"`/`"false"`) to enable/disable ANSI color coding. |
 
 > **Backend support for `color`:**
-> - **spdlog**: supported. Default is `"false"` (color off). Uses `stdout_color_sink_mt` when
+> - **spdlog**: supported. Default is `false` (color off). Uses `stdout_color_sink_mt` when
 >   enabled, `stdout_sink_mt` when disabled.
-> - **log4cxx**: supported. Default is `"false"` (color off). When enabled, wraps the pattern
+> - **log4cxx**: supported. Default is `false` (color off). When enabled, wraps the pattern
 >   with `%Y`/`%y` (level-based ANSI colors via `PatternLayout`).
-> - **SimpleLogger**: supported. Default is `"false"` (color off). When enabled, wraps each
+> - **SimpleLogger**: supported. Default is `false` (color off). When enabled, wraps each
 >   log line with level-based ANSI escape codes.
 
 ### `file`
@@ -185,8 +192,8 @@ Appends to a file that rotates when it reaches `max_size` bytes.
   "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n",
   "properties": {
     "path":      "logs/app.log",
-    "max_size":  "10485760",
-    "max_files": "5"
+    "max_size":  10485760,
+    "max_files": 5
   }
 }
 ```
@@ -194,8 +201,8 @@ Appends to a file that rotates when it reaches `max_size` bytes.
 | Property    | Required | Default    | Description                             |
 |-------------|----------|------------|-----------------------------------------|
 | `path`      | yes      | —          | Path to the output log file.            |
-| `max_size`  | no       | `10485760` | Maximum file size in bytes (10 MiB).    |
-| `max_files` | no       | `3`        | Number of rotated files to keep.        |
+| `max_size`  | no       | `10485760` | Maximum file size in bytes (10 MiB). JSON integer or string. |
+| `max_files` | no       | `3`        | Number of rotated files to keep. JSON integer or string.     |
 
 > **Note (SimpleLogger backend):** The SimpleLogger backend does not support
 > log rotation.  A `rotating_file` sink is treated as a plain `file` sink when

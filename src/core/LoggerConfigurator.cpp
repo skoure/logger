@@ -14,7 +14,9 @@
 
 #include <logger/Logger.h>
 
+#include <fstream>
 #include <set>
+#include <sstream>
 #include <string>
 
 using namespace sk::logger;
@@ -35,12 +37,13 @@ static Logger::Level parseLevel(const std::string& s)
 }
 
 // ---------------------------------------------------------------------------
-// LoggerConfigurator::configure
+// LoggerConfigurator::configureFromJsonString — all apply logic lives here
 // ---------------------------------------------------------------------------
 
-void LoggerConfigurator::configure(const std::string& filePath)
+void LoggerConfigurator::configureFromJsonString(const std::string& json)
 {
-    std::vector<LoggerConfig> configs = JsonConfigParser::parse(filePath);
+    std::istringstream iss(json);
+    std::vector<LoggerConfig> configs = JsonConfigParser::parse(iss);
 
     LoggerFactoryImpl& impl = LoggerFactoryImpl::getInstance();
 
@@ -75,4 +78,18 @@ void LoggerConfigurator::configure(const std::string& filePath)
     // walking in parent-before-child order so intermediate unconfigured loggers
     // receive correct sinks before their descendants inherit from them.
     impl.propagateInheritedSinks(configured);
+}
+
+// ---------------------------------------------------------------------------
+// LoggerConfigurator::configureFromJsonFile — reads file, delegates
+// ---------------------------------------------------------------------------
+
+void LoggerConfigurator::configureFromJsonFile(const std::string& filePath)
+{
+    std::ifstream file(filePath);
+    if (!file.is_open())
+        throw std::runtime_error(
+            "LoggerConfigurator: cannot open '" + filePath + "'");
+    configureFromJsonString(std::string(std::istreambuf_iterator<char>(file),
+                                        std::istreambuf_iterator<char>()));
 }

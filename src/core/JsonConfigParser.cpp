@@ -68,6 +68,10 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
                     {
                         if (it.value().is_string())
                             sc.properties[it.key()] = it.value().get<std::string>();
+                        else if (it.value().is_boolean())
+                            sc.properties[it.key()] = it.value().get<bool>() ? "true" : "false";
+                        else if (it.value().is_number_integer() || it.value().is_number_unsigned())
+                            sc.properties[it.key()] = std::to_string(it.value().get<int64_t>());
                     }
                 }
 

@@ -164,3 +164,57 @@ TEST(JsonConfigParserTest, MissingLoggersKeyReturnsEmptyVector)
     auto configs = parseString(R"({})");
     EXPECT_TRUE(configs.empty());
 }
+
+// ---------------------------------------------------------------------------
+// Property value type tests
+// ---------------------------------------------------------------------------
+
+TEST(JsonConfigParserTest, BooleanTruePropertyStoredAsString)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"INFO",
+            "sinks":[{"type":"console","pattern":"%m","properties":{"color":true}}]
+        }]
+    })");
+    ASSERT_EQ(configs[0].sinks[0].properties.at("color"), "true");
+}
+
+TEST(JsonConfigParserTest, BooleanFalsePropertyStoredAsString)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"INFO",
+            "sinks":[{"type":"console","pattern":"%m","properties":{"color":false}}]
+        }]
+    })");
+    ASSERT_EQ(configs[0].sinks[0].properties.at("color"), "false");
+}
+
+TEST(JsonConfigParserTest, IntegerPropertyStoredAsString)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"INFO",
+            "sinks":[{
+                "type":"rotating_file","pattern":"%m",
+                "properties":{"path":"app.log","max_size":10485760,"max_files":5}
+            }]
+        }]
+    })");
+    const auto& props = configs[0].sinks[0].properties;
+    EXPECT_EQ(props.at("max_size"),  "10485760");
+    EXPECT_EQ(props.at("max_files"), "5");
+}
+
+TEST(JsonConfigParserTest, StringPropertyValueStillWorks)
+{
+    // Regression: string values must still be accepted after adding bool/int support.
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"INFO",
+            "sinks":[{"type":"console","pattern":"%m","properties":{"color":"true"}}]
+        }]
+    })");
+    ASSERT_EQ(configs[0].sinks[0].properties.at("color"), "true");
+}

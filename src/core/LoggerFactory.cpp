@@ -25,7 +25,12 @@ LoggerPtr LoggerFactory::getLogger(const char* pName){
     return LoggerFactoryImpl::getInstance().getLogger(std::string(pName));
 }
 
-void LoggerFactory::configure(const std::string& filePath)
+void LoggerFactory::configureFromJsonString(const std::string& json)
 {
-    LoggerConfigurator::configure(filePath);
+    LoggerConfigurator::configureFromJsonString(json);
+}
+
+void LoggerFactory::configureFromJsonFile(const std::string& filePath)
+{
+    LoggerConfigurator::configureFromJsonFile(filePath);
 }

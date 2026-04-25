@@ -16,31 +16,45 @@ namespace sk { namespace logger {
 
 /**
  * @class LoggerConfigurator
- * @brief Reads a JSON configuration file and applies it to the active backend.
+ * @brief Applies a JSON configuration to the active backend.
  *
  * Call chain:
  * @code
- *   LoggerFactory::configure(path)
- *     -> LoggerConfigurator::configure(path)
- *          -> JsonConfigParser::parse(path)
+ *   LoggerFactory::configureFromJsonString(json)
+ *     -> LoggerConfigurator::configureFromJsonString(json)
+ *          -> JsonConfigParser::parse(istream)
  *          -> for each LoggerConfig:
  *               logger = LoggerFactoryImpl::getLogger(name)
  *               logger->setLevel(...)
  *               LoggerFactoryImpl::configureLogger(logger, sinks)
  *                 -> m_backend->configureLogger(logger, sinks)
+ *
+ *   LoggerFactory::configureFromJsonFile(path)
+ *     -> LoggerConfigurator::configureFromJsonFile(path)
+ *          -> reads file -> configureFromJsonString(json)
  * @endcode
  */
 class LoggerConfigurator
 {
 public:
     /**
+     * @brief Apply configuration from an in-memory JSON string to all named loggers.
+     *
+     * Throws std::runtime_error if the JSON is invalid.
+     *
+     * @param json JSON configuration string.
+     */
+    static void configureFromJsonString(const std::string& json);
+
+    /**
      * @brief Apply configuration from a JSON file to all named loggers.
      *
+     * Reads the file at @p filePath then delegates to configureFromJsonString().
      * Throws std::runtime_error if the file is missing or the JSON is invalid.
      *
      * @param filePath Absolute or relative path to the JSON config file.
      */
-    static void configure(const std::string& filePath);
+    static void configureFromJsonFile(const std::string& filePath);
 
 private:
     LoggerConfigurator() = delete;

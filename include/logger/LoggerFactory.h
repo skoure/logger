@@ -55,16 +55,27 @@ public:
     static void setLevelNames(const LevelNames& names);
 
     /**
+     * @brief Apply a JSON configuration string to the active backend.
+     *
+     * Parses @p json and, for each named logger entry, sets its level and
+     * delegates sink configuration to the active backend.
+     *
+     * Throws std::runtime_error if the JSON is invalid.
+     *
+     * @param json JSON configuration string.
+     */
+    static void configureFromJsonString(const std::string& json);
+
+    /**
      * @brief Apply a JSON configuration file to the active backend.
      *
-     * Parses the file and, for each named logger entry, sets its level and
-     * delegates sink configuration to the active backend.
+     * Reads the file at @p filePath, then delegates to configureFromJsonString().
      *
      * Throws std::runtime_error if the file is missing or contains invalid JSON.
      *
      * @param filePath Path to the JSON logging configuration file.
      */
-    static void configure(const std::string& filePath);
+    static void configureFromJsonFile(const std::string& filePath);
 
     /**
      * @brief Configure a logger to write to an arbitrary std::ostream.
