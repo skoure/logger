@@ -83,6 +83,7 @@ if(PROJECT_IS_TOP_LEVEL)
 
     if(GTest_FOUND)
         enable_testing()
+        add_subdirectory(test/helpers)
         add_subdirectory(test/simple)
         add_subdirectory(test/spdlog)
         add_subdirectory(test/log4cxx)

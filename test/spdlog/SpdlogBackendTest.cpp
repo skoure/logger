@@ -18,9 +18,10 @@
 #include <logger/Logger.h>
 #include <functional>
 #include <sstream>
-#include <unistd.h>
+#include <TestUtils.h>
 
 using namespace sk::logger;
+using sk::logger::test::captureStdout;
 
 class SpdlogBackendTest : public ::testing::Test {
 protected:
@@ -134,37 +135,9 @@ TEST_F(SpdlogBackendTest, ConsoleSinkColorFalseUsesPlainSink)
 // ANSI color tests
 // ---------------------------------------------------------------------------
 
-namespace {
-
-// Redirect stdout to a pipe, run fn(), restore stdout, return captured bytes.
-static std::string captureStdout(std::function<void()> fn)
-{
-    int pipefd[2];
-    if (::pipe(pipefd) != 0) return {};
-
-    int saved = ::dup(STDOUT_FILENO);
-    if (saved < 0) { ::close(pipefd[0]); ::close(pipefd[1]); return {}; }
-
-    ::dup2(pipefd[1], STDOUT_FILENO);
-    ::close(pipefd[1]);
-
-    fn();
-    ::fflush(stdout);
-
-    ::dup2(saved, STDOUT_FILENO);
-    ::close(saved);
-
-    char buf[512] = {};
-    ssize_t n = ::read(pipefd[0], buf, sizeof(buf) - 1);
-    ::close(pipefd[0]);
-    return n > 0 ? std::string(buf, static_cast<std::size_t>(n)) : std::string{};
-}
-
-} // namespace
-
 TEST_F(SpdlogBackendTest, ColorConsoleSinkEmitsGreenAnsiCodesAroundInfoLevel)
 {
-    // Full pipeline: translator wraps %p in %^ / %$ so stdout_color_sink_mt
+    // Full pipeline: translator wraps %p in %^ / %$ so ansicolor_stdout_sink_mt
     // injects ANSI codes exactly around the level name.
     // color_always=true forces ANSI output even without a TTY (test runner).
     // spdlog default for INFO: green (\x1b[32m), reset (\x1b[m).

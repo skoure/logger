@@ -14,7 +14,17 @@
 #include <LoggerFactoryImpl.h>
 #include <LoggerBase.h>
 
-#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/ansicolor_sink.h>
+#ifdef _WIN32
+// spdlog's compiled lib only instantiates the platform-specific color sink
+// (wincolor on Windows). We use ansicolor unconditionally so users get ANSI
+// escape output everywhere — bring in the implementation here on Windows.
+// See: 
+// https://github.com/gabime/spdlog/issues/3103
+// https://github.com/gabime/spdlog/issues/3111
+// https://github.com/gabime/spdlog/issues/3138
+#include <spdlog/sinks/ansicolor_sink-inl.h>
+#endif
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -253,7 +263,7 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
                 auto alwaysIt = sc.properties.find("color_always");
                 const bool forceAlways = (alwaysIt != sc.properties.end())
                                          && (alwaysIt->second == "true");
-                sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>(
+                sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>(
                            forceAlways ? spdlog::color_mode::always
                                        : spdlog::color_mode::automatic);
             } else {

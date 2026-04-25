@@ -5,6 +5,6 @@ if(TARGET logger_spdlog)
     target_include_directories(logger_tests_spdlog PRIVATE ${CMAKE_SOURCE_DIR}/src/spdlog)
     target_compile_definitions(logger_tests_spdlog PRIVATE
         TEST_CONFIG_DIR="${CMAKE_SOURCE_DIR}/test/config")
-    target_link_libraries(logger_tests_spdlog PRIVATE logger_spdlog_auto GTest::gtest_main)
+    target_link_libraries(logger_tests_spdlog PRIVATE logger_spdlog_auto GTest::gtest_main test_helpers)
     gtest_discover_tests(logger_tests_spdlog TEST_PREFIX "spdlog.")
 endif()
