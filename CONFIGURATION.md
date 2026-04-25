@@ -44,8 +44,8 @@ log->info("Application started");
           "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] [%M] %m%n",
           "properties": {
             "path":      "logs/database.log",
-            "max_size":  "10485760",
-            "max_files": "3"
+            "max_size":  10485760,
+            "max_files": 3
           }
         }
       ]
@@ -119,8 +119,8 @@ of its nearest ancestor that has one set.
       "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n",
       "properties": {
         "path":      "logs/database.log",
-        "max_size":  "5242880",
-        "max_files": "5"
+        "max_size":  5242880,
+        "max_files": 5
       }
     }
   ]

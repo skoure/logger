@@ -36,7 +36,7 @@ namespace sk { namespace logger {
  *
  * Backends that manage level natively (e.g. Log4CxxLogger) override getLevel(),
  * setLevel(), clearLevel(), and isLevelExplicitlySet() to delegate to their own
- * internal state, and override onLevelChanged() is NOT needed for those.
+ * internal state.
  */
 class LoggerBase : public Logger
 {
@@ -142,17 +142,6 @@ public:
      * @param record The log record to append.
      */
     virtual void append(const LogRecord& record) = 0;
-
-protected:
-    /**
-     * @brief Called after setLevel() stores a new explicit level.
-     *
-     * Override in backends (e.g. SpdlogLogger) to sync their internal
-     * level state. The default implementation is a no-op.
-     *
-     * @param level The newly set level.
-     */
-    virtual void onLevelChanged(Level /*level*/) {}
 
 private:
     static LevelNames     s_levelNames;

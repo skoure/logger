@@ -56,7 +56,6 @@ void LoggerBase::setLevel(Level level)
 {
     m_level              = level;
     m_levelExplicitlySet = true;
-    onLevelChanged(level);
 }
 
 void LoggerBase::clearLevel()

@@ -21,7 +21,12 @@ SpdlogLogger::SpdlogLogger(std::string name)
     {
         auto sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         m_pLogger = std::make_shared<spdlog::logger>(m_name, sink);
-        m_pLogger->set_level(spdlog::level::info);
+        // sk::logger manages the hierarchy, so it owns all level and flush_on
+        // decisions. LoggerBase::isXxxEnabled() gates every log call before
+        // append() is reached, making spdlog's internal level filtering
+        // redundant. Setting trace here lets everything through so that
+        // LoggerBase remains the sole authority — no duplicate state to sync.
+        m_pLogger->set_level(spdlog::level::trace);
         spdlog::register_logger(m_pLogger);
     }
 }
@@ -44,29 +49,18 @@ spdlog::level::level_enum SpdlogLogger::toSpdlogLevel(Level level)
     }
 }
 
-void SpdlogLogger::onLevelChanged(Level level)
-{
-    m_pLogger->set_level(toSpdlogLevel(level));
-}
-
-void SpdlogLogger::setFlushOn(Level level)
-{
-    LoggerBase::setFlushOn(level);
-    m_pLogger->flush_on(toSpdlogLevel(level));
-}
-
-void SpdlogLogger::clearFlushOn()
-{
-    LoggerBase::clearFlushOn();
-    m_pLogger->flush_on(spdlog::level::off);
-}
-
 void SpdlogLogger::append(const LogRecord& record)
 {
     // Populate thread-local bridge so custom formatters can read LogRecord fields.
     spdlog_tls::markerName = record.marker ? record.marker->getName().c_str() : nullptr;
     spdlog_tls::threadName = record.threadName;
 
+    // sk::logger manages the hierarchy and owns all level and flush_on decisions:
+    //   - The constructor sets spdlog's internal level to trace so spdlog never
+    //     filters; LoggerBase::isXxxEnabled() is the sole level gate.
+    //   - Flush threshold is not delegated to spdlog's flush_on() either; instead,
+    //     getFlushOn() walks the parent chain so child loggers inherit the threshold
+    //     without needing it set individually on each one.
     switch (record.level)
     {
     case Level::Fatal: m_pLogger->critical(record.message); break;
@@ -76,6 +70,10 @@ void SpdlogLogger::append(const LogRecord& record)
     case Level::Debug: m_pLogger->debug   (record.message); break;
     case Level::Trace: m_pLogger->trace   (record.message); break;
     }
+
+    auto flushOn = getFlushOn();
+    if (flushOn.has_value() && record.level <= *flushOn)
+        m_pLogger->flush();
 
     // Clear after call to avoid stale data leaking to other threads.
     spdlog_tls::markerName = nullptr;

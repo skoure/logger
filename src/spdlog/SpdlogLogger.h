@@ -24,7 +24,7 @@ namespace sk { namespace logger {
  * used via the logging facade (see Logger.h) for backend flexibility.
  *
  * All formatting and LogRecord construction is handled by LoggerBase.
- * This class only implements the backend write (append) and level management.
+ * This class only implements the backend write (append).
  */
 class SpdlogLogger : public LoggerBase
 {
@@ -36,14 +36,8 @@ public:
 
     std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
 
-    // Delegate flush_on to spdlog's native flush_on() so it handles flushing
-    // internally rather than requiring a manual m_pLogger->flush() call.
-    void setFlushOn(Level level) override;
-    void clearFlushOn() override;
-
 protected:
     void append(const LogRecord& record) override;
-    void onLevelChanged(Level level) override;
 
 private:
     std::shared_ptr<spdlog::logger> m_pLogger;

@@ -16,6 +16,7 @@
 #include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
 #include <spdlog/sinks/base_sink.h>
+#include <spdlog/sinks/ostream_sink.h>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
@@ -28,6 +29,16 @@ using namespace sk::logger;
 // spdlog_tls::markerName is set by SpdlogLogger::append() before the spdlog
 // call, so it is still live when sink_it_() fires synchronously.
 // ---------------------------------------------------------------------------
+
+// Counts how many times flush() is called — used to verify inherited flush_on.
+class FlushCountingSink : public spdlog::sinks::base_sink<std::mutex>
+{
+public:
+    int flushCount = 0;
+protected:
+    void sink_it_(const spdlog::details::log_msg&) override {}
+    void flush_() override { ++flushCount; }
+};
 
 class MarkerCapturingSink : public spdlog::sinks::base_sink<std::mutex>
 {
@@ -170,7 +181,7 @@ TEST_F(SpdlogLoggerTest, SetLevelMarksExplicitAndSyncsBackend) {
     logger.setLevel(Logger::Level::Debug);
     EXPECT_TRUE(logger.isLevelExplicitlySet());
     EXPECT_EQ(logger.getLevel(), Logger::Level::Debug);
-    EXPECT_TRUE(logger.isDebugEnabled());   // verifies onLevelChanged synced spdlog
+    EXPECT_TRUE(logger.isDebugEnabled());   // LoggerBase gates this; spdlog level is always trace
 }
 
 TEST_F(SpdlogLoggerTest, ClearLevelRevertsToDefault) {
@@ -396,4 +407,57 @@ TEST(SpdlogOStreamTest, LoggerFactoryPublicApiRoutesToOstream)
     logger->info("hello factory");
     EXPECT_NE(oss.str().find("[INFO] hello factory"), std::string::npos)
         << "output: " << oss.str();
+}
+
+// ---------------------------------------------------------------------------
+// Regression tests for level-inheritance and flush-on-inheritance bugs
+// ---------------------------------------------------------------------------
+
+TEST_F(SpdlogLoggerTest, ChildLoggerLogsDebugWhenParentLevelIsDebug)
+{
+    // Regression: before the fix, spdlog's internal level was hardcoded to
+    // 'info' in the SpdlogLogger constructor.  Child loggers that never called
+    // setLevel() kept that default, silently dropping debug messages even when
+    // the parent's effective level was DEBUG.
+    auto parent = std::make_shared<SpdlogLogger>("Inherit.Parent");
+    parent->setLevel(Logger::Level::Debug);
+
+    SpdlogLogger child("Inherit.Child");
+    child.setParent(parent);   // child inherits DEBUG; setLevel() never called
+
+    std::ostringstream oss;
+    child.getInternalLogger()->sinks() =
+        { std::make_shared<spdlog::sinks::ostream_sink_mt>(oss) };
+
+    child.debug("inherited debug message");
+
+    EXPECT_NE(oss.str().find("inherited debug message"), std::string::npos)
+        << "debug message was dropped (spdlog internal level not set to trace)";
+}
+
+TEST_F(SpdlogLoggerTest, ChildLoggerFlushesOnInheritedFlushOnThreshold)
+{
+    // Regression: before the fix, flush_on was delegated to spdlog's native
+    // flush_on() on the parent's spdlog logger instance only.  Child loggers
+    // had flush_on(off) and never auto-flushed until process exit.  The fix in
+    // append() uses getFlushOn() which walks the parent chain, so children
+    // honour the threshold without an explicit setFlushOn() call.
+    auto parent = std::make_shared<SpdlogLogger>("FlushInherit.Parent");
+    parent->setLevel(Logger::Level::Trace);   // pass everything through
+    parent->setFlushOn(Logger::Level::Warn);
+
+    SpdlogLogger child("FlushInherit.Child");
+    child.setParent(parent);   // no explicit setFlushOn on child
+
+    auto countingSink = std::make_shared<FlushCountingSink>();
+    child.getInternalLogger()->sinks() = { countingSink };
+
+    child.info("below flush threshold");
+    EXPECT_EQ(countingSink->flushCount, 0);
+
+    child.warn("at flush threshold");
+    EXPECT_EQ(countingSink->flushCount, 1);
+
+    child.error("above flush threshold");
+    EXPECT_EQ(countingSink->flushCount, 2);
 }
