@@ -149,13 +149,11 @@ static Logger::Level fromSpdlogLevel(spdlog::level::level_enum lvl)
 }
 
 /**
- * @brief Custom spdlog flag '%@' — emits the configured level name.
+ * @brief Custom spdlog flag '%l' — emits the configured level name.
  *
  * Reads from LoggerBase::levelToString() so that the output honours any
  * application-supplied LevelNames set via LoggerFactory::setLevelNames().
- * Replaces the native spdlog '%l' token (which outputs lowercase names).
- * The '@' character is used to avoid clashing with spdlog's built-in flags
- * (e.g. '%!' is the source function name in spdlog).
+ * Overrides the native spdlog '%l' token (which outputs lowercase names).
  */
 class LevelNameFormatter final : public spdlog::custom_flag_formatter
 {
@@ -184,7 +182,7 @@ void applyPattern(const std::shared_ptr<spdlog::sinks::sink>& sink,
     auto formatter = spdlog::details::make_unique<spdlog::pattern_formatter>();
     formatter->add_flag<ThreadNameFormatter>('*');
     formatter->add_flag<MarkerFormatter>('&');
-    formatter->add_flag<LevelNameFormatter>('@');
+    formatter->add_flag<LevelNameFormatter>('l');
     formatter->set_pattern(spdlogPattern);
     sink->set_formatter(std::move(formatter));
 }
@@ -251,10 +249,16 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
             auto colorIt = sc.properties.find("color");
             const bool useColor = (colorIt != sc.properties.end())
                                   && (colorIt->second == "true");
-            sink = useColor
-                ? std::make_shared<spdlog::sinks::stdout_color_sink_mt>()
-                : std::shared_ptr<spdlog::sinks::sink>(
-                      std::make_shared<spdlog::sinks::stdout_sink_mt>());
+            if (useColor) {
+                auto alwaysIt = sc.properties.find("color_always");
+                const bool forceAlways = (alwaysIt != sc.properties.end())
+                                         && (alwaysIt->second == "true");
+                sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>(
+                           forceAlways ? spdlog::color_mode::always
+                                       : spdlog::color_mode::automatic);
+            } else {
+                sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
+            }
             applyPattern(sink, spdlogPattern);
         }
         else if (sc.type == "file")

@@ -16,7 +16,9 @@
 #include <SinkConfig.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
+#include <functional>
 #include <sstream>
+#include <unistd.h>
 
 using namespace sk::logger;
 
@@ -126,6 +128,68 @@ TEST_F(SpdlogBackendTest, ConsoleSinkColorFalseUsesPlainSink)
     EXPECT_NE(
         dynamic_cast<spdlog::sinks::stdout_sink_mt*>(sinks[0].get()),
         nullptr) << "color=false console sink should be stdout_sink_mt";
+}
+
+// ---------------------------------------------------------------------------
+// ANSI color tests
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// Redirect stdout to a pipe, run fn(), restore stdout, return captured bytes.
+static std::string captureStdout(std::function<void()> fn)
+{
+    int pipefd[2];
+    if (::pipe(pipefd) != 0) return {};
+
+    int saved = ::dup(STDOUT_FILENO);
+    if (saved < 0) { ::close(pipefd[0]); ::close(pipefd[1]); return {}; }
+
+    ::dup2(pipefd[1], STDOUT_FILENO);
+    ::close(pipefd[1]);
+
+    fn();
+    ::fflush(stdout);
+
+    ::dup2(saved, STDOUT_FILENO);
+    ::close(saved);
+
+    char buf[512] = {};
+    ssize_t n = ::read(pipefd[0], buf, sizeof(buf) - 1);
+    ::close(pipefd[0]);
+    return n > 0 ? std::string(buf, static_cast<std::size_t>(n)) : std::string{};
+}
+
+} // namespace
+
+TEST_F(SpdlogBackendTest, ColorConsoleSinkEmitsGreenAnsiCodesAroundInfoLevel)
+{
+    // Full pipeline: translator wraps %p in %^ / %$ so stdout_color_sink_mt
+    // injects ANSI codes exactly around the level name.
+    // color_always=true forces ANSI output even without a TTY (test runner).
+    // spdlog default for INFO: green (\x1b[32m), reset (\x1b[m).
+    LoggerFactory::configureFromJsonString(R"({
+        "loggers": [{
+            "name": "AnsiTest.WithLevel",
+            "level": "INFO",
+            "sinks": [{
+                "type": "console",
+                "pattern": "[%p] %m%n",
+                "properties": { "color": true, "color_always": true }
+            }]
+        }]
+    })");
+
+    LoggerPtr logger = LoggerFactory::getLogger("AnsiTest.WithLevel");
+    ASSERT_NE(logger, nullptr);
+
+    std::string output = captureStdout([&]{ logger->info("test"); });
+
+    ASSERT_FALSE(output.empty()) << "Nothing written to stdout";
+    EXPECT_NE(output.find("\x1b[32mINFO"), std::string::npos)
+        << "Expected green ANSI code (\\x1b[32m) before INFO; got: " << output;
+    EXPECT_NE(output.find("INFO\x1b[m"), std::string::npos)
+        << "Expected ANSI reset (\\x1b[m) after INFO; got: " << output;
 }
 
 // Integration: LoggerFactoryImpl copies parent level to child (spdlog is IManagedSinkBackend)

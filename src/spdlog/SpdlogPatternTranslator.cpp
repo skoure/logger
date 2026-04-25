@@ -100,7 +100,9 @@ std::string SpdlogPatternTranslator::translate(const std::string& canonical)
             break;
 
         case 'p':
-            result += '%' + modStr + '@';
+            // Wrap with %^ / %$ so stdout_color_sink_mt can inject ANSI codes.
+            // Non-color sinks ignore color_range_start/end, so this is harmless there.
+            result += "%^%" + modStr + "l%$";
             break;
 
         case 'c':
