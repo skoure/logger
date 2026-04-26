@@ -9,6 +9,7 @@
  */
 #include "SimpleLoggerPattern.h"
 #include "LoggerBase.h"
+#include "LoggerUtils.h"
 
 #include <chrono>
 #include <ctime>
@@ -183,7 +184,7 @@ std::string SimpleLoggerPattern::render(const std::string& pattern,
 
         case 'n':
             // Newline — modifier is ignored
-            result += '\n';
+            result += eol;
             break;
 
         case 'd':

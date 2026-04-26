@@ -16,6 +16,12 @@
 
 namespace sk { namespace logger {
 
+#ifdef _WIN32
+    constexpr const char* eol = "\r\n";
+#else
+    constexpr const char* eol = "\n";
+#endif
+
 /**
  * @brief Formats an exception into a human-readable string containing
  *        the exception type, message, and an optional stacktrace.

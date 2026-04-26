@@ -189,7 +189,8 @@ public:
 void applyPattern(const std::shared_ptr<spdlog::sinks::sink>& sink,
                   const std::string& spdlogPattern)
 {
-    auto formatter = spdlog::details::make_unique<spdlog::pattern_formatter>();
+    auto formatter = spdlog::details::make_unique<spdlog::pattern_formatter>(
+        spdlog::pattern_time_type::local, "");
     formatter->add_flag<ThreadNameFormatter>('*');
     formatter->add_flag<MarkerFormatter>('&');
     formatter->add_flag<LevelNameFormatter>('l');

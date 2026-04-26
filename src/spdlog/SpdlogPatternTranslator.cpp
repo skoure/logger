@@ -8,6 +8,7 @@
  * @date Created: March 28, 2026
  */
 #include "SpdlogPatternTranslator.h"
+#include "LoggerUtils.h"
 #include <stdexcept>
 
 using namespace sk::logger;
@@ -125,9 +126,9 @@ std::string SpdlogPatternTranslator::translate(const std::string& canonical)
             break;
 
         case 'n':
-            // canonical %n = newline; spdlog %n = logger name, so emit literal \n
+            // canonical %n = newline; spdlog %n = logger name, so emit platform eol
             // Modifier is ignored — newline is always a single character
-            result += "\n";
+            result += eol;
             break;
 
         case 'd':

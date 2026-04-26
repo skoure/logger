@@ -271,7 +271,7 @@ tokens into its own native format.
 | `%T`             | Thread name (OS-level name)                 |
 | `%M`             | Marker name (empty if no marker set)        |
 | `%d{strftime}`   | Timestamp formatted with a strftime string  |
-| `%n`             | Newline                                     |
+| `%n`             | Platform newline (`\n` on Unix, `\r\n` on Windows) |
 | `%%`             | Literal `%` (SimpleLogger only)             |
 
 ### Date format examples
@@ -381,7 +381,7 @@ Each backend translates the canonical pattern into its own format:
 | `%T`      | `%*` (custom) |
 | `%M`      | `%&` (custom) |
 | `%d{fmt}` | `fmt` inlined |
-| `%n`      | `\n`      |
+| `%n`      | platform EOL literal |
 
 ### log4cxx
 
