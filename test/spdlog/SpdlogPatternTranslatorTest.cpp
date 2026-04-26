@@ -8,6 +8,7 @@
  * @date Created: March 28, 2026
  */
 #include <gtest/gtest.h>
+#include <LoggerUtils.h>
 #include <SpdlogPatternTranslator.h>
 
 using namespace sk::logger;
@@ -34,7 +35,7 @@ TEST(SpdlogPatternTranslatorTest, ThreadIdTokenPassesThrough)
 
 TEST(SpdlogPatternTranslatorTest, NewlineToken)
 {
-    EXPECT_EQ(SpdlogPatternTranslator::translate("%n"), "\n");
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%n"), eol);
 }
 
 TEST(SpdlogPatternTranslatorTest, DateTokenStripsWrapper)
@@ -57,7 +58,8 @@ TEST(SpdlogPatternTranslatorTest, MarkerTokenMapsToCustomFlag)
 TEST(SpdlogPatternTranslatorTest, MultipleTokensInOnePattern)
 {
     std::string result = SpdlogPatternTranslator::translate("[%p] %c: %m%n");
-    EXPECT_EQ(result, "[%^%l%$] %n: %v\n");
+    std::string expected = std::string("[%^%l%$] %n: %v") + eol;
+    EXPECT_EQ(result, expected);
 }
 
 TEST(SpdlogPatternTranslatorTest, UnknownTokensPassThrough)
@@ -75,7 +77,8 @@ TEST(SpdlogPatternTranslatorTest, FullPatternWithDate)
 {
     std::string result = SpdlogPatternTranslator::translate(
         "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n");
-    EXPECT_EQ(result, "[%Y-%m-%d %H:%M:%S] [%^%l%$] %v\n");
+    std::string expected = std::string("[%Y-%m-%d %H:%M:%S] [%^%l%$] %v") + eol;
+    EXPECT_EQ(result, expected);
 }
 
 // ---------------------------------------------------------------------------
@@ -132,5 +135,6 @@ TEST(SpdlogPatternTranslatorTest, ModifierOnUnknownToken)
 TEST(SpdlogPatternTranslatorTest, ModifierInFullPattern)
 {
     std::string result = SpdlogPatternTranslator::translate("[%-5p] %-20c: %m%n");
-    EXPECT_EQ(result, "[%^%-5l%$] %-20n: %v\n");
+    std::string expected = std::string("[%^%-5l%$] %-20n: %v") + eol;
+    EXPECT_EQ(result, expected);
 }

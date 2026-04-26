@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <SimpleLoggerPattern.h>
 #include <LoggerBase.h>
+#include <LoggerUtils.h>
 #include <LogRecord.h>
 #include <logger/LevelNames.h>
 #include <logger/MarkerFactory.h>
@@ -79,7 +80,7 @@ TEST(SimpleLoggerPatternTest, ThreadNameToken)
 TEST(SimpleLoggerPatternTest, NewlineToken)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(SimpleLoggerPattern::render("%n", r), "\n");
+    EXPECT_EQ(SimpleLoggerPattern::render("%n", r), eol);
 }
 
 TEST(SimpleLoggerPatternTest, MarkerTokenWithNullMarker)
@@ -115,7 +116,8 @@ TEST(SimpleLoggerPatternTest, FullPattern)
     LogRecord r = makeRecord(Logger::Level::Warn, "MyApp", "something happened");
     r.threadName = "";
     std::string result = SimpleLoggerPattern::render("[%p] [%c] %m%n", r);
-    EXPECT_EQ(result, "[WARN] [MyApp] something happened\n");
+    std::string expected = std::string("[WARN] [MyApp] something happened") + eol;
+    EXPECT_EQ(result, expected);
 }
 
 TEST(SimpleLoggerPatternTest, LiteralPercentEscaping)
@@ -232,7 +234,7 @@ TEST(SimpleLoggerPatternTest, ModifierOnMarkerPresent)
 TEST(SimpleLoggerPatternTest, ModifierOnNewlineIgnored)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(SimpleLoggerPattern::render("%-5n", r), "\n");
+    EXPECT_EQ(SimpleLoggerPattern::render("%-5n", r), eol);
 }
 
 TEST(SimpleLoggerPatternTest, DoublePercent_Unaffected)
