@@ -196,7 +196,7 @@ TEST(FlushOnTest, JsonParserParsesFlushOn)
     })");
     auto configs = JsonConfigParser::parse(iss);
     ASSERT_EQ(configs.size(), 1u);
-    EXPECT_EQ(configs[0].flushOn, "WARN");
+    EXPECT_EQ(configs[0].flushOn, Logger::Level::Warn);
 }
 
 TEST(FlushOnTest, JsonParserMissingFlushOnIsEmpty)
@@ -206,5 +206,5 @@ TEST(FlushOnTest, JsonParserMissingFlushOnIsEmpty)
     })");
     auto configs = JsonConfigParser::parse(iss);
     ASSERT_EQ(configs.size(), 1u);
-    EXPECT_TRUE(configs[0].flushOn.empty());
+    EXPECT_FALSE(configs[0].flushOn.has_value());
 }

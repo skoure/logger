@@ -9,8 +9,9 @@
  */
 #include <gtest/gtest.h>
 #include <JsonConfigParser.h>
+#include <logger/Logger.h>
+#include <array>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 
 using namespace sk::logger;
@@ -33,7 +34,7 @@ TEST(JsonConfigParserTest, ParsesRootLoggerNameAndLevel)
     })");
     ASSERT_EQ(configs.size(), 1u);
     EXPECT_EQ(configs[0].name,  "root");
-    EXPECT_EQ(configs[0].level, "INFO");
+    EXPECT_EQ(configs[0].level, Logger::Level::Info);
 }
 
 TEST(JsonConfigParserTest, ParsesConsoleSinkTypeAndPattern)
@@ -128,7 +129,7 @@ TEST(JsonConfigParserTest, UnknownJsonFieldsAreIgnored)
     })");
     ASSERT_EQ(configs.size(), 1u);
     EXPECT_EQ(configs[0].name,  "root");
-    EXPECT_EQ(configs[0].level, "INFO");
+    EXPECT_EQ(configs[0].level, Logger::Level::Info);
 }
 
 // ---------------------------------------------------------------------------
@@ -139,14 +140,14 @@ TEST(JsonConfigParserTest, ThrowsOnMissingFile)
 {
     EXPECT_THROW(
         JsonConfigParser::parse(std::string(TEST_CONFIG_DIR) + "/this_file_should_not_exist_xyz.json"),
-        std::runtime_error);
+        ParseException);
 }
 
 TEST(JsonConfigParserTest, ThrowsOnMalformedJson)
 {
     EXPECT_THROW(
         parseString("{ not valid json !!!"),
-        std::runtime_error);
+        ParseException);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,4 +218,156 @@ TEST(JsonConfigParserTest, StringPropertyValueStillWorks)
         }]
     })");
     ASSERT_EQ(configs[0].sinks[0].properties.at("color"), "true");
+}
+
+// ---------------------------------------------------------------------------
+// Logger level and flushOn as optional<Logger::Level>
+// ---------------------------------------------------------------------------
+
+TEST(JsonConfigParserTest, LoggerLevelParsedAsEnum)
+{
+    auto configs = parseString(R"({
+        "loggers":[{"name":"root","level":"WARN","sinks":[]}]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_TRUE(configs[0].level.has_value());
+    EXPECT_EQ(*configs[0].level, Logger::Level::Warn);
+}
+
+TEST(JsonConfigParserTest, LoggerLevelAbsentIsNullopt)
+{
+    auto configs = parseString(R"({
+        "loggers":[{"name":"root","sinks":[]}]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    EXPECT_FALSE(configs[0].level.has_value());
+}
+
+TEST(JsonConfigParserTest, AllLoggerLevelStringsMapCorrectly)
+{
+    struct Case { const char* str; Logger::Level expected; };
+    const std::array<Case, 6> cases = {{
+        {"FATAL", Logger::Level::Fatal},
+        {"ERROR", Logger::Level::Error},
+        {"WARN",  Logger::Level::Warn},
+        {"INFO",  Logger::Level::Info},
+        {"DEBUG", Logger::Level::Debug},
+        {"TRACE", Logger::Level::Trace},
+    }};
+    for (const auto& c : cases)
+    {
+        std::string json = std::string(R"({"loggers":[{"name":"root","level":")") + c.str + R"(","sinks":[]}]})";
+        auto cfgs = parseString(json);
+        ASSERT_EQ(cfgs.size(), 1u);
+        ASSERT_TRUE(cfgs[0].level.has_value()) << "level=" << c.str;
+        EXPECT_EQ(*cfgs[0].level, c.expected) << "level=" << c.str;
+    }
+}
+
+TEST(JsonConfigParserTest, FlushOnParsedAsEnum)
+{
+    auto configs = parseString(R"({
+        "loggers":[{"name":"root","level":"INFO","flush_on":"ERROR","sinks":[]}]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_TRUE(configs[0].flushOn.has_value());
+    EXPECT_EQ(*configs[0].flushOn, Logger::Level::Error);
+}
+
+TEST(JsonConfigParserTest, UnknownLoggerLevelThrows)
+{
+    EXPECT_THROW(
+        parseString(R"({"loggers":[{"name":"root","level":"INFOO","sinks":[]}]})"),
+        ParseException);
+}
+
+TEST(JsonConfigParserTest, UnknownSinkLevelThrows)
+{
+    EXPECT_THROW(
+        parseString(R"({
+            "loggers":[{
+                "name":"root","level":"INFO",
+                "sinks":[{"type":"console","level":"INVALID","pattern":"%m"}]
+            }]
+        })"),
+        ParseException);
+}
+
+TEST(JsonConfigParserTest, LevelIsCaseInsensitive)
+{
+    struct Case { const char* str; Logger::Level expected; };
+    const std::array<Case, 6> cases = {{
+        {"warn",  Logger::Level::Warn},
+        {"Warn",  Logger::Level::Warn},
+        {"wArN",  Logger::Level::Warn},
+        {"fatal", Logger::Level::Fatal},
+        {"Debug", Logger::Level::Debug},
+        {"trace", Logger::Level::Trace},
+    }};
+    for (const auto& c : cases)
+    {
+        std::string json = std::string(R"({"loggers":[{"name":"root","level":")") + c.str + R"(","sinks":[]}]})";
+        auto cfgs = parseString(json);
+        ASSERT_EQ(cfgs.size(), 1u);
+        ASSERT_TRUE(cfgs[0].level.has_value()) << "level=" << c.str;
+        EXPECT_EQ(*cfgs[0].level, c.expected) << "level=" << c.str;
+    }
+}
+
+TEST(JsonConfigParserTest, FlushOnAbsentIsNullopt)
+{
+    auto configs = parseString(R"({
+        "loggers":[{"name":"root","level":"INFO","sinks":[]}]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    EXPECT_FALSE(configs[0].flushOn.has_value());
+}
+
+// ---------------------------------------------------------------------------
+// Sink-level threshold parsing
+// ---------------------------------------------------------------------------
+
+TEST(JsonConfigParserTest, SinkLevelParsedAsEnum)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"DEBUG",
+            "sinks":[{"type":"console","level":"WARN","pattern":"%m"}]
+        }]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_EQ(configs[0].sinks.size(), 1u);
+    ASSERT_TRUE(configs[0].sinks[0].level.has_value());
+    EXPECT_EQ(*configs[0].sinks[0].level, Logger::Level::Warn);
+}
+
+TEST(JsonConfigParserTest, SinkLevelAbsentIsNullopt)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"DEBUG",
+            "sinks":[{"type":"console","pattern":"%m"}]
+        }]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_EQ(configs[0].sinks.size(), 1u);
+    EXPECT_FALSE(configs[0].sinks[0].level.has_value());
+}
+
+TEST(JsonConfigParserTest, MixedSinkLevels)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root","level":"DEBUG",
+            "sinks":[
+                {"type":"console","level":"WARN","pattern":"%m"},
+                {"type":"console","pattern":"%m"}
+            ]
+        }]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_EQ(configs[0].sinks.size(), 2u);
+    EXPECT_TRUE(configs[0].sinks[0].level.has_value());
+    EXPECT_EQ(*configs[0].sinks[0].level, Logger::Level::Warn);
+    EXPECT_FALSE(configs[0].sinks[1].level.has_value());
 }

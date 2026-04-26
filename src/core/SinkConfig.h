@@ -10,7 +10,9 @@
 #ifndef SK_SINK_CONFIG_H
 #define SK_SINK_CONFIG_H
 
+#include <logger/Logger.h>
 #include <map>
+#include <optional>
 #include <string>
 
 namespace sk { namespace logger {
@@ -29,6 +31,9 @@ struct SinkConfig
 
     /** Canonical log4j-style pattern, e.g. "[%d{%Y-%m-%d %H:%M:%S}] [%p] %m%n". */
     std::string pattern;
+
+    /** Minimum severity for this sink. nullopt = no additional filtering beyond the logger level. */
+    std::optional<Logger::Level> level;
 
     /** Extra properties (path, max_size, max_files, …). */
     std::map<std::string, std::string> properties;

@@ -9,13 +9,37 @@
  */
 #include "JsonConfigParser.h"
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
-#include <stdexcept>
 
 #include <nlohmann/json.hpp>
 
 using namespace sk::logger;
 using json = nlohmann::json;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+static std::string toUpper(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::toupper(c); });
+    return s;
+}
+
+static Logger::Level parseLevel(const std::string& s)
+{
+    const std::string upper = toUpper(s);
+    if (upper == "FATAL") return Logger::Level::Fatal;
+    if (upper == "ERROR") return Logger::Level::Error;
+    if (upper == "WARN")  return Logger::Level::Warn;
+    if (upper == "INFO")  return Logger::Level::Info;
+    if (upper == "DEBUG") return Logger::Level::Debug;
+    if (upper == "TRACE") return Logger::Level::Trace;
+    throw ParseException("JsonConfigParser: unknown level '" + s + "'");
+}
 
 // ---------------------------------------------------------------------------
 // Stream overload — main parsing logic
@@ -27,7 +51,7 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
     try {
         stream >> doc;
     } catch (const json::parse_error& ex) {
-        throw std::runtime_error(
+        throw ParseException(
             std::string("JsonConfigParser: malformed JSON: ") + ex.what());
     }
 
@@ -44,10 +68,10 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
             lc.name = loggerNode["name"].get<std::string>();
 
         if (loggerNode.contains("level") && loggerNode["level"].is_string())
-            lc.level = loggerNode["level"].get<std::string>();
+            lc.level = parseLevel(loggerNode["level"].get<std::string>());
 
         if (loggerNode.contains("flush_on") && loggerNode["flush_on"].is_string())
-            lc.flushOn = loggerNode["flush_on"].get<std::string>();
+            lc.flushOn = parseLevel(loggerNode["flush_on"].get<std::string>());
 
         if (loggerNode.contains("sinks") && loggerNode["sinks"].is_array())
         {
@@ -60,6 +84,9 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
 
                 if (sinkNode.contains("pattern") && sinkNode["pattern"].is_string())
                     sc.pattern = sinkNode["pattern"].get<std::string>();
+
+                if (sinkNode.contains("level") && sinkNode["level"].is_string())
+                    sc.level = parseLevel(sinkNode["level"].get<std::string>());
 
                 if (sinkNode.contains("properties") && sinkNode["properties"].is_object())
                 {
@@ -93,7 +120,7 @@ std::vector<LoggerConfig> JsonConfigParser::parse(const std::string& filePath)
 {
     std::ifstream file(filePath);
     if (!file.is_open())
-        throw std::runtime_error(
+        throw ParseException(
             std::string("JsonConfigParser: cannot open file: ") + filePath);
 
     return parse(file);

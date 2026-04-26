@@ -165,6 +165,98 @@ TEST_F(SpdlogBackendTest, ColorConsoleSinkEmitsGreenAnsiCodesAroundInfoLevel)
         << "Expected ANSI reset (\\x1b[m) after INFO; got: " << output;
 }
 
+// ---------------------------------------------------------------------------
+// Sink-level threshold
+// ---------------------------------------------------------------------------
+
+TEST_F(SpdlogBackendTest, SinkLevelSetOnSpdlogSink)
+{
+    LoggerPtr logger = backend.createLogger("SpdlogBackend.SinkLevel.SetTest");
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+    sc.level   = Logger::Level::Warn;
+
+    backend.configureLogger(logger, {sc});
+
+    auto& sinks = sl->getInternalLogger()->sinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_EQ(sinks[0]->level(), spdlog::level::warn)
+        << "SinkConfig.level=WARN should set spdlog sink level to warn";
+}
+
+TEST_F(SpdlogBackendTest, SinkLevelNulloptLeavesDefaultTraceLevel)
+{
+    LoggerPtr logger = backend.createLogger("SpdlogBackend.SinkLevel.NoFilter");
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+    // sc.level intentionally left as nullopt
+
+    backend.configureLogger(logger, {sc});
+
+    auto& sinks = sl->getInternalLogger()->sinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_EQ(sinks[0]->level(), spdlog::level::trace)
+        << "Sink with no level threshold should default to trace (let all through)";
+}
+
+TEST_F(SpdlogBackendTest, TwoSinksHaveDifferentLevels)
+{
+    LoggerPtr logger = backend.createLogger("SpdlogBackend.SinkLevel.TwoSinks");
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig warn_sc;
+    warn_sc.type    = "console";
+    warn_sc.pattern = "[%p] %m%n";
+    warn_sc.level   = Logger::Level::Warn;
+
+    SinkConfig debug_sc;
+    debug_sc.type    = "console";
+    debug_sc.pattern = "[%p] %m%n";
+    debug_sc.level   = Logger::Level::Debug;
+
+    backend.configureLogger(logger, {warn_sc, debug_sc});
+
+    auto& sinks = sl->getInternalLogger()->sinks();
+    ASSERT_EQ(sinks.size(), 2u);
+    EXPECT_EQ(sinks[0]->level(), spdlog::level::warn);
+    EXPECT_EQ(sinks[1]->level(), spdlog::level::debug);
+}
+
+TEST_F(SpdlogBackendTest, SinkLevelJsonConfigFiltersOutput)
+{
+    LoggerFactory::configureFromJsonString(R"({
+        "loggers": [{
+            "name": "SpdlogBackend.SinkLevel.Json",
+            "level": "DEBUG",
+            "sinks": [{
+                "type": "console",
+                "level": "WARN",
+                "pattern": "[%p] %m%n",
+                "properties": { "color_always": false }
+            }]
+        }]
+    })");
+
+    LoggerPtr logger = LoggerFactory::getLogger("SpdlogBackend.SinkLevel.Json");
+    ASSERT_NE(logger, nullptr);
+
+    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+    auto& sinks = sl->getInternalLogger()->sinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_EQ(sinks[0]->level(), spdlog::level::warn)
+        << "JSON-configured sink with level=WARN should have spdlog warn level";
+}
+
 // Integration: LoggerFactoryImpl copies parent level to child (spdlog is IManagedSinkBackend)
 TEST(SpdlogBackendFactoryTest, ChildInheritsParentLevel) {
     LoggerFactory& factory = LoggerFactory::getInstance();

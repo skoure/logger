@@ -11,6 +11,7 @@
 #define SK_LOG4CXX_LOGGER_H
 
 #include <LoggerBase.h>
+#include <log4cxx/level.h>
 #include <log4cxx/logger.h>
 
 namespace sk { namespace logger {
@@ -51,6 +52,8 @@ public:
     bool isTraceEnabled() const override { return m_pLogger->isTraceEnabled(); }
 
     log4cxx::LoggerPtr getInternalLogger() const { return m_pLogger; }
+
+    static log4cxx::LevelPtr toLog4CxxLevel(Level level);
 
 protected:
     void append(const LogRecord& record) override;

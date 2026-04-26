@@ -22,21 +22,6 @@
 using namespace sk::logger;
 
 // ---------------------------------------------------------------------------
-// Helper: map a level string to Logger::Level
-// ---------------------------------------------------------------------------
-
-static Logger::Level parseLevel(const std::string& s)
-{
-    if (s == "FATAL" || s == "fatal") return Logger::Level::Fatal;
-    if (s == "ERROR" || s == "error") return Logger::Level::Error;
-    if (s == "WARN"  || s == "warn")  return Logger::Level::Warn;
-    if (s == "DEBUG" || s == "debug") return Logger::Level::Debug;
-    if (s == "TRACE" || s == "trace") return Logger::Level::Trace;
-    // Default: INFO
-    return Logger::Level::Info;
-}
-
-// ---------------------------------------------------------------------------
 // LoggerConfigurator::configureFromJsonString — all apply logic lives here
 // ---------------------------------------------------------------------------
 
@@ -63,11 +48,11 @@ void LoggerConfigurator::configureFromJsonString(const std::string& json)
         if (!logger)
             continue;
 
-        if (!lc.level.empty())
-            logger->setLevel(parseLevel(lc.level));
+        if (lc.level.has_value())
+            logger->setLevel(*lc.level);
 
-        if (!lc.flushOn.empty())
-            logger->setFlushOn(parseLevel(lc.flushOn));
+        if (lc.flushOn.has_value())
+            logger->setFlushOn(*lc.flushOn);
 
         impl.configureLogger(logger, lc.sinks);
         if (!lc.sinks.empty())

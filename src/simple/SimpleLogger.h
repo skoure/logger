@@ -12,6 +12,7 @@
 
 #include <LoggerBase.h>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -29,6 +30,7 @@ struct SimpleSink
     std::shared_ptr<std::ostream> stream;
     std::string                   pattern; ///< canonical log4j-style; empty → default
     bool                          color = false;
+    std::optional<Logger::Level>  level;   ///< nullopt = no additional filtering
 };
 
 /**

@@ -45,17 +45,23 @@ Logger::Level Log4CxxLogger::getLevel() const
     return Level::Info;
 }
 
-void Log4CxxLogger::setLevel(Level level)
+log4cxx::LevelPtr Log4CxxLogger::toLog4CxxLevel(Level level)
 {
     switch (level)
     {
-    case Level::Fatal: m_pLogger->setLevel(log4cxx::Level::getFatal()); break;
-    case Level::Error: m_pLogger->setLevel(log4cxx::Level::getError()); break;
-    case Level::Warn:  m_pLogger->setLevel(log4cxx::Level::getWarn());  break;
-    case Level::Info:  m_pLogger->setLevel(log4cxx::Level::getInfo());  break;
-    case Level::Debug: m_pLogger->setLevel(log4cxx::Level::getDebug()); break;
-    case Level::Trace: m_pLogger->setLevel(log4cxx::Level::getTrace()); break;
+    case Level::Fatal: return log4cxx::Level::getFatal();
+    case Level::Error: return log4cxx::Level::getError();
+    case Level::Warn:  return log4cxx::Level::getWarn();
+    case Level::Info:  return log4cxx::Level::getInfo();
+    case Level::Debug: return log4cxx::Level::getDebug();
+    case Level::Trace: return log4cxx::Level::getTrace();
+    default:           return log4cxx::Level::getInfo();
     }
+}
+
+void Log4CxxLogger::setLevel(Level level)
+{
+    m_pLogger->setLevel(toLog4CxxLevel(level));
 }
 
 void Log4CxxLogger::clearLevel()

@@ -138,6 +138,53 @@ rotating file is flushed immediately.  INFO and DEBUG events remain buffered.
 > For example, `"color": true` and `"color": "true"` are both valid; `"max_size": 10485760`
 > and `"max_size": "10485760"` are both valid.
 
+### Sink-Level Threshold
+
+Each sink accepts an optional `level` field that acts as a per-sink minimum severity filter.
+When set, only log events at that severity **or more severe** are written to that sink.
+The sink threshold is applied **after** the logger-level gate, so it can only be equally or
+more restrictive than the logger's own level — it cannot cause a sink to receive events the
+logger has already suppressed.
+
+| Field   | Type   | Required | Description |
+|---------|--------|----------|-------------|
+| `level` | string | no       | Minimum severity for this sink: `FATAL`, `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`. Omit to apply no additional filtering beyond the logger's level. |
+
+**No hierarchy:** sink-level thresholds are flat — there is no parent/child inheritance
+between sinks.
+
+**Example:** console shows only WARN and above; file captures everything the logger allows (DEBUG+):
+
+```json
+{
+  "name":  "root",
+  "level": "DEBUG",
+  "sinks": [
+    {
+      "type":    "console",
+      "level":   "WARN",
+      "pattern": "[%d{%H:%M:%S}] [%p] %m%n"
+    },
+    {
+      "type":    "file",
+      "level":   "DEBUG",
+      "pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%p] [%c] %m%n",
+      "properties": { "path": "logs/app.log" }
+    }
+  ]
+}
+```
+
+**Backend notes:**
+
+| Backend      | Mechanism                                                       |
+|--------------|-----------------------------------------------------------------|
+| SimpleLogger | Level check applied in `append()` before writing to each sink stream. |
+| spdlog       | `sink->set_level()` called on each spdlog sink during configuration. |
+| log4cxx      | `AppenderSkeleton::setThreshold()` called on each appender during configuration. |
+
+---
+
 ### `console`
 
 Writes to standard output with optional ANSI color coding.

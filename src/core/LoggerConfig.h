@@ -11,6 +11,8 @@
 #define SK_LOGGER_CONFIG_H
 
 #include <SinkConfig.h>
+#include <logger/Logger.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,11 +30,11 @@ struct LoggerConfig
     /** Logger name, e.g. "root", "App", "App.Database". */
     std::string name;
 
-    /** Raw level string from JSON: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL". */
-    std::string level;
+    /** Explicit level for this logger. nullopt if absent from JSON. */
+    std::optional<Logger::Level> level;
 
-    /** Raw flush_on level string from JSON: "TRACE" … "FATAL". Empty = disabled. */
-    std::string flushOn;
+    /** Flush-on threshold. nullopt if absent from JSON. */
+    std::optional<Logger::Level> flushOn;
 
     /** Ordered list of sinks to configure on this logger. */
     std::vector<SinkConfig> sinks;

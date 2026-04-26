@@ -12,10 +12,23 @@
 
 #include <LoggerConfig.h>
 #include <istream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace sk { namespace logger {
+
+/**
+ * @class ParseException
+ * @brief Thrown by JsonConfigParser for any I/O or configuration error.
+ *
+ * Extends std::runtime_error so callers can catch it specifically or fall back
+ * to catching std::runtime_error for generic error handling.
+ */
+class ParseException : public std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
 
 /**
  * @class JsonConfigParser
@@ -40,7 +53,7 @@ namespace sk { namespace logger {
  * }
  * @endcode
  *
- * All methods are static.  Throws std::runtime_error on parse or I/O errors.
+ * All methods are static.  Throws ParseException on parse or I/O errors.
  */
 class JsonConfigParser
 {
@@ -49,7 +62,7 @@ public:
      * @brief Parse a JSON config from a file path.
      *
      * Delegates to the stream overload after opening the file.
-     * Throws std::runtime_error if the file cannot be opened.
+     * Throws ParseException if the file cannot be opened.
      *
      * @param filePath Path to the JSON configuration file.
      * @return Ordered vector of LoggerConfig parsed from the file.
@@ -59,7 +72,7 @@ public:
     /**
      * @brief Parse a JSON config from an input stream.
      *
-     * Throws std::runtime_error on malformed JSON.
+     * Throws ParseException on malformed JSON or an unrecognised level string.
      *
      * @param stream Readable stream containing JSON data.
      * @return Ordered vector of LoggerConfig parsed from the stream.

@@ -36,14 +36,14 @@ public:
 
     std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
 
+    static spdlog::level::level_enum toSpdlogLevel(Level level);
+
 protected:
     void append(const LogRecord& record) override;
 
 private:
     std::shared_ptr<spdlog::logger> m_pLogger;
     std::string                     m_name;
-
-    static spdlog::level::level_enum toSpdlogLevel(Level level);
 };
 
 }} // namespace sk::logger

@@ -56,6 +56,8 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
         SimpleSink sink;
         sink.pattern = sc.pattern;
 
+        sink.level = sc.level;
+
         if (sc.type == "console")
         {
             auto colorIt = sc.properties.find("color");

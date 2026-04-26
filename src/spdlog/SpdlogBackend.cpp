@@ -313,6 +313,9 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
             continue;
         }
 
+        if (sc.level.has_value())
+            sink->set_level(SpdlogLogger::toSpdlogLevel(*sc.level));
+
         newSinks.push_back(sink);
     }
 

@@ -139,6 +139,114 @@ TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueEmitsAnsiCodes)
         << "color=true should emit ANSI reset code; output: " << oss.str();
 }
 
+// ---------------------------------------------------------------------------
+// Sink-level threshold filtering
+// ---------------------------------------------------------------------------
+
+TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdBlocksLowerSeverity)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.SinkLevel.Block");
+    logger->setLevel(Logger::Level::Debug);
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    std::ostringstream warn_sink;
+    std::ostringstream debug_sink;
+    backend.configureLoggerWithOstream(logger, warn_sink,  "[%p] %m%n");
+    backend.configureLoggerWithOstream(logger, debug_sink, "[%p] %m%n");
+
+    auto sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 2u);
+    sinks[0].level = Logger::Level::Warn;
+    sinks[1].level = Logger::Level::Debug;
+    sl->setSinks(std::move(sinks));
+
+    logger->info("info message");
+
+    EXPECT_TRUE(warn_sink.str().empty())
+        << "WARN-threshold sink should suppress INFO; got: " << warn_sink.str();
+    EXPECT_NE(debug_sink.str().find("info message"), std::string::npos)
+        << "DEBUG-threshold sink should pass INFO; got: " << debug_sink.str();
+}
+
+TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdPassesEqualSeverity)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.SinkLevel.Equal");
+    logger->setLevel(Logger::Level::Debug);
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+
+    auto sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    sinks[0].level = Logger::Level::Warn;
+    sl->setSinks(std::move(sinks));
+
+    logger->warn("warn message");
+
+    EXPECT_NE(oss.str().find("warn message"), std::string::npos)
+        << "WARN-threshold sink should pass WARN; got: " << oss.str();
+}
+
+TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdPassesHigherSeverity)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.SinkLevel.Higher");
+    logger->setLevel(Logger::Level::Debug);
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+
+    auto sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    sinks[0].level = Logger::Level::Warn;
+    sl->setSinks(std::move(sinks));
+
+    logger->error("error message");
+
+    EXPECT_NE(oss.str().find("error message"), std::string::npos)
+        << "WARN-threshold sink should pass ERROR; got: " << oss.str();
+}
+
+TEST_F(SimpleLoggerBackendTest, SinkLevelNulloptPassesAll)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.SinkLevel.NoFilter");
+    logger->setLevel(Logger::Level::Debug);
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    // Leave sink.level as nullopt (default)
+
+    logger->debug("debug message");
+
+    EXPECT_NE(oss.str().find("debug message"), std::string::npos)
+        << "Sink with no level threshold should pass DEBUG; got: " << oss.str();
+}
+
+TEST_F(SimpleLoggerBackendTest, SinkConfigLevelCopiedToSimpleSink)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.SinkLevel.Config");
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    SinkConfig sc;
+    sc.type    = "console";
+    sc.pattern = "[%p] %m%n";
+    sc.level   = Logger::Level::Error;
+
+    backend.configureLogger(logger, {sc});
+
+    const auto& sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    ASSERT_TRUE(sinks[0].level.has_value());
+    EXPECT_EQ(*sinks[0].level, Logger::Level::Error);
+}
+
 // Integration: LoggerFactoryImpl copies parent level to child (SimpleLogger is IManagedSinkBackend)
 TEST(SimpleLoggerBackendFactoryTest, ChildInheritsParentLevel) {
     LoggerFactory& factory = LoggerFactory::getInstance();

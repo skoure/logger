@@ -12,6 +12,7 @@
 #include <Log4CxxPatternTranslator.h>
 #include <LoggerFactoryImpl.h>
 
+#include <log4cxx/appenderskeleton.h>
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/fileappender.h>
 #include <log4cxx/rolling/rollingfileappender.h>
@@ -186,7 +187,15 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
         }
 
         if (appender)
+        {
+            if (sc.level.has_value())
+            {
+                auto skel = std::dynamic_pointer_cast<log4cxx::AppenderSkeleton>(appender);
+                if (skel)
+                    skel->setThreshold(Log4CxxLogger::toLog4CxxLevel(*sc.level));
+            }
             internalLogger->addAppender(appender);
+        }
     }
 }
 

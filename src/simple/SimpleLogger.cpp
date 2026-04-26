@@ -72,6 +72,9 @@ void SimpleLogger::append(const LogRecord& record)
 
     for (const SimpleSink& sink : m_sinks)
     {
+        if (sink.level.has_value() && record.level > *sink.level)
+            continue;
+
         if (sink.stream)
         {
             if (sink.color)
@@ -86,6 +89,10 @@ void SimpleLogger::append(const LogRecord& record)
     if (flushOn.has_value() && record.level <= *flushOn)
     {
         for (const SimpleSink& sink : m_sinks)
+        {
+            if (sink.level.has_value() && record.level > *sink.level)
+                continue;
             if (sink.stream) sink.stream->flush();
+        }
     }
 }
