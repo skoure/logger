@@ -60,7 +60,7 @@ public:
      * Parses @p json and, for each named logger entry, sets its level and
      * delegates sink configuration to the active backend.
      *
-     * Throws std::runtime_error if the JSON is invalid.
+     * Throws ParseException if the JSON is invalid.
      *
      * @param json JSON configuration string.
      */
@@ -71,7 +71,7 @@ public:
      *
      * Reads the file at @p filePath, then delegates to configureFromJsonString().
      *
-     * Throws std::runtime_error if the file is missing or contains invalid JSON.
+     * Throws ParseException if the file is missing or contains invalid JSON.
      *
      * @param filePath Path to the JSON logging configuration file.
      */

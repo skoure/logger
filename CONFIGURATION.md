@@ -11,7 +11,7 @@ JSON configuration file.
 #include <logger/LoggerFactory.h>
 
 // Apply configuration before retrieving any loggers
-sk::logger::LoggerFactory::configure("config/logger.json");
+sk::logger::LoggerFactory::configureFromJsonFile("config/logger.json");
 
 // Now retrieve a logger — its level and sinks are already set
 auto log = sk::logger::LoggerFactory::getLogger("App");
@@ -428,21 +428,22 @@ This API is supported by all three backends (simple, spdlog, log4cxx).
 
 ---
 
-## Calling `configure()` Multiple Times
+## Calling Configuration Methods Multiple Times
 
-`LoggerFactory::configure()` may be called more than once.  Each call
-re-applies the configuration: logger levels are reset and sinks are replaced.
-This is safe but not recommended in production; prefer a single configuration
-call at startup.
+`LoggerFactory::configureFromJsonFile()` and `LoggerFactory::configureFromJsonString()`
+may be called more than once.  Each call re-applies the configuration: logger
+levels are reset and sinks are replaced. This is safe but not recommended in
+production; prefer a single configuration call at startup.
 
 ---
 
 ## Error Handling
 
-`LoggerFactory::configure()` throws `std::runtime_error` if:
+`LoggerFactory::configureFromJsonFile()` and `LoggerFactory::configureFromJsonString()`
+throw `ParseException` (which extends `std::runtime_error`) if:
 
-- The specified file does not exist or cannot be opened.
-- The file contains invalid JSON.
+- The specified file does not exist or cannot be opened (file method only).
+- The JSON is invalid.
 
 All other conditions (unknown logger names, unknown sink types, empty sink
 arrays) are handled gracefully without throwing.

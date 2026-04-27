@@ -11,24 +11,12 @@
 #define SK_JSON_CONFIG_PARSER_H
 
 #include <LoggerConfig.h>
+#include <logger/Exceptions.h>
 #include <istream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace sk { namespace logger {
-
-/**
- * @class ParseException
- * @brief Thrown by JsonConfigParser for any I/O or configuration error.
- *
- * Extends std::runtime_error so callers can catch it specifically or fall back
- * to catching std::runtime_error for generic error handling.
- */
-class ParseException : public std::runtime_error
-{
-    using std::runtime_error::runtime_error;
-};
 
 /**
  * @class JsonConfigParser

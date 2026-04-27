@@ -55,7 +55,7 @@ The facade supports JSON-driven configuration of logger levels and output sinks.
 #include <logger/LoggerFactory.h>
 
 // Call once at startup, before retrieving any loggers
-sk::logger::LoggerFactory::configure("config/logger.json");
+sk::logger::LoggerFactory::configureFromJsonFile("config/logger.json");
 ```
 
 For programmatic sink configuration (e.g. capturing output in a `std::ostringstream`),
