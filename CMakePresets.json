@@ -61,22 +61,23 @@
   ],
   "testPresets": [
     {
-      "name": "windows-test",
-      "configurePreset": "windows",
-      "description": "Run all backend tests on Windows.",
-      "configuration": "Release",
+      "name": "base-test",
+      "hidden": true,
       "output": {
         "outputOnFailure": true
       }
     },
     {
+      "name": "windows-test",
+      "inherits": "base-test",
+      "configurePreset": "windows",
+      "description": "Run all backend tests on Windows."
+    },
+    {
       "name": "linux-test",
+      "inherits": "base-test",
       "configurePreset": "linux",
-      "description": "Run all backend tests on Linux.",
-      "configuration": "Release",
-      "output": {
-        "outputOnFailure": true
-      }
+      "description": "Run all backend tests on Linux."
     }
   ]
 }
