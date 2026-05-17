@@ -13,7 +13,7 @@ include(FetchContent)
 FetchContent_Declare(
     sk_common
     GIT_REPOSITORY https://github.com/skoure/common.git
-    GIT_TAG        c704ed13886f9869ad706aed961367509f1655e0
+    GIT_TAG        49b419bbcf62c6df17cd507efcc658550cf0fa92
 )
 FetchContent_MakeAvailable(sk_common)
 
