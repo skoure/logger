@@ -8,6 +8,7 @@
  * @date Created: March 21, 2026
  */
 #include <gtest/gtest.h>
+#include <ProxyLogger.h>
 #include <SpdlogBackend.h>
 #include <SpdlogLogger.h>
 #include <spdlog/sinks/ostream_sink.h>
@@ -249,7 +250,8 @@ TEST_F(SpdlogBackendTest, SinkLevelJsonConfigFiltersOutput)
     LoggerPtr logger = LoggerFactory::getLogger("SpdlogBackend.SinkLevel.Json");
     ASSERT_NE(logger, nullptr);
 
-    auto* sl = dynamic_cast<SpdlogLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    auto* sl = dynamic_cast<SpdlogLogger*>(proxy->getReal().get());
     ASSERT_NE(sl, nullptr);
     auto& sinks = sl->getInternalLogger()->sinks();
     ASSERT_EQ(sinks.size(), 1u);

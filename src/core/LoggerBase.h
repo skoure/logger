@@ -121,12 +121,11 @@ public:
     /**
      * @brief Sets the parent logger used for level inheritance.
      *
-     * Called once by LoggerFactoryImpl when the logger is registered.
      * The parent is held as a weak_ptr to avoid ownership cycles.
      *
      * @param parent Weak reference to the parent logger.
      */
-    void setParent(const std::weak_ptr<Logger>& parent);
+    virtual void setParent(std::weak_ptr<Logger> parent);
 
     /**
      * @brief Delivers a fully-formed LogRecord to the backend.
@@ -135,7 +134,7 @@ public:
      * LogRecord populated. Implementations should write or forward the
      * record without any further formatting of level/name/message.
      *
-     * Public so that LazyLogger can forward records to a delegate backend
+     * Public so that ProxyLogger can forward records to a delegate backend
      * logger of a different subclass type (C++ protected access rules prevent
      * calling a protected method on a sibling-derived object).
      *
@@ -143,13 +142,15 @@ public:
      */
     virtual void append(const LogRecord& record) = 0;
 
+protected:
+	std::weak_ptr<Logger> m_parent;
+
 private:
     static LevelNames     s_levelNames;
 
     Level                 m_level              = Level::Info;
     bool                  m_levelExplicitlySet = false;
     std::optional<Level>  m_flushOn;
-    std::weak_ptr<Logger> m_parent;
 
     /**
      * @brief Formats the message, builds a LogRecord, and calls append().

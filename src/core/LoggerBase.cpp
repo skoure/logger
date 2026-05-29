@@ -48,6 +48,8 @@ Logger::Level LoggerBase::getLevel() const
 {
     if (m_levelExplicitlySet)
         return m_level;
+	// parent is a weak_ptr so temporarily convert it to a shared_ptr
+	// so it can be safely referenced.  ie m_parent.lock().
     auto parent = m_parent.lock();
     return parent ? parent->getLevel() : Level::Info;
 }
@@ -69,9 +71,9 @@ bool LoggerBase::isLevelExplicitlySet() const
 }
 
 
-void LoggerBase::setParent(const std::weak_ptr<Logger>& parent)
+void LoggerBase::setParent(std::weak_ptr<Logger> parent)
 {
-    m_parent = parent;
+	m_parent = std::move(parent); 	
 }
 
 void LoggerBase::setFlushOn(Level level) { m_flushOn = level; }

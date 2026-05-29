@@ -12,7 +12,7 @@
 
 #include <logger/Logger.h>
 #include <ILoggerBackend.h>
-#include <IManagedSinkBackend.h>
+#include <ProxyBackend.h>
 #include <LoggerHierarchy.h>
 #include <SinkConfig.h>
 #include <memory>
@@ -35,23 +35,6 @@ public:
     void setBackend(std::unique_ptr<ILoggerBackend> backend);
 
     LoggerPtr getLogger(const std::string& name);
-
-    /**
-     * @brief Creates a real backend logger for a name already in the hierarchy.
-     *
-     * Called by LazyLogger::append() on first use to perform deferred backend
-     * creation. Kept separate from getLogger() to avoid two problems:
-     *   1. Circular lookup — the LazyLogger is already in the hierarchy, so
-     *      getLogger() would return it again instead of creating a real logger.
-     *   2. Re-entrant locking — both methods acquire m_factoryLock.
-     *
-     * Does not add the result to the hierarchy; the LazyLogger remains the
-     * authoritative hierarchy entry and proxies to the returned logger.
-     *
-     * @param name Logger name (must already exist in the hierarchy as a LazyLogger).
-     * @return Real backend LoggerPtr, or nullptr if backend not yet registered.
-     */
-    LoggerBasePtr createBackendLogger(const std::string& name);
 
     /**
      * @brief Forward a sink configuration request to the active backend.
@@ -102,13 +85,12 @@ public:
     void propagateInheritedSinks(const std::set<std::string>& configured);
 
 private:
-    LoggerFactoryImpl() = default;
+    LoggerFactoryImpl();
     ~LoggerFactoryImpl();
 
-    std::mutex                      m_factoryLock;
-    LoggerHierarchy                 m_hierarchy;
-    std::unique_ptr<ILoggerBackend> m_backend;
-    IManagedSinkBackend*            m_sinkManagedBackend = nullptr;
+    std::mutex                    m_factoryLock;
+    LoggerHierarchy               m_hierarchy;
+    std::unique_ptr<ProxyBackend> m_proxyBackend;
 
 };
 

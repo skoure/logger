@@ -14,6 +14,7 @@
 #include <Log4CxxBackend.h>
 #include <Log4CxxLogger.h>
 #include <Log4CxxPatternTranslator.h>
+#include <ProxyLogger.h>
 #include <LoggerBase.h>
 #include <logger/LevelNames.h>
 #include <logger/LoggerFactory.h>
@@ -72,7 +73,8 @@ TEST(Log4CxxLoggerTest, IsEnabledChecks) {
 
 TEST(Log4CxxLoggerTest, InfoOutputsExpectedMessage) {
     LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("TestLoggerOutput");
-    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(proxy->getReal().get());
     ASSERT_NE(log4cxxLogger, nullptr);
 
     log4cxx::AppenderPtr appender(new OutputStreamAppender());
@@ -88,7 +90,8 @@ TEST(Log4CxxLoggerTest, InfoOutputsExpectedMessage) {
 
 TEST(Log4CxxLoggerTest, ExceptionErrorOutputsContextAndMessage) {
     LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("ExceptionTestLogger");
-    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(proxy->getReal().get());
     ASSERT_NE(log4cxxLogger, nullptr);
 
     log4cxx::AppenderPtr appender(new OutputStreamAppender());
@@ -110,7 +113,8 @@ TEST(Log4CxxLoggerTest, ExceptionErrorOutputsContextAndMessage) {
 
 TEST(Log4CxxLoggerTest, ExceptionFatalOutputsContextAndMessage) {
     LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("ExceptionFatalTestLogger");
-    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(proxy->getReal().get());
     ASSERT_NE(log4cxxLogger, nullptr);
 
     log4cxx::AppenderPtr appender(new OutputStreamAppender());
@@ -162,7 +166,8 @@ TEST(Log4CxxLoggerTest, ClearLevelRevertsToInherited) {
 TEST(Log4CxxLoggerTest, MarkerStoredInMDCDuringInfoLog)
 {
     LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("Log4MarkerInfo");
-    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(proxy->getReal().get());
     ASSERT_NE(log4cxxLogger, nullptr);
 
     auto* capturer = new MarkerCapturingAppender();
@@ -182,7 +187,8 @@ TEST(Log4CxxLoggerTest, MarkerStoredInMDCDuringInfoLog)
 TEST(Log4CxxLoggerTest, MarkerStoredInMDCDuringErrorException)
 {
     LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("Log4MarkerError");
-    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(proxy->getReal().get());
     ASSERT_NE(log4cxxLogger, nullptr);
 
     auto* capturer = new MarkerCapturingAppender();
@@ -203,7 +209,8 @@ TEST(Log4CxxLoggerTest, MarkerStoredInMDCDuringErrorException)
 TEST(Log4CxxLoggerTest, MDCClearedAfterMarkerLog)
 {
     LoggerPtr logger = sk::logger::LoggerFactory::getInstance().getLogger("Log4MarkerCleanup");
-    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(logger.get());
+    auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger);
+    Log4CxxLogger* log4cxxLogger = dynamic_cast<Log4CxxLogger*>(proxy->getReal().get());
     ASSERT_NE(log4cxxLogger, nullptr);
 
     auto* capturer = new MarkerCapturingAppender();

@@ -150,13 +150,6 @@ TEST(LoggerConfiguratorTest, ReconfigureUpdatesPreexistingChildSinks)
     child->setFlushOn(Logger::Level::Info);
     child->info("msg-a");
 
-    LoggerConfigurator::configureFromJsonString(
-        R"({"loggers":[{"name":"root","level":"DEBUG","sinks":[)"
-        R"({"type":"file","pattern":"%m%n","properties":{"path":")" +
-        toJsonPath(logPathB) + R"("}}]}]})");
-
-    child->setFlushOn(Logger::Level::Info);
-
     {
         std::ifstream f(logPathA);
         std::string content((std::istreambuf_iterator<char>(f)),
@@ -165,6 +158,13 @@ TEST(LoggerConfiguratorTest, ReconfigureUpdatesPreexistingChildSinks)
             << "Child should write to file A after first configure";
     }
 
+    LoggerConfigurator::configureFromJsonString(
+        R"({"loggers":[{"name":"root","level":"DEBUG","sinks":[)"
+        R"({"type":"file","pattern":"%m%n","properties":{"path":")" +
+        toJsonPath(logPathB) + R"("}}]}]})");
+
+
+    child->setFlushOn(Logger::Level::Info);
     child->info("msg-b");
 
     {
@@ -199,6 +199,7 @@ TEST(LoggerConfiguratorTest, PlaceholderAncestorSinkInheritanceAtCreation)
     LoggerPtr child = LoggerFactory::getLogger("PlaceholderSnk.Deep.Child");
     ASSERT_NE(child, nullptr);
 
+    child->setFlushOn(Logger::Level::Info);
     child->info("placeholder-sink-test");
     EXPECT_TRUE(stream.str().find("placeholder-sink-test") != std::string::npos)
         << "Child under auto-created intermediate loggers should inherit root's sink";
