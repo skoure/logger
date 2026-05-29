@@ -179,10 +179,20 @@ Stacktrace frame names are only meaningful with debug symbols. Use `Debug` or `R
 
 All available backends are built automatically based on what Conan installed.
 
-**Linux:**
+**Linux (Release):**
 ```sh
 cmake --preset linux
 cmake --build --preset linux-release
+ctest --preset linux-test
+```
+
+**Linux (Debug with `_GLIBCXX_DEBUG`):**
+
+If Conan dependencies were installed with `_GLIBCXX_DEBUG` (see the Conan note above), pass the
+matching define at configure time so the STL container ABIs agree:
+```sh
+cmake --preset linux -DCMAKE_CXX_FLAGS_DEBUG="-D_GLIBCXX_DEBUG"
+cmake --build --preset linux-debug
 ctest --preset linux-test
 ```
 
