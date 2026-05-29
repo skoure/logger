@@ -46,7 +46,7 @@ public:
     explicit SimpleLogger(std::string name);
     ~SimpleLogger();
 
-    const std::string getName() { return m_name; }
+    std::string getName() const override { return m_name; }
 
     /**
      * @brief Replace all sinks with the provided list.

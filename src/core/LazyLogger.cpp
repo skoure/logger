@@ -17,7 +17,7 @@ LazyLogger::LazyLogger(std::string name)
     : m_name(std::move(name))
 {}
 
-const std::string LazyLogger::getName()
+std::string LazyLogger::getName() const
 {
     return m_name;
 }

@@ -32,7 +32,7 @@ public:
     SpdlogLogger(std::string name);
     ~SpdlogLogger();
 
-    const std::string getName() { return m_name; }
+    std::string getName() const override { return m_name; }
 
     std::shared_ptr<spdlog::logger> getInternalLogger() const { return m_pLogger; }
 

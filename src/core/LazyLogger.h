@@ -65,7 +65,7 @@ class LazyLogger : public LoggerBase
 {
 public:
     explicit LazyLogger(std::string name);
-    const std::string getName() override;
+    std::string getName() const override;
     void append(const LogRecord& record) override;
 
 private:

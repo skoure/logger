@@ -33,7 +33,7 @@ public:
     Log4CxxLogger(std::string name);
     ~Log4CxxLogger();
 
-    const std::string getName() { return m_name; }
+    std::string getName() const override { return m_name; }
 
     // Log4cxx handles level inheritance natively via its dot-separated name
     // registry.  Override all four level methods to delegate to log4cxx so

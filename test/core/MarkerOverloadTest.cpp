@@ -30,7 +30,7 @@ class SpyLogger : public LoggerBase
 public:
     explicit SpyLogger(const std::string& name) : m_name(name) {}
 
-    const std::string getName() override { return m_name; }
+    std::string getName() const override { return m_name; }
 
     int  appendCallCount = 0;
     LogRecord lastRecord;

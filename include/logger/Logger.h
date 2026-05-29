@@ -49,7 +49,7 @@ public:
      * @brief Returns the name of the logger.
      * @return Logger name as a std::string.
      */
-    virtual const std::string getName() = 0;
+    virtual std::string getName() const = 0;
 
     /**
      * @brief Returns the effective logging level for this logger.
