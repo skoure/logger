@@ -40,17 +40,16 @@ static std::string demangle(const char* name)
 #endif
 }
 
-std::string formatException(const char* msg, const std::exception& ex)
+std::string formatException(const char* msg, const std::exception& ex, int skip)
 {
     std::ostringstream oss;
     if (msg && msg[0] != '\0') {
         oss << msg << ": ";
     }
-    oss << demangle(typeid(ex).name()) << ": " << ex.what();
+    oss << demangle(typeid(ex).name()) << ": " << ex.what() << eol;
 #ifdef USE_CPPTRACE
-    oss << "\nStacktrace:\n";
-    // skip=1 removes the formatException frame from the top of the trace
-    oss << cpptrace::generate_trace(1).to_string();
+    // cpptrace generate_trace begins with 'Stack trace (most recent call first):'
+    oss << cpptrace::generate_trace(skip).to_string();
 #endif
     return oss.str();
 }

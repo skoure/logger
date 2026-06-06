@@ -16,6 +16,11 @@
 
 using namespace sk::logger;
 
+namespace {
+// skip 2 removes the formatException and LoggerBase frame from the top of the trace
+constexpr int kLoggerBaseExceptionTraceSkip = 2;
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -223,7 +228,7 @@ void LoggerBase::error(const char* msg, const std::exception& ex)
         LogRecord record;
         record.level      = Level::Error;
         record.loggerName = getName();
-        record.message    = formatException(msg, ex);
+        record.message    = formatException(msg, ex, kLoggerBaseExceptionTraceSkip);
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
@@ -238,7 +243,7 @@ void LoggerBase::fatal(const char* msg, const std::exception& ex)
         LogRecord record;
         record.level      = Level::Fatal;
         record.loggerName = getName();
-        record.message    = formatException(msg, ex);
+        record.message    = formatException(msg, ex, kLoggerBaseExceptionTraceSkip);
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
@@ -324,7 +329,7 @@ void LoggerBase::error(const Marker& marker, const char* msg,
         LogRecord record;
         record.level      = Level::Error;
         record.loggerName = getName();
-        record.message    = formatException(msg, ex);
+        record.message    = formatException(msg, ex, kLoggerBaseExceptionTraceSkip);
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
@@ -341,7 +346,7 @@ void LoggerBase::fatal(const Marker& marker, const char* msg,
         LogRecord record;
         record.level      = Level::Fatal;
         record.loggerName = getName();
-        record.message    = formatException(msg, ex);
+        record.message    = formatException(msg, ex, kLoggerBaseExceptionTraceSkip);
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();

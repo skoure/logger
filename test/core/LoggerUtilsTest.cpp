@@ -50,7 +50,8 @@ TEST(LoggerUtilsTest, ContextMessageSeparatedFromException) {
 TEST(LoggerUtilsTest, ContainsStacktraceSection) {
     std::runtime_error ex("traced");
     std::string result = formatException("test", ex);
-    EXPECT_NE(result.find("Stacktrace:"), std::string::npos);
+    // cpptrace generate_trace begins with 'Stack trace (most recent call first):'
+    EXPECT_NE(result.find("Stack trace (most recent call first):"), std::string::npos);
 }
 
 TEST(LoggerUtilsTest, StacktraceContainsFrames) {

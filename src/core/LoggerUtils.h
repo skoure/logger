@@ -33,9 +33,10 @@ namespace sk { namespace logger {
  *
  * @param msg Context message prepended to the output (e.g. "Failed to open file").
  * @param ex  The exception to format.
+ * @param skip Number of top stack frames to omit from generated trace.
  * @return    Formatted string: "<msg>: <type>: <what()>\nStacktrace:\n<frames>"
  */
-std::string formatException(const char* msg, const std::exception& ex);
+std::string formatException(const char* msg, const std::exception& ex, int skip = 0);
 
 /**
  * @brief Returns the OS-level name of the calling thread.
