@@ -19,7 +19,7 @@ jobs:
           - os: ubuntu-22.04
             preset: linux
             profile: linux
-          - os: windows-latest
+          - os: windows-2022
             preset: windows
             profile: windows
 
