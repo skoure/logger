@@ -64,6 +64,8 @@ use `LoggerFactory::configureLoggerWithOstream()` — see [CONFIGURATION.md](CON
 See [CONFIGURATION.md](CONFIGURATION.md) for the full JSON schema, pattern
 token reference, and per-backend translation tables.
 
+> Note: avoid calling logging or creating markers from static object destructors — logging during static teardown is unsafe.
+
 ---
 
 ## Markers

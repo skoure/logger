@@ -87,3 +87,11 @@ TEST_F(MarkerFactoryTest, EmptyNameHandling) {
     // Assert 3: Uniqueness still holds for the empty string key
     EXPECT_EQ(emptyMarker1, emptyMarker2);
 }
+
+// --- Test 5: File-Scope Static Marker Initialization ---
+static auto staticFileScopeMarker = MarkerFactory::getMarker("StaticInitMarker");
+
+TEST_F(MarkerFactoryTest, FileScopeStaticMarkerInitializesCorrectly) {
+    ASSERT_NE(staticFileScopeMarker, nullptr);
+    EXPECT_EQ(staticFileScopeMarker->getName(), "StaticInitMarker");
+}

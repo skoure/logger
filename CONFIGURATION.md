@@ -18,6 +18,8 @@ auto log = sk::logger::LoggerFactory::getLogger("App");
 log->info("Application started");
 ```
 
+> Note: avoid calling logging or creating markers from static object destructors — logging during static teardown is unsafe.
+
 ---
 
 ## JSON Configuration Format

@@ -35,17 +35,26 @@ private:
 // Using a shared_ptr for thread-safe memory management.
 using MarkerRegistry = std::unordered_map<std::string, std::shared_ptr<Marker>>;
 
-// Static members for the singleton registry and its access protection
-static MarkerRegistry g_markerRegistry;
-static std::mutex g_registryMutex;
+namespace {
+MarkerRegistry& markerRegistry() {
+    static MarkerRegistry registry;
+    return registry;
+}
+
+std::mutex& registryMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+} // namespace
 
 std::shared_ptr<Marker> MarkerFactory::getMarker(const std::string& name) {
     // Acquire lock to ensure thread-safe access to the registry
-    std::lock_guard<std::mutex> lock(g_registryMutex);
+    std::lock_guard<std::mutex> lock(registryMutex());
 
     // 1. Check if the marker already exists
-    auto it = g_markerRegistry.find(name);
-    if (it != g_markerRegistry.end()) {
+    auto& registry = markerRegistry();
+    auto it = registry.find(name);
+    if (it != registry.end()) {
         // Exists: return the existing shared pointer
         return it->second;
     }
@@ -55,7 +64,7 @@ std::shared_ptr<Marker> MarkerFactory::getMarker(const std::string& name) {
     std::shared_ptr<Marker> newMarker = std::make_shared<MarkerImpl>(name);
 
     // 3. Register the new marker
-    g_markerRegistry[name] = newMarker;
+    registry[name] = newMarker;
     
     // 4. Return the new marker
     return newMarker;
