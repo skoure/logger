@@ -16,6 +16,7 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <mutex>
 
 namespace sk { namespace logger {
 
@@ -65,6 +66,7 @@ protected:
 private:
     const std::string      m_name;
     std::vector<SimpleSink> m_sinks;
+    std::mutex m_sinkMutex;
 
     /** Writes one line to @p os using @p pattern (or the default format). */
     void writeToStream(std::ostream& os,

@@ -86,6 +86,9 @@ public:
     void clearFlushOn() override;
     std::optional<Level> getFlushOn() const override;
 
+    void setAdditivity(bool additivity) override;
+    bool getAdditivity() const override;
+
     // Called by LoggerFactoryImpl::setBackend() (for all proxies in the hierarchy)
     // and by ProxyBackend::configureLogger() (for JSON-configured loggers) to wire
     // the proxy to a real backend logger.  Forwards any level/flush-on state the

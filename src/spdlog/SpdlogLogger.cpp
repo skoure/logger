@@ -19,8 +19,8 @@ SpdlogLogger::SpdlogLogger(std::string name)
     m_pLogger = spdlog::get(m_name);
     if (!m_pLogger)
     {
-        auto sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-        m_pLogger = std::make_shared<spdlog::logger>(m_name, sink);
+        // Pass an empty initialization list so spdlog skips default sink assignment
+         m_pLogger = std::make_shared<spdlog::logger>(m_name, spdlog::sinks_init_list{});
         // sk::logger manages the hierarchy, so it owns all level and flush_on
         // decisions. LoggerBase::isXxxEnabled() gates every log call before
         // append() is reached, making spdlog's internal level filtering

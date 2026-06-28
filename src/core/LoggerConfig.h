@@ -38,6 +38,9 @@ struct LoggerConfig
 
     /** Ordered list of sinks to configure on this logger. */
     std::vector<SinkConfig> sinks;
+
+    /** Additivity flag. If true, sinks are inherited from parent. Defaults to true. */
+    bool additivity = true;
 };
 
 }} // namespace sk::logger

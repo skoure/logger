@@ -148,6 +148,13 @@ void LoggerFactoryImpl::clearAllLevels()
         entry.second->clearLevel();
 }
 
+void LoggerFactoryImpl::clearSinks(LoggerPtr logger)
+{
+    std::lock_guard<std::mutex> lock(m_factoryLock);
+    if (logger)
+        m_proxyBackend->clearSinks(logger);
+}
+
 void LoggerFactoryImpl::clearAllSinks()
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);
@@ -168,10 +175,25 @@ void LoggerFactoryImpl::propagateInheritedSinks(const std::set<std::string>& con
 {
     std::lock_guard<std::mutex> lock(m_factoryLock);
     for (const auto& entry : m_hierarchy.getAllLoggersTopDown()) {
-        if (configured.count(entry.first)) continue;
+        LoggerPtr child = entry.second;
+        
+        // Check if this child logger was explicitly configured in the JSON
+        bool isExplicitlyConfigured = configured.count(entry.first);
+
+        // If it was explicitly configured, we ONLY want to apply parent sinks 
+        // if additivity is enabled.
+        if (isExplicitlyConfigured) {
+            if (auto base = std::dynamic_pointer_cast<LoggerBase>(child)) {
+                if (!base->getAdditivity()) {
+                    continue; // Additivity is false; do not inherit parent sinks!
+                }
+            }
+        }
+
+        // Find the parent and apply sinks
         LoggerPtr parent = m_hierarchy.getParent(entry.first);
         if (parent) {
-			m_proxyBackend->applyParentSinks(entry.second, parent);
-		}     
+            m_proxyBackend->applyParentSinks(child, parent);
+        }     
     }
 }

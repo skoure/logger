@@ -19,6 +19,10 @@
 #include <logger/Logger.h>
 #include <functional>
 #include <sstream>
+#include <fstream>
+#include <iterator>
+#include <vector>
+#include <cstdio>
 #include <TestUtils.h>
 
 using namespace sk::logger;
@@ -27,6 +31,21 @@ using sk::logger::test::captureStdout;
 class SpdlogBackendTest : public ::testing::Test {
 protected:
     SpdlogBackend backend;
+    std::vector<std::string> cleanupFiles;
+
+    void TearDown() override {
+        if (!cleanupFiles.empty()) {
+            LoggerFactory::configureFromJsonString(R"({"loggers":[]})");
+            for (const auto& filePath : cleanupFiles) {
+                std::remove(filePath.c_str());
+            }
+            cleanupFiles.clear();
+        }
+    }
+
+    void registerTempLogFile(const std::string& filePath) {
+        cleanupFiles.push_back(filePath);
+    }
 };
 
 TEST_F(SpdlogBackendTest, CreateLoggerReturnsNonNull) {
@@ -269,3 +288,69 @@ TEST(SpdlogBackendFactoryTest, ChildInheritsParentLevel) {
     LoggerPtr child = factory.getLogger("SpdlogBackendIT.App.Db");
     EXPECT_EQ(child->getLevel(), Logger::Level::Debug);
 }
+
+TEST_F(SpdlogBackendTest, Integration_ChildInheritsParentSinksByDefault)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_spdlog_true.log";
+    std::remove(rootPath.c_str());
+    registerTempLogFile(rootPath);
+
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Spdlog.InheritTrue.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("spdlog-true");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("spdlog-true"), std::string::npos)
+        << "Child should have inherited root sink and written to file";
+}
+
+TEST_F(SpdlogBackendTest, Integration_ChildInheritsParentSinksWhenAdditivityTrue)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_spdlog_true.log";
+    const std::string childPath = std::string(TEST_CONFIG_DIR) + "/addt_spdlog_child.log";
+    std::remove(rootPath.c_str());
+    registerTempLogFile(rootPath);
+    registerTempLogFile(childPath);
+
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]},{"name":"Spdlog.InheritTrue.Child","level":"INFO","additivity":true,"sinks":[{"type": "file","pattern": "[%d{%Y-%m-%d %H:%M:%S}] [%-7p] [%-10M] [%t] %m%n","level": "INFO","properties": {"path":")" + childPath + R"("}}]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Spdlog.InheritTrue.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("spdlog-true");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("spdlog-true"), std::string::npos)
+        << "Child should have inherited root sink and written to file";
+}
+
+TEST_F(SpdlogBackendTest, Integration_ChildDoesNotInheritWhenAdditivityFalse)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_spdlog_false.log";
+    std::remove(rootPath.c_str());
+    registerTempLogFile(rootPath);
+
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]},{"name":"Spdlog.NoInherit.Child","level":"INFO","additivity":false,"sinks":[]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Spdlog.NoInherit.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("spdlog-false");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(content.find("spdlog-false"), std::string::npos)
+        << "Child should NOT have inherited root sink when additivity=false";
+}
+

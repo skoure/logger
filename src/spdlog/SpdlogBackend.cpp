@@ -225,15 +225,24 @@ void SpdlogBackend::applyParentSinks(LoggerPtr child, LoggerPtr parent)
     auto childSpdlog  = std::dynamic_pointer_cast<SpdlogLogger>(child);
     auto parentSpdlog = std::dynamic_pointer_cast<SpdlogLogger>(parent);
 
-    if (!childSpdlog || !parentSpdlog) return;
+    if (!childSpdlog || !parentSpdlog || !childSpdlog->getAdditivity()) {
+        return;
+    }
 
-    auto parentInternal = parentSpdlog->getInternalLogger();
     auto childInternal  = childSpdlog->getInternalLogger();
+    auto parentInternal = parentSpdlog->getInternalLogger();
 
-    if (!parentInternal || !childInternal) return;
+    if (!childInternal || !parentInternal) {
+        return;
+    }
 
-    childInternal->sinks() = parentInternal->sinks();
+    const auto& parentSinks = parentInternal->sinks();
+    
+    for (const auto& sink : parentSinks) {
+        childInternal->sinks().push_back(sink);
+    }
 }
+
 
 void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
                                     const std::vector<SinkConfig>& sinks)

@@ -47,6 +47,12 @@ public:
     void configureLogger(LoggerPtr logger, const std::vector<SinkConfig>& sinks);
 
     /**
+     * @brief Remove all sinks from a logger.
+     * @param logger Logger instance whose sinks should be cleared.
+     */
+    void clearSinks(LoggerPtr logger);
+
+    /**
      * @brief Forward an ostream sink configuration request to the active backend.
      * @param logger           Logger instance to configure.
      * @param os               Output stream to write to.

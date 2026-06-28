@@ -54,6 +54,11 @@ public:
     void clearFlushOn() override;
     std::optional<Level> getFlushOn() const override;
 
+    // --- Additivity flag (internal; not part of public Logger API) ---
+
+    virtual void setAdditivity(bool additivity);
+    virtual bool getAdditivity() const;
+
     // --- Level checks (Logger overrides) ---
 
     bool isFatalEnabled() const override;
@@ -151,6 +156,7 @@ private:
     Level                 m_level              = Level::Info;
     bool                  m_levelExplicitlySet = false;
     std::optional<Level>  m_flushOn;
+    bool                  m_additivity         = true;
 
     /**
      * @brief Formats the message, builds a LogRecord, and calls append().

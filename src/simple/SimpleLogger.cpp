@@ -39,6 +39,7 @@ SimpleLogger::~SimpleLogger()
 
 void SimpleLogger::setSinks(std::vector<SimpleSink> sinks)
 {
+    std::scoped_lock<std::mutex> lock(m_sinkMutex);
     m_sinks = std::move(sinks);
 }
 
@@ -61,6 +62,8 @@ void SimpleLogger::writeToStream(std::ostream& os,
 
 void SimpleLogger::append(const LogRecord& record)
 {
+    std::scoped_lock<std::mutex> lock(m_sinkMutex);
+    
     if (m_sinks.empty())
     {
         writeToStream(clog, "", record);
@@ -70,7 +73,7 @@ void SimpleLogger::append(const LogRecord& record)
         return;
     }
 
-    for (const SimpleSink& sink : m_sinks)
+    for (const SimpleSink &sink : m_sinks)
     {
         if (sink.level.has_value() && record.level > *sink.level)
             continue;
@@ -88,11 +91,12 @@ void SimpleLogger::append(const LogRecord& record)
     auto flushOn = getFlushOn();
     if (flushOn.has_value() && record.level <= *flushOn)
     {
-        for (const SimpleSink& sink : m_sinks)
+        for (const SimpleSink &sink : m_sinks)
         {
             if (sink.level.has_value() && record.level > *sink.level)
                 continue;
-            if (sink.stream) sink.stream->flush();
+            if (sink.stream)
+                sink.stream->flush();
         }
     }
 }

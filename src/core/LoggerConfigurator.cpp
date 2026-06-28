@@ -54,9 +54,18 @@ void LoggerConfigurator::configureFromJsonString(const std::string& json)
         if (lc.flushOn.has_value())
             logger->setFlushOn(*lc.flushOn);
 
+        // Additivity is internal — set it on the LoggerBase implementation
+        if (auto base = std::dynamic_pointer_cast<LoggerBase>(logger))
+            base->setAdditivity(lc.additivity);
+
         impl.configureLogger(logger, lc.sinks);
-        if (!lc.sinks.empty())
-            configured.insert(name);
+
+        // The configuration contains an empty list of sinks and additivity is disabled,
+        // so we clear the sinks for this logger.
+        if (!lc.additivity && lc.sinks.empty())
+            impl.clearSinks(logger);
+            
+        configured.insert(name);
     }
 
     // Step 3: propagate parent sinks to all loggers not listed in the config,

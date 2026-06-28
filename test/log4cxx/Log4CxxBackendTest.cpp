@@ -13,6 +13,10 @@
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <sstream>
+#include <fstream>
+#include <iterator>
+#include <vector>
+#include <cstdio>
 #include <log4cxx/appenderskeleton.h>
 #include <log4cxx/patternlayout.h>
 #include <SinkConfig.h>
@@ -22,6 +26,21 @@ using namespace sk::logger;
 class Log4CxxBackendTest : public ::testing::Test {
 protected:
     Log4CxxBackend backend;
+    std::vector<std::string> cleanupFiles;
+
+    void TearDown() override {
+        if (!cleanupFiles.empty()) {
+            LoggerFactory::configureFromJsonString(R"({"loggers":[]})");
+            for (const auto& filePath : cleanupFiles) {
+                std::remove(filePath.c_str());
+            }
+            cleanupFiles.clear();
+        }
+    }
+
+    void registerTempLogFile(const std::string& filePath) {
+        cleanupFiles.push_back(filePath);
+    }
 };
 
 TEST_F(Log4CxxBackendTest, CreateLoggerReturnsNonNull) {
@@ -227,4 +246,46 @@ TEST(Log4CxxBackendFactoryTest, FactoryReturnsValidChildLogger) {
     ASSERT_NE(parent, nullptr);
     ASSERT_NE(child, nullptr);
     EXPECT_NE(parent, child);
+}
+
+TEST_F(Log4CxxBackendTest, Integration_ChildInheritsParentSinksWhenAdditivityTrue)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_l4c_true.log";
+    std::remove(rootPath.c_str());
+    registerTempLogFile(rootPath);
+
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Log4cxx.InheritTrue.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("l4c-true");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("l4c-true"), std::string::npos)
+        << "Child should have inherited root sink and written to file";
+}
+
+TEST_F(Log4CxxBackendTest, Integration_ChildDoesNotInheritWhenAdditivityFalse)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_l4c_false.log";
+    std::remove(rootPath.c_str());    
+    registerTempLogFile(rootPath);
+    
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]},{"name":"Log4cxx.NoInherit.Child","level":"INFO","additivity":false,"sinks":[]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Log4cxx.NoInherit.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("l4c-false");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(content.find("l4c-false"), std::string::npos)
+        << "Child should NOT have inherited root sink when additivity=false";
 }

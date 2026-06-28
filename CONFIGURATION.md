@@ -60,12 +60,13 @@ log->info("Application started");
 
 ## Logger Entry Fields
 
-| Field      | Required | Description                                              |
-|------------|----------|----------------------------------------------------------|
-| `name`     | yes      | Logger name, e.g. `"root"`, `"App"`, `"App.Database"`. |
-| `level`    | yes      | Severity threshold (see table below).                   |
-| `flush_on` | no       | Minimum severity that triggers an immediate flush after each append (see below). |
-| `sinks`    | yes      | Array of sink objects (may be empty).                   |
+| Field        | Required | Description                                              |
+|--------------|----------|----------------------------------------------------------|
+| `name`       | yes      | Logger name, e.g. `"root"`, `"App"`, `"App.Database"`. |
+| `level`      | yes      | Severity threshold (see table below).                   |
+| `flush_on`   | no       | Minimum severity that triggers an immediate flush after each append (see below). |
+| `additivity` | no       | Boolean flag controlling sink inheritance from parent (default: `true`). |
+| `sinks`      | yes      | Array of sink objects (may be empty).                   |
 
 ### Log Levels
 
@@ -131,6 +132,79 @@ of its nearest ancestor that has one set.
 
 With `"flush_on": "WARN"`, every WARN, ERROR, and FATAL event written to the
 rotating file is flushed immediately.  INFO and DEBUG events remain buffered.
+
+---
+
+## Additivity
+
+The optional `additivity` field controls whether a logger inherits sinks from its parent
+logger during configuration. 
+
+**Default behaviour:** if `additivity` is omitted or set to `true`, a logger that has no
+explicitly configured sinks will inherit all sinks from its parent logger. This inheritance
+walks up the hierarchy, so a deeply-nested logger can receive sinks from any ancestor.
+
+**When `additivity` is `false`:** a logger uses only its explicitly configured sinks and
+does **not** inherit parent sinks, even if the parent has them. Child loggers of this logger
+still inherit from it according to their own additivity flags.
+
+**Example:**
+
+Consider this hierarchy and configuration:
+
+```
+root
+├── App
+│   ├── App.Database
+│   └── App.Security
+└── Framework
+```
+
+```json
+{
+  "loggers": [
+    {
+      "name":  "root",
+      "level": "INFO",
+      "sinks": [
+        {"type": "console", "pattern": "[%p] %m%n"}
+      ]
+    },
+    {
+      "name":      "App.Database",
+      "level":     "DEBUG",
+      "additivity": false,
+      "sinks": [
+        {
+          "type":    "file",
+          "pattern": "[%d] [%p] %m%n",
+          "properties": {"path": "logs/database.log"}
+        }
+      ]
+    },
+    {
+      "name":  "App.Security",
+      "level": "DEBUG"
+    }
+  ]
+}
+```
+
+**Results:**
+
+- `root` logs to console
+- `App` logs to console (inherits from `root`, no explicit sinks)
+- `App.Database` logs **only** to file (additivity=false, does NOT inherit console sink from root)
+- `App.Security` logs to console (inherits from parent `App`, which inherited from `root`)
+- `Framework` logs to console (inherits from `root`)
+
+**Backend support:**
+
+| Backend  | Implementation |
+|----------|---|
+| SimpleLogger | Child logger's sinks are copied from parent during configuration if additivity is true and child has no explicit sinks. |
+| spdlog       | Child logger's sinks vector is assigned from parent during configuration if additivity is true. |
+| log4cxx      | The logger's native `setAdditivity()` is called with the configured value, controlling whether events propagate to parent appenders. |
 
 ---
 

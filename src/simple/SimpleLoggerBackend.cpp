@@ -29,16 +29,34 @@ LoggerBasePtr SimpleLoggerBackend::createLogger(const std::string& name)
 {
     return std::make_shared<SimpleLogger>(name);
 }
-
+   
 void SimpleLoggerBackend::applyParentSinks(LoggerPtr child, LoggerPtr parent)
 {
-    auto* sl = dynamic_cast<SimpleLogger*>(child.get());
-    auto* pl = dynamic_cast<SimpleLogger*>(parent.get());
-    if (!sl || !pl) return;
+    auto childSimple  = std::dynamic_pointer_cast<SimpleLogger>(child);
+    auto parentSimple = std::dynamic_pointer_cast<SimpleLogger>(parent);
 
-    if (sl->getSinks().empty() && !pl->getSinks().empty())
-        sl->setSinks(pl->getSinks());
+    // 1. Guard conditions
+    if (!childSimple || !parentSimple || !childSimple->getAdditivity()) {
+        return;
+    }
+
+    // 2. Fetch the read-only references
+    const auto& childSinks  = childSimple->getSinks();
+    const auto& parentSinks = parentSimple->getSinks();
+
+    // 3. Create a combined buffer and allocate memory upfront
+    std::vector<SimpleSink> combinedSinks;
+    combinedSinks.reserve(childSinks.size() + parentSinks.size());
+
+    // 4. Merge child sinks first, then parent sinks
+    combinedSinks.insert(combinedSinks.end(), childSinks.begin(), childSinks.end());
+    combinedSinks.insert(combinedSinks.end(), parentSinks.begin(), parentSinks.end());
+
+    // 5. Replace the child's sinks entirely via the setter
+    childSimple->setSinks(std::move(combinedSinks)); 
 }
+        
+
 
 void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
                                            const std::vector<SinkConfig>& sinks)

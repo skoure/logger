@@ -24,18 +24,19 @@ std::string ProxyLogger::getName() const
 
 void ProxyLogger::setReal(LoggerBasePtr real)
 {
-    if (!real) { 
-		return; 
-	}
+    if (!real) {
+        return;
+    }
     if (LoggerBase::isLevelExplicitlySet()){
-        real->setLevel(LoggerBase::getLevel()); 
-	}
+        real->setLevel(LoggerBase::getLevel());
+    }
     auto flushOn = LoggerBase::getFlushOn();
     if (flushOn.has_value()) {
-        real->setFlushOn(*flushOn); 
-	}
-	real->setParent(m_parent);
-    m_real = std::move(real);	
+        real->setFlushOn(*flushOn);
+    }
+    real->setAdditivity(LoggerBase::getAdditivity());
+    real->setParent(m_parent);
+    m_real = std::move(real);
 }
 
 LoggerBasePtr ProxyLogger::getReal() const
@@ -89,6 +90,22 @@ void ProxyLogger::clearFlushOn()
     if (m_real) {
         m_real->clearFlushOn();
     }
+}
+
+void ProxyLogger::setAdditivity(bool additivity)
+{
+    LoggerBase::setAdditivity(additivity);
+    if (m_real) {
+        m_real->setAdditivity(additivity);
+    }
+}
+
+bool ProxyLogger::getAdditivity() const
+{
+    if (m_real) {
+        return m_real->getAdditivity();
+    }
+    return LoggerBase::getAdditivity();
 }
     
 std::optional<Logger::Level> ProxyLogger::getFlushOn() const

@@ -92,6 +92,16 @@ std::optional<Logger::Level> LoggerBase::getFlushOn() const
     return parent ? parent->getFlushOn() : std::nullopt;
 }
 
+void LoggerBase::setAdditivity(bool additivity)
+{
+    m_additivity = additivity;
+}
+
+bool LoggerBase::getAdditivity() const
+{
+    return m_additivity;
+}
+
 bool LoggerBase::isFatalEnabled() const { return getLevel() >= Level::Fatal; }
 bool LoggerBase::isErrorEnabled() const { return getLevel() >= Level::Error; }
 bool LoggerBase::isWarnEnabled()  const { return getLevel() >= Level::Warn;  }

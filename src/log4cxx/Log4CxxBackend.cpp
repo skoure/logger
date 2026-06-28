@@ -105,18 +105,19 @@ LoggerBasePtr Log4CxxBackend::createLogger(const std::string& name)
 void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
                                       const std::vector<SinkConfig>& sinks)
 {
-    if (sinks.empty()) return;
-
     auto* l4Logger = dynamic_cast<Log4CxxLogger*>(loggerPtr.get());
     if (!l4Logger) return;
 
     log4cxx::LoggerPtr internalLogger = l4Logger->getInternalLogger();
     if (!internalLogger) return;
 
-    // Clear existing appenders and disable additivity so that only our
-    // explicitly configured sinks receive log events.
+    // Always update additivity based on the logger's internal flag.
     internalLogger->removeAllAppenders();
-    internalLogger->setAdditivity(false);
+    if (auto base = std::dynamic_pointer_cast<LoggerBase>(loggerPtr)) {
+        internalLogger->setAdditivity(base->getAdditivity());
+    }
+
+    if (sinks.empty()) return;
 
     for (const SinkConfig& sc : sinks)
     {

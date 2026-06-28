@@ -13,12 +13,31 @@
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <sstream>
+#include <fstream>
+#include <iterator>
+#include <vector>
+#include <cstdio>
 
 using namespace sk::logger;
 
 class SimpleLoggerBackendTest : public ::testing::Test {
 protected:
     SimpleLoggerBackend backend;
+    std::vector<std::string> cleanupFiles;
+
+    void TearDown() override {
+        if (!cleanupFiles.empty()) {
+            LoggerFactory::configureFromJsonString(R"({"loggers":[]})");
+            for (const auto& filePath : cleanupFiles) {
+                std::remove(filePath.c_str());
+            }
+            cleanupFiles.clear();
+        }
+    }
+
+    void registerTempLogFile(const std::string& filePath) {
+        cleanupFiles.push_back(filePath);
+    }
 };
 
 TEST_F(SimpleLoggerBackendTest, CreateLoggerReturnsNonNull) {
@@ -256,4 +275,48 @@ TEST(SimpleLoggerBackendFactoryTest, ChildInheritsParentLevel) {
 
     LoggerPtr child = factory.getLogger("SimpleBackendIT.App.Db");
     EXPECT_EQ(child->getLevel(), Logger::Level::Warn);
+}
+
+TEST_F(SimpleLoggerBackendTest, Integration_ChildInheritsParentSinksWhenAdditivityTrue)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_root_true.log";
+    std::remove(rootPath.c_str());
+    registerTempLogFile(rootPath);
+
+    // Configure root with a file sink
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Integration.InheritTrue.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("msg-true");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("msg-true"), std::string::npos)
+        << "Child should have inherited root sink and written to file";
+}
+
+TEST_F(SimpleLoggerBackendTest, Integration_ChildDoesNotInheritWhenAdditivityFalse)
+{
+    const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_root_false.log";
+    std::remove(rootPath.c_str());
+    registerTempLogFile(rootPath);
+
+    // Configure root with a file sink and a child entry with additivity=false
+    std::string cfg = R"({"loggers":[{"name":"root","level":"INFO","sinks":[{"type":"file","pattern":"%m%n","properties":{"path":")" + rootPath + R"("}}]},{"name":"Integration.NoInherit.Child","level":"INFO","additivity":false,"sinks":[]}]})";
+    LoggerFactory::configureFromJsonString(cfg);
+
+    LoggerPtr child = LoggerFactory::getLogger("Integration.NoInherit.Child");
+    ASSERT_NE(child, nullptr);
+    child->setLevel(Logger::Level::Info);
+    child->setFlushOn(Logger::Level::Info);
+    child->info("msg-false");
+
+    std::ifstream f(rootPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(content.find("msg-false"), std::string::npos)
+        << "Child should NOT have inherited root sink when additivity=false";
 }
