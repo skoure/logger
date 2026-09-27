@@ -192,3 +192,17 @@ TEST(SimpleLoggerMarkerTest, MarkerSuppressedBelowLevel)
     EXPECT_EQ(buf->str(), "");
 }
 
+TEST(SimpleLoggerMarkerTest, MultiMarkerCommaJoined)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    SimpleLogger logger("SL.MultiMarker");
+    logger.setLevel(Logger::Level::Trace);
+    logger.setSinks({{ buf, "[%M] %m%n" }});
+
+    auto a = MarkerFactory::getMarker("DB");
+    auto b = MarkerFactory::getMarker("QUERY");
+    logger.info({*a, *b}, "multi-marker message");
+
+    EXPECT_NE(buf->str().find("[DB, QUERY]"), std::string::npos);
+    EXPECT_NE(buf->str().find("multi-marker message"), std::string::npos);
+}

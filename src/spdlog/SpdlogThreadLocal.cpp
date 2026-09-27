@@ -11,7 +11,7 @@
 
 namespace sk { namespace logger { namespace spdlog_tls {
 
-thread_local const char* markerName = nullptr;
+thread_local const std::vector<const Marker*>* markers = nullptr;
 thread_local std::string threadName;
 
 }}} // namespace sk::logger::spdlog_tls

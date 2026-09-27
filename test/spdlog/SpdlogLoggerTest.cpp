@@ -21,12 +21,13 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using namespace sk::logger;
 
 // ---------------------------------------------------------------------------
-// Sink that captures the marker name and message payload during sink_it_().
-// spdlog_tls::markerName is set by SpdlogLogger::append() before the spdlog
+// Sink that captures the marker name(s) and message payload during sink_it_().
+// spdlog_tls::markers is set by SpdlogLogger::append() before the spdlog
 // call, so it is still live when sink_it_() fires synchronously.
 // ---------------------------------------------------------------------------
 
@@ -49,7 +50,21 @@ public:
 protected:
     void sink_it_(const spdlog::details::log_msg& msg) override
     {
-        capturedMarker  = spdlog_tls::markerName ? spdlog_tls::markerName : "";
+        if (spdlog_tls::markers)
+        {
+            capturedMarker.clear();
+            for (std::size_t i = 0; i < spdlog_tls::markers->size(); ++i)
+            {
+                if (i)
+                    capturedMarker += ',';
+                if ((*spdlog_tls::markers)[i])
+                    capturedMarker += (*spdlog_tls::markers)[i]->getName();
+            }
+        }
+        else
+        {
+            capturedMarker.clear();
+        }
         capturedMessage = std::string(msg.payload.begin(), msg.payload.end());
     }
 
@@ -306,6 +321,30 @@ static std::string captureConsoleLine(const std::string& canonicalPattern,
     return oss.str();
 }
 
+static std::string captureConsoleLine(const std::string& canonicalPattern,
+                                      const std::string& message,
+                                      Logger::Level level,
+                                      const std::vector<const Marker*>& markers)
+{
+    SpdlogBackend backend;
+    LoggerPtr loggerPtr = backend.createLogger("Padding.Capture.Multi");
+    auto* logger = dynamic_cast<SpdlogLogger*>(loggerPtr.get());
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(loggerPtr, oss, canonicalPattern);
+
+    switch (level) {
+    case Logger::Level::Fatal: logger->fatal(markers, "%s", message.c_str()); break;
+    case Logger::Level::Error: logger->error(markers, "%s", message.c_str()); break;
+    case Logger::Level::Warn:  logger->warn (markers, "%s", message.c_str()); break;
+    case Logger::Level::Info:  logger->info (markers, "%s", message.c_str()); break;
+    case Logger::Level::Debug: logger->debug(markers, "%s", message.c_str()); break;
+    case Logger::Level::Trace: logger->trace(markers, "%s", message.c_str()); break;
+    }
+    return oss.str();
+}
+
 } // namespace
 
 TEST(SpdlogPaddingTest, MarkerLeftAlignedShorterThanWidth)
@@ -347,6 +386,20 @@ TEST(SpdlogPaddingTest, FullPatternMatchesExpectedLayout)
     std::string out = captureConsoleLine("[%-5p] [%-10M] %m%n", "Hello", Logger::Level::Info, marker.get());
     EXPECT_NE(out.find("[INFO ] [GREET     ] Hello"), std::string::npos)
         << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, MultiMarkerCommaJoined)
+{
+    auto a = MarkerFactory::getMarker("DB");
+    auto b = MarkerFactory::getMarker("QUERY");
+    std::string out = captureConsoleLine("[%-10M] %m%n", "ok", Logger::Level::Info, {a.get(), b.get()});
+    EXPECT_NE(out.find("[DB, QUERY ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(SpdlogPaddingTest, MultiMarkerEmptyListRendersSpaces)
+{
+    std::string out = captureConsoleLine("[%-10M] %m%n", "ok", Logger::Level::Info, {});
+    EXPECT_NE(out.find("[          ]"), std::string::npos) << "output: " << out;
 }
 
 // ---------------------------------------------------------------------------

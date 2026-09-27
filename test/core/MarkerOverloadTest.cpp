@@ -11,6 +11,7 @@
 #include <logger/Logger.h>
 #include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
+#include <logger/MarkerList.h>
 #include <LogRecord.h>
 #include <LoggerBase.h>
 
@@ -59,8 +60,8 @@ TEST(MarkerOverloadTest, InfoWithMarkerSetsRecordMarker)
     spy.info(*markerPtr, "hello %s", "world");
 
     ASSERT_EQ(spy.appendCallCount, 1);
-    ASSERT_NE(spy.lastRecord.marker, nullptr);
-    EXPECT_EQ(spy.lastRecord.marker->getName(), "MO.InfoMarker");
+    ASSERT_FALSE(spy.lastRecord.markers.empty());
+    EXPECT_EQ(spy.lastRecord.markers.front()->getName(), "MO.InfoMarker");
     EXPECT_EQ(spy.lastRecord.message, "hello world");
 }
 
@@ -74,8 +75,8 @@ TEST(MarkerOverloadTest, ErrorWithMarkerAndException)
     spy.error(*markerPtr, "context", ex);
 
     ASSERT_EQ(spy.appendCallCount, 1);
-    ASSERT_NE(spy.lastRecord.marker, nullptr);
-    EXPECT_EQ(spy.lastRecord.marker->getName(), "MO.ExMarker");
+    ASSERT_FALSE(spy.lastRecord.markers.empty());
+    EXPECT_EQ(spy.lastRecord.markers.front()->getName(), "MO.ExMarker");
     EXPECT_NE(spy.lastRecord.message.find("test exception"), std::string::npos);
 }
 
@@ -89,8 +90,8 @@ TEST(MarkerOverloadTest, FatalWithMarkerAndException)
     spy.fatal(*markerPtr, "fatal context", ex);
 
     ASSERT_EQ(spy.appendCallCount, 1);
-    ASSERT_NE(spy.lastRecord.marker, nullptr);
-    EXPECT_EQ(spy.lastRecord.marker->getName(), "MO.FatalExMarker");
+    ASSERT_FALSE(spy.lastRecord.markers.empty());
+    EXPECT_EQ(spy.lastRecord.markers.front()->getName(), "MO.FatalExMarker");
 }
 
 TEST(MarkerOverloadTest, MarkerOverloadAtDisabledLevelDoesNotCallAppend)
@@ -114,7 +115,7 @@ TEST(MarkerOverloadTest, NonMarkerOverloadLeavesMarkerNull)
     spy.info("plain message");
 
     ASSERT_EQ(spy.appendCallCount, 1);
-    EXPECT_EQ(spy.lastRecord.marker, nullptr);
+    EXPECT_TRUE(spy.lastRecord.markers.empty());
 }
 
 TEST(MarkerOverloadTest, AllMarkerLevels)
@@ -131,4 +132,46 @@ TEST(MarkerOverloadTest, AllMarkerLevels)
     spy.trace(*markerPtr, "trace");
 
     EXPECT_EQ(spy.appendCallCount, 6);
+}
+
+TEST(MarkerOverloadTest, MultiMarkerSetsAllMarkers)
+{
+    auto a = MarkerFactory::getMarker("MO.A");
+    auto b = MarkerFactory::getMarker("MO.B");
+    SpyLogger spy("MarkerOverload.Multi");
+    spy.setLevel(Logger::Level::Trace);
+
+    spy.info({*a, *b}, "multi marker message");
+
+    ASSERT_EQ(spy.appendCallCount, 1);
+    ASSERT_EQ(spy.lastRecord.markers.size(), 2u);
+    EXPECT_EQ(spy.lastRecord.markers[0]->getName(), "MO.A");
+    EXPECT_EQ(spy.lastRecord.markers[1]->getName(), "MO.B");
+    EXPECT_EQ(spy.lastRecord.message, "multi marker message");
+}
+
+TEST(MarkerOverloadTest, MultiMarkerAtDisabledLevelDoesNotCallAppend)
+{
+    auto a = MarkerFactory::getMarker("MO.A");
+    auto b = MarkerFactory::getMarker("MO.B");
+    SpyLogger spy("MarkerOverload.MultiDisabled");
+    spy.setLevel(Logger::Level::Fatal);
+
+    spy.info({*a, *b}, "should not appear");
+
+    EXPECT_EQ(spy.appendCallCount, 0);
+}
+
+TEST(MarkerOverloadTest, SingleBracesUsesMarkerListOverload)
+{
+    auto a = MarkerFactory::getMarker("MO.SingleBrace");
+    SpyLogger spy("MarkerOverload.SingleBrace");
+    spy.setLevel(Logger::Level::Trace);
+
+    // Braced single marker resolves to the MarkerList overload.
+    spy.info({*a}, "braced single marker");
+
+    ASSERT_EQ(spy.appendCallCount, 1);
+    ASSERT_EQ(spy.lastRecord.markers.size(), 1u);
+    EXPECT_EQ(spy.lastRecord.markers.front()->getName(), "MO.SingleBrace");
 }

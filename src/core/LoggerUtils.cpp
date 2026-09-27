@@ -64,4 +64,18 @@ std::string getCurrentThreadName()
     return {};
 }
 
+std::string joinMarkerNames(const std::vector<const Marker*>& markers, const char* separator)
+{
+    std::string result;
+    for (const Marker* marker : markers)
+    {
+        if (!marker)
+            continue;
+        if (!result.empty())
+            result += separator;
+        result += marker->getName();
+    }
+    return result;
+}
+
 }} // namespace sk::logger

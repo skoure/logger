@@ -12,6 +12,7 @@
 #include <Log4CxxLogger.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
+#include <logger/MarkerFactory.h>
 #include <sstream>
 #include <fstream>
 #include <iterator>
@@ -288,4 +289,41 @@ TEST_F(Log4CxxBackendTest, Integration_ChildDoesNotInheritWhenAdditivityFalse)
     std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     EXPECT_EQ(content.find("l4c-false"), std::string::npos)
         << "Child should NOT have inherited root sink when additivity=false";
+}
+
+// ---------------------------------------------------------------------------
+// Marker rendering: %X{marker} with multiple markers
+// ---------------------------------------------------------------------------
+
+TEST(Log4CxxMarkerRenderingTest, MultiMarkerCommaJoined)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4CxxMarker.Multi");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%X{marker}] %m%n");
+
+    auto a = MarkerFactory::getMarker("DB");
+    auto b = MarkerFactory::getMarker("QUERY");
+    logger->info({*a, *b}, "multi-marker message");
+
+    EXPECT_NE(oss.str().find("[DB, QUERY]"), std::string::npos)
+        << "output: " << oss.str();
+}
+
+TEST(Log4CxxMarkerRenderingTest, SingleMarkerRendersName)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4CxxMarker.Single");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%X{marker}] %m%n");
+
+    auto m = MarkerFactory::getMarker("SINGLE");
+    logger->info(*m, "single marker message");
+
+    EXPECT_NE(oss.str().find("[SINGLE]"), std::string::npos)
+        << "output: " << oss.str();
 }

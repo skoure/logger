@@ -13,6 +13,9 @@
 #include <exception>
 #include <string>
 #include <thread>
+#include <vector>
+
+#include <logger/Marker.h>
 
 namespace sk { namespace logger {
 
@@ -47,6 +50,17 @@ std::string formatException(const char* msg, const std::exception& ex, int skip 
  * @return Thread name string, or empty string if unavailable.
  */
 std::string getCurrentThreadName();
+
+/**
+ * @brief Joins marker names into a single string with a custom separator.
+ * 
+ * Renders nothing for an empty list, the bare name for one marker, and
+ * "A<separator>B<separator>C" for several.  Used by every backend wherever the marker names are rendered or stored as a single string (e.g. %M pattern output, log4cxx MDC).
+ * @param markers Markers to join (nullptr entries are skipped).
+ * @param separator Separator string to insert between names (default: ", ").
+ * @return Marker names separated by the specified separator, or an empty string.
+ */
+ std::string joinMarkerNames(const std::vector<const Marker*>& markers, const char* separator = ", ");
 
 }} // namespace sk::logger
 

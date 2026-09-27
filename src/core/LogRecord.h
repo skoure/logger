@@ -13,6 +13,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <vector>
 #include <logger/Logger.h>
 #include <logger/Marker.h>
 
@@ -33,7 +34,7 @@ struct LogRecord
     std::string                           loggerName;
     std::string                           message;
     std::chrono::system_clock::time_point timestamp;
-    const Marker*                         marker     = nullptr;
+    std::vector<const Marker*>            markers;
     std::thread::id                       threadId;
     std::string                           threadName;
 };

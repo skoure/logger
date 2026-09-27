@@ -84,6 +84,24 @@ logger->error(*marker, "Query failed", ex);
 The `%M` pattern token in a configured sink pattern expands to the marker name
 (or an empty string when no marker is attached to the event).
 
+### Multiple Markers
+
+Multiple markers can be attached to a single log event. This is useful when an event belongs to more than one category, such as both `SQL` and `SLOW_QUERY`.
+
+```cpp
+#include <logger/LoggerFactory.h>
+#include <logger/MarkerFactory.h>
+
+auto logger = sk::logger::LoggerFactory::getLogger("App.Database");
+auto sql = sk::logger::MarkerFactory::getMarker("SQL");
+auto slow = sk::logger::MarkerFactory::getMarker("SLOW_QUERY");
+
+logger->info({*sql, *slow}, "Query completed in %d ms", 142);
+logger->error({*sql, *slow}, "Query failed", ex);
+```
+
+If a sink pattern includes %M, the token expands to comma-separated markers (or stays empty if there are no markers attached).
+
 ---
 
 ## Customising Level Names
