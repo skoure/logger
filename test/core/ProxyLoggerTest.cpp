@@ -11,7 +11,9 @@
 #include <ProxyLogger.h>
 #include <LogRecord.h>
 #include <LoggerConfigurator.h>
+#include <LoggerBase.h>
 #include <logger/LoggerFactory.h>
+#include <logger/MarkerFactory.h>
 #include <chrono>
 #include <memory>
 #include <sstream>
@@ -289,4 +291,65 @@ TEST(SiofFlowTest, DebugEnabledAfterConfigureOnSiofLogger)
 
     // Cleanup: restore root to default so other tests are not affected.
     LoggerFactory::getInstance().getLogger("root")->clearLevel();
+}
+
+// ---------------------------------------------------------------------------
+// Marker forwarding — multi-marker calls propagate through the proxy
+// ---------------------------------------------------------------------------
+
+namespace {
+
+class SpyLogger : public LoggerBase
+{
+public:
+    explicit SpyLogger(const std::string& name) : m_name(name) {}
+    std::string getName() const override { return m_name; }
+
+    int  appendCallCount = 0;
+    LogRecord lastRecord;
+
+protected:
+    void append(const LogRecord& record) override
+    {
+        ++appendCallCount;
+        lastRecord = record;
+    }
+
+private:
+    std::string m_name;
+};
+
+} // namespace
+
+TEST(ProxyLoggerMarkerTest, MultiMarkerForwardedToReal)
+{
+    auto a = MarkerFactory::getMarker("PROXY.A");
+    auto b = MarkerFactory::getMarker("PROXY.B");
+
+    auto real = std::make_shared<SpyLogger>("ProxyMarker.Real");
+    ProxyLogger proxy("ProxyMarker.Proxy");
+    proxy.setReal(real);
+
+    proxy.info({*a, *b}, "multi marker via proxy");
+
+    EXPECT_EQ(real->appendCallCount, 1);
+    ASSERT_EQ(real->lastRecord.markers.size(), 2u);
+    EXPECT_EQ(real->lastRecord.markers[0]->getName(), "PROXY.A");
+    EXPECT_EQ(real->lastRecord.markers[1]->getName(), "PROXY.B");
+    EXPECT_EQ(real->lastRecord.message, "multi marker via proxy");
+}
+
+TEST(ProxyLoggerMarkerTest, SingleMarkerForwardedToReal)
+{
+    auto m = MarkerFactory::getMarker("PROXY.Single");
+
+    auto real = std::make_shared<SpyLogger>("ProxyMarker.SingleReal");
+    ProxyLogger proxy("ProxyMarker.SingleProxy");
+    proxy.setReal(real);
+
+    proxy.info(*m, "single marker via proxy");
+
+    EXPECT_EQ(real->appendCallCount, 1);
+    ASSERT_EQ(real->lastRecord.markers.size(), 1u);
+    EXPECT_EQ(real->lastRecord.markers.front()->getName(), "PROXY.Single");
 }

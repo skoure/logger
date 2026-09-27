@@ -27,7 +27,7 @@ using namespace sk::logger;
 static LogRecord makeRecord(Logger::Level level = Logger::Level::Info,
                              const std::string& logger = "TestLogger",
                              const std::string& message = "test message",
-                             const Marker* marker = nullptr)
+                             const std::vector<const Marker*>& markers = {})
 {
     LogRecord r;
     r.level      = level;
@@ -36,7 +36,7 @@ static LogRecord makeRecord(Logger::Level level = Logger::Level::Info,
     r.timestamp  = std::chrono::system_clock::now();
     r.threadId   = std::this_thread::get_id();
     r.threadName = "main";
-    r.marker     = marker;
+    r.markers    = markers;
     return r;
 }
 
@@ -85,14 +85,14 @@ TEST(SimpleLoggerPatternTest, NewlineToken)
 
 TEST(SimpleLoggerPatternTest, MarkerTokenWithNullMarker)
 {
-    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", nullptr);
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg");
     EXPECT_EQ(SimpleLoggerPattern::render("%M", r), "");
 }
 
 TEST(SimpleLoggerPatternTest, MarkerTokenWithMarker)
 {
     auto markerPtr = MarkerFactory::getMarker("SLP.TestMarker");
-    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", markerPtr.get());
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {markerPtr.get()});
     EXPECT_EQ(SimpleLoggerPattern::render("%M", r), "SLP.TestMarker");
 }
 
@@ -220,14 +220,14 @@ TEST(SimpleLoggerPatternTest, ModifierOnDate)
 
 TEST(SimpleLoggerPatternTest, ModifierOnMarkerEmpty)
 {
-    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", nullptr);
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg");
     EXPECT_EQ(SimpleLoggerPattern::render("%10M", r), "          ");
 }
 
 TEST(SimpleLoggerPatternTest, ModifierOnMarkerPresent)
 {
     auto markerPtr = MarkerFactory::getMarker("DB");
-    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", markerPtr.get());
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {markerPtr.get()});
     EXPECT_EQ(SimpleLoggerPattern::render("%-10M", r), "DB        ");
 }
 

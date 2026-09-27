@@ -13,6 +13,7 @@
 #include <SpdlogThreadLocal.h>
 #include <LoggerFactoryImpl.h>
 #include <LoggerBase.h>
+#include <LoggerUtils.h>
 
 #include <spdlog/sinks/ansicolor_sink.h>
 #ifdef _WIN32
@@ -116,9 +117,11 @@ public:
 };
 
 /**
- * @brief Custom spdlog flag '%&' — emits the current marker name.
+ * @brief Custom spdlog flag '%&' — emits the current marker name(s).
  *
- * Reads from spdlog_tls::markerName which is set by SpdlogLogger::append().
+ * Reads from spdlog_tls::markers (set by SpdlogLogger::append()).
+ * Renders nothing when no marker is set, the bare name for one marker,
+ * and "A,B,C" for several.
  */
 class MarkerFormatter final : public spdlog::custom_flag_formatter
 {
@@ -127,10 +130,9 @@ public:
                 const std::tm& /*tm_time*/,
                 spdlog::memory_buf_t& dest) override
     {
-        const char* name = spdlog_tls::markerName;
-        const spdlog::string_view_t value =
-            (name && name[0] != '\0') ? spdlog::string_view_t(name) : spdlog::string_view_t();
-        appendPadded(value, padinfo_, dest);
+        const std::string joined =
+            spdlog_tls::markers ? joinMarkerNames(*spdlog_tls::markers) : std::string{};
+        appendPadded(spdlog::string_view_t(joined), padinfo_, dest);
     }
 
     std::unique_ptr<custom_flag_formatter> clone() const override

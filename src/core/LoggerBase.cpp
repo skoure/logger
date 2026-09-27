@@ -151,7 +151,8 @@ void LoggerBase::logImpl(Level level, const char* fmt, va_list args)
     append(record);
 }
 
-void LoggerBase::logImplWithMarker(Level level, const Marker& marker,
+void LoggerBase::logImplWithMarkers(Level level,
+                                    const std::vector<const Marker*>& markers,
                                     const char* fmt, va_list args)
 {
     LogRecord record;
@@ -161,7 +162,7 @@ void LoggerBase::logImplWithMarker(Level level, const Marker& marker,
     record.timestamp  = std::chrono::system_clock::now();
     record.threadId   = std::this_thread::get_id();
     record.threadName = getCurrentThreadName();
-    record.marker     = &marker;
+    record.markers    = markers;
     append(record);
 }
 
@@ -271,7 +272,7 @@ void LoggerBase::fatal(const Marker& marker, const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
-        logImplWithMarker(Level::Fatal, marker, fmt, args);
+        logImplWithMarkers(Level::Fatal, {&marker}, fmt, args);
         va_end(args);
     }
 }
@@ -282,7 +283,7 @@ void LoggerBase::error(const Marker& marker, const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
-        logImplWithMarker(Level::Error, marker, fmt, args);
+        logImplWithMarkers(Level::Error, {&marker}, fmt, args);
         va_end(args);
     }
 }
@@ -293,7 +294,7 @@ void LoggerBase::warn(const Marker& marker, const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
-        logImplWithMarker(Level::Warn, marker, fmt, args);
+        logImplWithMarkers(Level::Warn, {&marker}, fmt, args);
         va_end(args);
     }
 }
@@ -304,7 +305,7 @@ void LoggerBase::info(const Marker& marker, const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
-        logImplWithMarker(Level::Info, marker, fmt, args);
+        logImplWithMarkers(Level::Info, {&marker}, fmt, args);
         va_end(args);
     }
 }
@@ -315,7 +316,7 @@ void LoggerBase::debug(const Marker& marker, const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
-        logImplWithMarker(Level::Debug, marker, fmt, args);
+        logImplWithMarkers(Level::Debug, {&marker}, fmt, args);
         va_end(args);
     }
 }
@@ -326,7 +327,7 @@ void LoggerBase::trace(const Marker& marker, const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
-        logImplWithMarker(Level::Trace, marker, fmt, args);
+        logImplWithMarkers(Level::Trace, {&marker}, fmt, args);
         va_end(args);
     }
 }
@@ -343,7 +344,7 @@ void LoggerBase::error(const Marker& marker, const char* msg,
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
-        record.marker     = &marker;
+        record.markers    = {&marker};
         append(record);
     }
 }
@@ -360,7 +361,111 @@ void LoggerBase::fatal(const Marker& marker, const char* msg,
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
-        record.marker     = &marker;
+        record.markers    = {&marker};
+        append(record);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-marker overloads
+// ---------------------------------------------------------------------------
+
+void LoggerBase::fatal(const MarkerList& markers, const char* fmt, ...)
+{
+    if (isFatalEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarkers(Level::Fatal, markers.get(), fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::error(const MarkerList& markers, const char* fmt, ...)
+{
+    if (isErrorEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarkers(Level::Error, markers.get(), fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::warn(const MarkerList& markers, const char* fmt, ...)
+{
+    if (isWarnEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarkers(Level::Warn, markers.get(), fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::info(const MarkerList& markers, const char* fmt, ...)
+{
+    if (isInfoEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarkers(Level::Info, markers.get(), fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::debug(const MarkerList& markers, const char* fmt, ...)
+{
+    if (isDebugEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarkers(Level::Debug, markers.get(), fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::trace(const MarkerList& markers, const char* fmt, ...)
+{
+    if (isTraceEnabled())
+    {
+        va_list args;
+        va_start(args, fmt);
+        logImplWithMarkers(Level::Trace, markers.get(), fmt, args);
+        va_end(args);
+    }
+}
+
+void LoggerBase::error(const MarkerList& markers, const char* msg,
+                        const std::exception& ex)
+{
+    if (isErrorEnabled())
+    {
+        LogRecord record;
+        record.level      = Level::Error;
+        record.loggerName = getName();
+        record.message    = formatException(msg, ex, kLoggerBaseExceptionTraceSkip);
+        record.timestamp  = std::chrono::system_clock::now();
+        record.threadId   = std::this_thread::get_id();
+        record.threadName = getCurrentThreadName();
+        record.markers    = markers.get();
+        append(record);
+    }
+}
+
+void LoggerBase::fatal(const MarkerList& markers, const char* msg,
+                        const std::exception& ex)
+{
+    if (isFatalEnabled())
+    {
+        LogRecord record;
+        record.level      = Level::Fatal;
+        record.loggerName = getName();
+        record.message    = formatException(msg, ex, kLoggerBaseExceptionTraceSkip);
+        record.timestamp  = std::chrono::system_clock::now();
+        record.threadId   = std::this_thread::get_id();
+        record.threadName = getCurrentThreadName();
+        record.markers    = markers.get();
         append(record);
     }
 }

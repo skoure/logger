@@ -9,6 +9,7 @@
  */
 #include <Log4CxxLogger.h>
 #include <LoggerBase.h>
+#include <LoggerUtils.h>
 #include <log4cxx/mdc.h>
 #include <log4cxx/writerappender.h>
 
@@ -98,11 +99,12 @@ void Log4CxxLogger::append(const LogRecord& record)
     // in a PatternLayout can render the application-supplied level string.
     log4cxx::MDC::put("level", LoggerBase::levelToString(record.level));
 
-    // Populate the log4cxx MDC with the marker name so that %X{marker}
-    // in a PatternLayout can render it.
-    const bool hasMarker = (record.marker != nullptr);
+    // Populate the log4cxx MDC with the marker name(s) so that %X{marker}
+    // in a PatternLayout can render them (comma-separated for multiple).
+    const std::string markerText = joinMarkerNames(record.markers);
+    const bool hasMarker = !markerText.empty();
     if (hasMarker)
-        log4cxx::MDC::put("marker", record.marker->getName());
+        log4cxx::MDC::put("marker", markerText);
 
     switch (record.level)
     {

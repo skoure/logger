@@ -299,6 +299,52 @@ static std::string captureLog4CxxLine(const std::string& canonicalPattern,
     return capturer->lastLine;
 }
 
+static std::string captureLog4CxxMultiMarkerLine(const std::string& canonicalPattern,
+                                      const std::string& message,
+                                      Logger::Level level = Logger::Level::Info,
+                                      const MarkerList& markers = MarkerList())
+{
+    const std::string log4cxxPattern =
+        Log4CxxPatternTranslator::translate(canonicalPattern);
+
+    Log4CxxLogger logger("Log4CxxPadding.Capture");
+    logger.setLevel(Logger::Level::Trace);
+    logger.getInternalLogger()->setAdditivity(false);
+
+    auto* capturer = new FormattedCapturingAppender();
+    auto layout = std::make_shared<log4cxx::PatternLayout>(
+        log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()));
+    capturer->setLayout(layout);
+    log4cxx::helpers::Pool pool;
+    capturer->activateOptions(pool);
+
+    log4cxx::AppenderPtr appender(capturer);
+    logger.getInternalLogger()->addAppender(appender);
+
+    if (!markers.empty()) {
+        switch (level) {
+        case Logger::Level::Fatal: logger.fatal(markers, "%s", message.c_str()); break;
+        case Logger::Level::Error: logger.error(markers, "%s", message.c_str()); break;
+        case Logger::Level::Warn:  logger.warn (markers, "%s", message.c_str()); break;
+        case Logger::Level::Info:  logger.info (markers, "%s", message.c_str()); break;
+        case Logger::Level::Debug: logger.debug(markers, "%s", message.c_str()); break;
+        case Logger::Level::Trace: logger.trace(markers, "%s", message.c_str()); break;
+        }
+    } else {
+        switch (level) {
+        case Logger::Level::Fatal: logger.fatal("%s", message.c_str()); break;
+        case Logger::Level::Error: logger.error("%s", message.c_str()); break;
+        case Logger::Level::Warn:  logger.warn ("%s", message.c_str()); break;
+        case Logger::Level::Info:  logger.info ("%s", message.c_str()); break;
+        case Logger::Level::Debug: logger.debug("%s", message.c_str()); break;
+        case Logger::Level::Trace: logger.trace("%s", message.c_str()); break;
+        }
+    }
+
+    logger.getInternalLogger()->removeAppender(appender);
+    return capturer->lastLine;
+}
+
 } // namespace
 
 TEST(Log4CxxPaddingTest, MarkerLeftAlignedShorterThanWidth)
@@ -341,6 +387,14 @@ TEST(Log4CxxPaddingTest, FullPatternMatchesExpectedLayout)
     std::string out = captureLog4CxxLine("[%-5p] [%-10M] %m%n", "Hello", Logger::Level::Info, marker.get());
     EXPECT_NE(out.find("[INFO ] [GREET     ] Hello"), std::string::npos)
         << "output: " << out;
+}
+
+TEST(Log4CxxPaddingTest, MultiMarkerCommaJoined)
+{
+    auto a = MarkerFactory::getMarker("DB");
+    auto b = MarkerFactory::getMarker("QUERY");
+    std::string out = captureLog4CxxMultiMarkerLine("[%-10M] %m%n", "ok", Logger::Level::Info, {a.get(), b.get()});
+    EXPECT_NE(out.find("[DB, QUERY ]"), std::string::npos) << "output: " << out;
 }
 
 // ---------------------------------------------------------------------------

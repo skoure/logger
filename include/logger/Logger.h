@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <logger/Marker.h>
+#include <logger/MarkerList.h>
 
 namespace sk { namespace logger {
 
@@ -250,6 +251,46 @@ public:
      * @param ex      Exception to log.
      */
     virtual void fatal(const Marker& marker, const char* msg,
+                       const std::exception& ex) = 0;
+
+    // -----------------------------------------------------------------------
+    // Multi-marker overloads
+    // -----------------------------------------------------------------------
+
+    /** @brief Logs a formatted fatal message tagged with multiple markers. */
+    virtual void fatal(const MarkerList& markers, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted error message tagged with multiple markers. */
+    virtual void error(const MarkerList& markers, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted warn message tagged with multiple markers. */
+    virtual void warn (const MarkerList& markers, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted info message tagged with multiple markers. */
+    virtual void info (const MarkerList& markers, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted debug message tagged with multiple markers. */
+    virtual void debug(const MarkerList& markers, const char* fmt, ...) = 0;
+
+    /** @brief Logs a formatted trace message tagged with multiple markers. */
+    virtual void trace(const MarkerList& markers, const char* fmt, ...) = 0;
+
+    /**
+     * @brief Logs an exception at ERROR level with multiple markers.
+     * @param markers Markers to attach to the log event.
+     * @param msg     Context message.
+     * @param ex      Exception to log.
+     */
+    virtual void error(const MarkerList& markers, const char* msg,
+                       const std::exception& ex) = 0;
+
+    /**
+     * @brief Logs an exception at FATAL level with multiple markers.
+     * @param markers Markers to attach to the log event.
+     * @param msg     Context message.
+     * @param ex      Exception to log.
+     */
+    virtual void fatal(const MarkerList& markers, const char* msg,
                        const std::exception& ex) = 0;
 
 protected:

@@ -52,7 +52,7 @@ spdlog::level::level_enum SpdlogLogger::toSpdlogLevel(Level level)
 void SpdlogLogger::append(const LogRecord& record)
 {
     // Populate thread-local bridge so custom formatters can read LogRecord fields.
-    spdlog_tls::markerName = record.marker ? record.marker->getName().c_str() : nullptr;
+    spdlog_tls::markers = record.markers.empty() ? nullptr : &record.markers;
     spdlog_tls::threadName = record.threadName;
 
     // sk::logger manages the hierarchy and owns all level and flush_on decisions:
@@ -76,6 +76,6 @@ void SpdlogLogger::append(const LogRecord& record)
         m_pLogger->flush();
 
     // Clear after call to avoid stale data leaking to other threads.
-    spdlog_tls::markerName = nullptr;
+    spdlog_tls::markers = nullptr;
     spdlog_tls::threadName.clear();
 }

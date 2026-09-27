@@ -94,6 +94,20 @@ public:
     void fatal(const Marker& marker, const char* msg,
                const std::exception& ex) override;
 
+    // --- Multi-marker overloads ---
+
+    void fatal(const MarkerList& markers, const char* fmt, ...) override;
+    void error(const MarkerList& markers, const char* fmt, ...) override;
+    void warn (const MarkerList& markers, const char* fmt, ...) override;
+    void info (const MarkerList& markers, const char* fmt, ...) override;
+    void debug(const MarkerList& markers, const char* fmt, ...) override;
+    void trace(const MarkerList& markers, const char* fmt, ...) override;
+
+    void error(const MarkerList& markers, const char* msg,
+               const std::exception& ex) override;
+    void fatal(const MarkerList& markers, const char* msg,
+               const std::exception& ex) override;
+
     /**
      * @brief Converts a Level value to the currently configured name string.
      *
@@ -167,14 +181,14 @@ private:
     void logImpl(Level level, const char* fmt, va_list args);
 
     /**
-     * @brief Like logImpl() but also sets record.marker from @p marker.
-     * @param level  Severity level for this event.
-     * @param marker Marker to attach to the log record.
-     * @param fmt    printf-style format string.
-     * @param args   va_list for the format arguments.
+     * @brief Like logImpl() but also sets record.markers from @p markers.
+     * @param level   Severity level for this event.
+     * @param markers Markers to attach to the log record.
+     * @param fmt     printf-style format string.
+     * @param args    va_list for the format arguments.
      */
-    void logImplWithMarker(Level level, const Marker& marker,
-                           const char* fmt, va_list args);
+    void logImplWithMarkers(Level level, const std::vector<const Marker*>& markers,
+                            const char* fmt, va_list args);
 };
 
 /**

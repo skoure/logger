@@ -61,3 +61,56 @@ TEST(LoggerUtilsTest, StacktraceContainsFrames) {
     EXPECT_NE(result.find('#'), std::string::npos);
 }
 #endif
+
+TEST(LoggerUtilsTest, JoinMarkerNamesEmpty) {
+    std::vector<const Marker*> markers;
+    std::string result = joinMarkerNames(markers);
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(LoggerUtilsTest, JoinMarkerNamesSingle) {
+    class TestMarker : public Marker {
+    public:
+        const std::string& getName() const override { return name; }
+        std::string name;
+    };
+
+    TestMarker marker;
+    marker.name = "single";
+    std::vector<const Marker*> markers = { &marker };
+    std::string result = joinMarkerNames(markers);
+    EXPECT_EQ(result, "single");
+}
+
+TEST(LoggerUtilsTest, JoinMarkerNamesMultiple) {
+    class TestMarker : public Marker {
+    public:
+        const std::string& getName() const override { return name; }
+        std::string name;
+    };
+
+    TestMarker marker1, marker2, marker3;
+    marker1.name = "first";
+    marker2.name = "second";
+    marker3.name = "third";
+
+    std::vector<const Marker*> markers = { &marker1, &marker2, &marker3 };
+    std::string result = joinMarkerNames(markers);
+    EXPECT_EQ(result, "first, second, third");
+}
+
+TEST(LoggerUtilsTest, JoinMarkerNamesWithCustomSeparator) {
+    class TestMarker : public Marker {
+    public:
+        const std::string& getName() const override { return name; }
+        std::string name;
+    };
+
+    TestMarker marker1, marker2;
+    marker1.name = "A";
+    marker2.name = "B";
+
+    std::vector<const Marker*> markers = { &marker1, &marker2 };
+    std::string result = joinMarkerNames(markers, " | ");
+    EXPECT_EQ(result, "A | B");
+}

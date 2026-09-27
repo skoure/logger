@@ -15,12 +15,19 @@
 #ifndef SK_SPDLOG_THREAD_LOCAL_H
 #define SK_SPDLOG_THREAD_LOCAL_H
 
+#include <logger/Marker.h>
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger { namespace spdlog_tls {
 
-/** Name of the active marker, or nullptr when no marker is set. */
-extern thread_local const char* markerName;
+/**
+ * Pointers to the markers attached to the log event currently being written,
+ * or nullptr when no marker is set.  Points into the LogRecord owned by the
+ * caller of SpdlogLogger::append(), which is valid for the duration of the
+ * synchronous spdlog dispatch on this thread.
+ */
+extern thread_local const std::vector<const Marker*>* markers;
 
 /** Name of the logging thread (empty string if not set). */
 extern thread_local std::string threadName;

@@ -178,8 +178,7 @@ std::string SimpleLoggerPattern::render(const std::string& pattern,
             break;
 
         case 'M':
-            result += applyModifier(
-                record.marker ? record.marker->getName() : std::string{}, mod);
+            result += applyModifier(joinMarkerNames(record.markers), mod);
             break;
 
         case 'n':
