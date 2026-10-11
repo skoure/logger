@@ -462,6 +462,25 @@ TEST(SpdlogOStreamTest, LoggerFactoryPublicApiRoutesToOstream)
         << "output: " << oss.str();
 }
 
+TEST(SpdlogOStreamTest, LoggerFactoryPublicApiAppliesMarkerFilter)
+{
+    std::ostringstream output;
+    auto filter = MarkerFactory::createFilter();
+    filter->setNames({"SECURITY"});
+    LoggerFactory::configureLoggerWithOstream(
+        "Spdlog.OStream.Factory.Filter", output, "%m%n", filter);
+
+    auto logger = LoggerFactory::getLogger("Spdlog.OStream.Factory.Filter");
+    logger->setLevel(Logger::Level::Trace);
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*security, "included output");
+    logger->info(*other, "filtered output");
+
+    EXPECT_NE(output.str().find("included output"), std::string::npos);
+    EXPECT_EQ(output.str().find("filtered output"), std::string::npos);
+}
+
 // ---------------------------------------------------------------------------
 // Regression tests for level-inheritance and flush-on-inheritance bugs
 // ---------------------------------------------------------------------------

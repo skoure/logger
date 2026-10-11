@@ -75,6 +75,49 @@ TEST_F(Log4CxxBackendTest, ConfigureWithOstreamWritesFormattedOutput)
         << "output: " << oss.str();
 }
 
+TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesIncludeMarkerFilter)
+{
+    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.Include");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream output;
+    auto filter = MarkerFactory::createFilter();
+    filter->setNames({"SECURITY"});
+    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
+
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*security, "included output");
+    logger->info(*other, "blocked output");
+    logger->info("unmarked output");
+
+    EXPECT_NE(output.str().find("included output"), std::string::npos);
+    EXPECT_EQ(output.str().find("blocked output"), std::string::npos);
+    EXPECT_EQ(output.str().find("unmarked output"), std::string::npos);
+}
+
+TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesExcludeMarkerFilter)
+{
+    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.Exclude");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream output;
+    auto filter = MarkerFactory::createFilter();
+    filter->setNames({"DEBUG"});
+    filter->setMode(MarkerFilter::Mode::Exclude);
+    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
+
+    auto debug = MarkerFactory::getMarker("DEBUG");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    logger->info(*debug, "blocked output");
+    logger->info(*security, "included output");
+    logger->info("unmarked output");
+
+    EXPECT_EQ(output.str().find("blocked output"), std::string::npos);
+    EXPECT_NE(output.str().find("included output"), std::string::npos);
+    EXPECT_NE(output.str().find("unmarked output"), std::string::npos);
+}
+
 TEST_F(Log4CxxBackendTest, ConsoleSinkDefaultHasNoColorTokens)
 {
     LoggerPtr logger = backend.createLogger("Log4CxxBackend.Console.DefaultNoColor");
@@ -326,4 +369,174 @@ TEST(Log4CxxMarkerRenderingTest, SingleMarkerRendersName)
 
     EXPECT_NE(oss.str().find("[SINGLE]"), std::string::npos)
         << "output: " << oss.str();
+}
+
+// ---------------------------------------------------------------------------
+// Marker-based sink filtering (log4cxx)
+// ---------------------------------------------------------------------------
+
+TEST_F(Log4CxxBackendTest, MarkerFilterIncludePassesMatchingEvent)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.Include.Pass");
+    logger->setLevel(Logger::Level::Debug);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_inc.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sc;
+    sc.type = "file";
+    sc.pattern = "%m%n";
+    sc.properties["path"] = tmpPath;
+    sc.markerFilter.names = {"SECURITY"};
+    sc.markerFilter.exclude = false;
+
+    backend.configureLogger(logger, {sc});
+
+    auto sec = MarkerFactory::getMarker("SECURITY");
+    logger->info(*sec, "included message");
+
+    std::ifstream f(tmpPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("included message"), std::string::npos)
+        << "Include filter should pass events with a matching marker";
+}
+
+TEST_F(Log4CxxBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.Include.Block");
+    logger->setLevel(Logger::Level::Debug);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_inc_block.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sc;
+    sc.type = "file";
+    sc.pattern = "%m%n";
+    sc.properties["path"] = tmpPath;
+    sc.markerFilter.names = {"SECURITY"};
+    sc.markerFilter.exclude = false;
+
+    backend.configureLogger(logger, {sc});
+
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*other, "blocked message");
+
+    std::ifstream f(tmpPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_TRUE(content.empty())
+        << "Include filter should block events without a matching marker";
+}
+
+TEST_F(Log4CxxBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.Include.Unmarked");
+    logger->setLevel(Logger::Level::Debug);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_inc_unmarked.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sc;
+    sc.type = "file";
+    sc.pattern = "%m%n";
+    sc.properties["path"] = tmpPath;
+    sc.markerFilter.names = {"SECURITY"};
+    sc.markerFilter.exclude = false;
+
+    backend.configureLogger(logger, {sc});
+
+    logger->info("plain message");
+
+    std::ifstream f(tmpPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_TRUE(content.empty())
+        << "Include filter should block unmarked events";
+}
+
+TEST_F(Log4CxxBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.Exclude.Block");
+    logger->setLevel(Logger::Level::Debug);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_exc_block.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sc;
+    sc.type = "file";
+    sc.pattern = "%m%n";
+    sc.properties["path"] = tmpPath;
+    sc.markerFilter.names = {"DEBUG"};
+    sc.markerFilter.exclude = true;
+
+    backend.configureLogger(logger, {sc});
+
+    auto dbg = MarkerFactory::getMarker("DEBUG");
+    logger->info(*dbg, "excluded message");
+
+    std::ifstream f(tmpPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_TRUE(content.empty())
+        << "Exclude filter should block events with a matching marker";
+}
+
+TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.Exclude.Unmarked");
+    logger->setLevel(Logger::Level::Debug);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_exc_unmarked.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sc;
+    sc.type = "file";
+    sc.pattern = "%m%n";
+    sc.properties["path"] = tmpPath;
+    sc.markerFilter.names = {"DEBUG"};
+    sc.markerFilter.exclude = true;
+
+    backend.configureLogger(logger, {sc});
+
+    logger->info("plain message");
+
+    std::ifstream f(tmpPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("plain message"), std::string::npos)
+        << "Exclude filter should pass unmarked events";
+}
+
+TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
+{
+    Log4CxxBackend backend;
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.Exclude.NonMatch");
+    logger->setLevel(Logger::Level::Debug);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_exc_nonmatch.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sc;
+    sc.type = "file";
+    sc.pattern = "%m%n";
+    sc.properties["path"] = tmpPath;
+    sc.markerFilter.names = {"DEBUG"};
+    sc.markerFilter.exclude = true;
+
+    backend.configureLogger(logger, {sc});
+
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*other, "other message");
+
+    std::ifstream f(tmpPath);
+    std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    EXPECT_NE(content.find("other message"), std::string::npos)
+        << "Exclude filter should pass events without a matching marker";
 }

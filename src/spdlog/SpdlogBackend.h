@@ -32,7 +32,8 @@ public:
      * HANDLE, not the C-runtime FILE).
      */
     void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
-                                    const std::string& canonicalPattern) override;
+                                    const std::string& canonicalPattern,
+                                    const std::shared_ptr<const MarkerFilter>& filter = {}) override;
     void clearSinks(LoggerPtr logger) override;
 };
 

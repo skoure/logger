@@ -63,7 +63,7 @@ void SimpleLogger::writeToStream(std::ostream& os,
 void SimpleLogger::append(const LogRecord& record)
 {
     std::scoped_lock<std::mutex> lock(m_sinkMutex);
-    
+
     if (m_sinks.empty())
     {
         writeToStream(clog, "", record);
@@ -76,6 +76,11 @@ void SimpleLogger::append(const LogRecord& record)
     for (const SimpleSink &sink : m_sinks)
     {
         if (sink.level.has_value() && record.level > *sink.level)
+            continue;
+
+        // Marker filtering
+        if (!sink.markerFilter.empty() &&
+            !sink.markerFilter.passesAny(record.markers))
             continue;
 
         if (sink.stream)
@@ -94,6 +99,9 @@ void SimpleLogger::append(const LogRecord& record)
         for (const SimpleSink &sink : m_sinks)
         {
             if (sink.level.has_value() && record.level > *sink.level)
+                continue;
+            if (!sink.markerFilter.empty() &&
+                !sink.markerFilter.passesAny(record.markers))
                 continue;
             if (sink.stream)
                 sink.stream->flush();

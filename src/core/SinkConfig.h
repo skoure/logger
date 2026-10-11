@@ -10,6 +10,7 @@
 #ifndef SK_SINK_CONFIG_H
 #define SK_SINK_CONFIG_H
 
+#include <MarkerFilterConfig.h>
 #include <logger/Logger.h>
 #include <map>
 #include <optional>
@@ -34,6 +35,9 @@ struct SinkConfig
 
     /** Minimum severity for this sink. nullopt = no additional filtering beyond the logger level. */
     std::optional<Logger::Level> level;
+
+    /** Marker-based filtering (include/exclude by marker name). Empty = no filtering. */
+    MarkerFilterConfig markerFilter;
 
     /** Extra properties (path, max_size, max_files, …). */
     std::map<std::string, std::string> properties;

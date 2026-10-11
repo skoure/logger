@@ -13,6 +13,8 @@
 
 #include <logger/Logger.h>
 #include <logger/LevelNames.h>
+#include <logger/MarkerFilter.h>
+#include <memory>
 #include <ostream>
 #include <string>
 
@@ -91,9 +93,11 @@ public:
      * @param name             Logger name (e.g. "App.Database").
      * @param os               Output stream to write to.
      * @param canonicalPattern Log4j-style pattern (e.g. "[%p] [%c] %m%n").
+     * @param filter           Optional marker filter.
      */
     static void configureLoggerWithOstream(const char* name, std::ostream& os,
-                                           const std::string& canonicalPattern);
+                                   const std::string& canonicalPattern,
+                                   std::shared_ptr<const MarkerFilter> filter = {});
 
 };
 

@@ -31,6 +31,18 @@ private:
     std::string name_;
 };
 
+class MarkerFilterImpl final : public MarkerFilter {
+public:
+    const std::vector<std::string>& getNames() const override { return names_; }
+    void setNames(std::vector<std::string> names) override { names_ = std::move(names); }
+    Mode getMode() const override { return mode_; }
+    void setMode(Mode mode) override { mode_ = mode; }
+
+private:
+    std::vector<std::string> names_;
+    Mode mode_ = Mode::Include;
+};
+
 // Global registry to store unique markers.
 // Using a shared_ptr for thread-safe memory management.
 using MarkerRegistry = std::unordered_map<std::string, std::shared_ptr<Marker>>;
@@ -68,6 +80,11 @@ std::shared_ptr<Marker> MarkerFactory::getMarker(const std::string& name) {
     
     // 4. Return the new marker
     return newMarker;
+}
+
+std::shared_ptr<MarkerFilter> MarkerFactory::createFilter()
+{
+    return std::make_shared<MarkerFilterImpl>();
 }
 
 }} // namespace sk::logger

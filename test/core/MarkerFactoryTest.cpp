@@ -95,3 +95,15 @@ TEST_F(MarkerFactoryTest, FileScopeStaticMarkerInitializesCorrectly) {
     ASSERT_NE(staticFileScopeMarker, nullptr);
     EXPECT_EQ(staticFileScopeMarker->getName(), "StaticInitMarker");
 }
+
+TEST_F(MarkerFactoryTest, CreatesConfigurableMarkerFilter)
+{
+    auto filter = MarkerFactory::createFilter();
+    ASSERT_NE(filter, nullptr);
+
+    filter->setNames({"SECURITY", "AUDIT"});
+    filter->setMode(MarkerFilter::Mode::Exclude);
+
+    EXPECT_EQ(filter->getNames(), (std::vector<std::string>{"SECURITY", "AUDIT"}));
+    EXPECT_EQ(filter->getMode(), MarkerFilter::Mode::Exclude);
+}

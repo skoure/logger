@@ -12,6 +12,7 @@
 #include <SimpleLogger.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
+#include <logger/MarkerFactory.h>
 #include <sstream>
 #include <fstream>
 #include <iterator>
@@ -319,4 +320,227 @@ TEST_F(SimpleLoggerBackendTest, Integration_ChildDoesNotInheritWhenAdditivityFal
     std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     EXPECT_EQ(content.find("msg-false"), std::string::npos)
         << "Child should NOT have inherited root sink when additivity=false";
+}
+
+// ---------------------------------------------------------------------------
+// Marker-based sink filtering
+// ---------------------------------------------------------------------------
+
+TEST_F(SimpleLoggerBackendTest, OstreamFilterIncludesOnlyMatchingMarkers)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.OstreamFilter");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream output;
+    auto filter = MarkerFactory::createFilter();
+    filter->setNames({"SECURITY"});
+    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
+
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*security, "included output");
+    logger->info(*other, "filtered output");
+    logger->info("unmarked output");
+
+    EXPECT_NE(output.str().find("included output"), std::string::npos);
+    EXPECT_EQ(output.str().find("filtered output"), std::string::npos);
+    EXPECT_EQ(output.str().find("unmarked output"), std::string::npos);
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesMatchingEvent)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Include.Pass");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"SECURITY"};
+    sinks[0].markerFilter.exclude = false;
+    sl->setSinks(sinks);
+
+    auto sec = MarkerFactory::getMarker("SECURITY");
+    logger->info(*sec, "included message");
+    EXPECT_NE(oss.str().find("included message"), std::string::npos)
+        << "Include filter should pass events with a matching marker";
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Include.Block");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"SECURITY"};
+    sinks[0].markerFilter.exclude = false;
+    sl->setSinks(sinks);
+
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*other, "blocked message");
+    EXPECT_TRUE(oss.str().empty())
+        << "Include filter should block events without a matching marker";
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Include.Unmarked");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"SECURITY"};
+    sinks[0].markerFilter.exclude = false;
+    sl->setSinks(sinks);
+
+    logger->info("plain message");
+    EXPECT_TRUE(oss.str().empty())
+        << "Include filter should block unmarked events";
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesWhenAnyMarkerMatches)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Include.AnyMatch");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"AUDIT", "SECURITY"};
+    sinks[0].markerFilter.exclude = false;
+    sl->setSinks(sinks);
+
+    // Event carries two markers; only one needs to match
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    auto sql   = MarkerFactory::getMarker("SQL");
+    logger->info({*audit, *sql}, "multi-marker message");
+    EXPECT_NE(oss.str().find("multi-marker message"), std::string::npos)
+        << "Include filter should pass when any event marker matches";
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Exclude.Block");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"DEBUG"};
+    sinks[0].markerFilter.exclude = true;
+    sl->setSinks(sinks);
+
+    auto dbg = MarkerFactory::getMarker("DEBUG");
+    logger->info(*dbg, "excluded message");
+    EXPECT_TRUE(oss.str().empty())
+        << "Exclude filter should block events with a matching marker";
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Exclude.Unmarked");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"DEBUG"};
+    sinks[0].markerFilter.exclude = true;
+    sl->setSinks(sinks);
+
+    logger->info("plain message");
+    EXPECT_NE(oss.str().find("plain message"), std::string::npos)
+        << "Exclude filter should pass unmarked events";
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Exclude.NonMatch");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto* sl = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = sl->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilter.names = {"DEBUG"};
+    sinks[0].markerFilter.exclude = true;
+    sl->setSinks(sinks);
+
+    auto other = MarkerFactory::getMarker("OTHER");
+    logger->info(*other, "other message");
+    EXPECT_NE(oss.str().find("other message"), std::string::npos)
+        << "Exclude filter should pass events without a matching marker";
+}
+
+TEST_F(SimpleLoggerBackendTest, SinkConfigMarkerFilterCopiedToSimpleSink)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.ConfigCopy");
+    logger->setLevel(Logger::Level::Debug);
+
+    SinkConfig sc;
+    sc.type = "console";
+    sc.pattern = "[%p] %m%n";
+    sc.markerFilter.names = {"SECURITY", "AUDIT"};
+    sc.markerFilter.exclude = false;
+
+    backend.configureLogger(logger, {sc});
+
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+    const auto& sinks = sl->getSinks();
+    ASSERT_EQ(sinks.size(), 1u);
+    EXPECT_EQ(sinks[0].markerFilter.names.size(), 2u);
+    EXPECT_EQ(sinks[0].markerFilter.names[0], "SECURITY");
+    EXPECT_EQ(sinks[0].markerFilter.names[1], "AUDIT");
+    EXPECT_FALSE(sinks[0].markerFilter.exclude);
+}
+
+TEST_F(SimpleLoggerBackendTest, MarkerFilterCombinedWithLevelFilter)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.WithLevel");
+    logger->setLevel(Logger::Level::Debug);
+
+    std::ostringstream oss;
+    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
+    auto sinks = static_cast<SimpleLogger*>(logger.get())->getSinks();
+    ASSERT_FALSE(sinks.empty());
+
+    sinks[0].level = Logger::Level::Warn;
+    sinks[0].markerFilter.names = {"SECURITY"};
+    sinks[0].markerFilter.exclude = false;
+    static_cast<SimpleLogger*>(logger.get())->setSinks(sinks);
+
+    // DEBUG level, no marker — blocked by level
+    logger->debug("debug no marker");
+    EXPECT_TRUE(oss.str().empty())
+        << "Level filter should block before marker check";
+    oss.str("");
+
+    // WARN level, SECURITY marker — passes level AND matches marker
+    auto sec = MarkerFactory::getMarker("SECURITY");
+    logger->warn(*sec, "warn with marker");
+    EXPECT_NE(oss.str().find("warn with marker"), std::string::npos)
+        << "Should pass both level and marker filters";
+    oss.str("");
+
+    // WARN level, AUDIT marker (not in filter) — passes level but blocked by marker
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    logger->warn(*audit, "warn wrong marker");
+    EXPECT_TRUE(oss.str().empty())
+        << "Should be blocked by include marker filter";
 }

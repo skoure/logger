@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <sstream>
 
 #include <nlohmann/json.hpp>
 
@@ -39,6 +40,67 @@ static Logger::Level parseLevel(const std::string& s)
     if (upper == "DEBUG") return Logger::Level::Debug;
     if (upper == "TRACE") return Logger::Level::Trace;
     throw ParseException("JsonConfigParser: unknown level '" + s + "'");
+}
+
+/**
+ * @brief Parses the "markers" field of a sink into a MarkerFilter.
+ *
+ * Accepts a JSON array of strings, or a single string for convenience.
+ * Whitespace around each name is trimmed; empty entries are skipped.
+ * Throws ParseException if a marker entry is not a string.
+ */
+static MarkerFilterConfig parseMarkerFilter(const json& markerNode)
+{
+    MarkerFilterConfig filter;
+    std::vector<std::string> names;
+
+    if (markerNode.is_array())
+    {
+        for (const auto& entry : markerNode)
+        {
+            if (!entry.is_string())
+                throw ParseException(
+                    "JsonConfigParser: 'markers' array entries must be strings");
+            names.push_back(entry.get<std::string>());
+        }
+    }
+    else if (markerNode.is_string())
+    {
+        names.push_back(markerNode.get<std::string>());
+    }
+    else
+    {
+        throw ParseException(
+            "JsonConfigParser: 'markers' must be a string or an array of strings");
+    }
+
+    // Trim whitespace and skip empty entries.
+    for (std::string& name : names)
+    {
+        const auto first = name.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) continue;  // empty entry
+        const auto last = name.find_last_not_of(" \t\r\n");
+        name = name.substr(first, last - first + 1);
+        if (!name.empty())
+            filter.names.push_back(std::move(name));
+    }
+
+    return filter;
+}
+
+/**
+ * @brief Parses the "marker_mode" field of a sink.
+ *
+ * Accepts "include" or "exclude" (case-insensitive).  Throws ParseException
+ * for any other value.
+ */
+static bool parseMarkerMode(const std::string& s)
+{
+    const std::string upper = toUpper(s);
+    if (upper == "EXCLUDE") return true;
+    if (upper == "INCLUDE") return false;
+    throw ParseException(
+        "JsonConfigParser: unknown marker_mode '" + s + "' (expected 'include' or 'exclude')");
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +152,16 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
 
                 if (sinkNode.contains("level") && sinkNode["level"].is_string())
                     sc.level = parseLevel(sinkNode["level"].get<std::string>());
+
+                if (sinkNode.contains("markers"))
+                    sc.markerFilter = parseMarkerFilter(sinkNode["markers"]);
+
+                if (sinkNode.contains("marker_mode") &&
+                    sinkNode["marker_mode"].is_string())
+                {
+                    sc.markerFilter.exclude =
+                        parseMarkerMode(sinkNode["marker_mode"].get<std::string>());
+                }
 
                 if (sinkNode.contains("properties") && sinkNode["properties"].is_object())
                 {

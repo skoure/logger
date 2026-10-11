@@ -12,11 +12,13 @@
 #include <Log4CxxPatternTranslator.h>
 #include <LoggerFactoryImpl.h>
 
+#include <Log4CxxMarkerFilter.h>
 #include <log4cxx/appenderskeleton.h>
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/fileappender.h>
 #include <log4cxx/rolling/rollingfileappender.h>
 #include <log4cxx/patternlayout.h>
+#include <log4cxx/spi/filter.h>
 #include <log4cxx/writerappender.h>
 #include <log4cxx/helpers/outputstreamwriter.h>
 #include <log4cxx/helpers/outputstream.h>
@@ -195,6 +197,14 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
                 if (skel)
                     skel->setThreshold(Log4CxxLogger::toLog4CxxLevel(*sc.level));
             }
+
+            if (!sc.markerFilter.empty())
+            {
+                auto skel = std::dynamic_pointer_cast<log4cxx::AppenderSkeleton>(appender);
+                if (skel)
+                    skel->addFilter(std::make_shared<Log4CxxMarkerFilter>(sc.markerFilter));
+            }
+
             internalLogger->addAppender(appender);
         }
     }
@@ -202,7 +212,8 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
 
 void Log4CxxBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
                                                 std::ostream& os,
-                                                const std::string& canonicalPattern)
+                                                const std::string& canonicalPattern,
+                                                const std::shared_ptr<const MarkerFilter>& filter)
 {
     auto* l4Logger = dynamic_cast<Log4CxxLogger*>(loggerPtr.get());
     if (!l4Logger) return;
@@ -225,6 +236,12 @@ void Log4CxxBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     appender->setWriter(writer);
     log4cxx::helpers::Pool pool;
     appender->activateOptions(pool);
+
+    if (filter) {
+        MarkerFilterConfig filterConfig(*filter);
+        if (!filterConfig.empty())
+            appender->addFilter(std::make_shared<Log4CxxMarkerFilter>(filterConfig));
+    }
 
     internalLogger->addAppender(appender);
 }
