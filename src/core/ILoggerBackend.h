@@ -20,9 +20,11 @@
 #define SK_ILOGGER_BACKEND_H
 
 #include <logger/Logger.h>
+#include <logger/MarkerFilter.h>
 #include <LoggerBase.h>
 #include <SinkConfig.h>
 #include <ostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -69,7 +71,8 @@ public:
      */
     virtual void configureLoggerWithOstream(LoggerPtr /*logger*/,
                                             std::ostream& /*os*/,
-                                            const std::string& /*canonicalPattern*/) {}
+                                            const std::string& /*canonicalPattern*/,
+                                            const std::shared_ptr<const MarkerFilter>& /*filter*/ = {}) {}
 };
 
 }} // namespace sk::logger

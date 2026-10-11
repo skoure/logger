@@ -52,7 +52,10 @@ void ProxyBackend::configureLogger(LoggerPtr logger,
     }
 }
 
-void ProxyBackend::configureLoggerWithOstream(LoggerPtr logger, std::ostream& os, const std::string& canonicalPattern) {
+void ProxyBackend::configureLoggerWithOstream(
+    LoggerPtr logger, std::ostream& os, const std::string& canonicalPattern,
+    const std::shared_ptr<const MarkerFilter>& filter)
+{
     if (!m_real) {
         return;  // real backend not yet registered
     }
@@ -63,9 +66,9 @@ void ProxyBackend::configureLoggerWithOstream(LoggerPtr logger, std::ostream& os
     if (auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger)) {
         auto real = proxy->getReal();
         if (!real) return;
-        m_real->configureLoggerWithOstream(real, os, canonicalPattern);
+        m_real->configureLoggerWithOstream(real, os, canonicalPattern, filter);
     } else {
-        m_real->configureLoggerWithOstream(logger, os, canonicalPattern);
+        m_real->configureLoggerWithOstream(logger, os, canonicalPattern, filter);
     }
 }
 

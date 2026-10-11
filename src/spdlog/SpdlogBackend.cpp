@@ -14,8 +14,10 @@
 #include <LoggerFactoryImpl.h>
 #include <LoggerBase.h>
 #include <LoggerUtils.h>
+#include <MarkerFilterSink.h>
 
 #include <spdlog/sinks/ansicolor_sink.h>
+#include <spdlog/sinks/sink.h>
 #ifdef _WIN32
 // spdlog's compiled lib only instantiates the platform-specific color sink
 // (wincolor on Windows). We use ansicolor unconditionally so users get ANSI
@@ -35,6 +37,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using namespace sk::logger;
 
@@ -328,6 +331,9 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
         if (sc.level.has_value())
             sink->set_level(SpdlogLogger::toSpdlogLevel(*sc.level));
 
+        if (!sc.markerFilter.empty())
+            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(sink, sc.markerFilter);
+
         newSinks.push_back(sink);
     }
 
@@ -337,7 +343,8 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
 
 void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
                                                std::ostream& os,
-                                               const std::string& canonicalPattern)
+                                               const std::string& canonicalPattern,
+                                               const std::shared_ptr<const MarkerFilter>& filter)
 {
     auto* spLogger = dynamic_cast<SpdlogLogger*>(loggerPtr.get());
     if (!spLogger) return;
@@ -346,8 +353,15 @@ void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     if (!internalLogger) return;
 
     const std::string spdlogPattern = SpdlogPatternTranslator::translate(canonicalPattern);
-    auto sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(os);
+    std::shared_ptr<spdlog::sinks::sink> sink =
+        std::make_shared<spdlog::sinks::ostream_sink_mt>(os);
     applyPattern(sink, spdlogPattern);
+    if (filter) {
+        MarkerFilterConfig filterConfig(*filter);
+        if (!filterConfig.empty())
+            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(sink, std::move(filterConfig));
+    }
+
     internalLogger->sinks().push_back(sink);
 }
 

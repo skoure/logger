@@ -261,6 +261,61 @@ between sinks.
 
 ---
 
+### Marker-Based Sink Filtering
+
+Each sink can optionally filter log events based on their markers using the `markers` and `marker_mode` fields.
+
+The `markers` field accepts either an array of strings or a single string (trimmed and treated as a one-element array). Empty strings in an array are ignored.
+
+The `marker_mode` field accepts `include` or `exclude` (case-insensitive). If omitted, the default is `include`.
+
+**Include mode:** Only events with at least one marker name matching the filter list are written to the sink. Unmarked events are dropped.
+
+**Exclude mode:** Events with any marker name matching the filter list are dropped; everything else (including unmarked events) passes through.
+
+Marker matching is exact and case-sensitive. An event matches if **any** of its markers appears in the filter list.
+
+Marker-based filtering composes with sink-level thresholds: both checks must pass for an event to be written.
+
+| Field        | Type               | Required | Description |
+|--------------|--------------------|----------|-------------|
+| `markers`    | array or string    | no       | Marker names to include or exclude. Omit for no marker filtering. |
+| `marker_mode`| string (`include`\|`exclude`) | no | Whether to include or exclude matching events. Defaults to `include`. |
+
+**Example:** audit file sink receives only `SECURITY` events; debug console drops `DEBUG`-tagged events:
+
+```json
+{
+  "name":  "root",
+  "level": "DEBUG",
+  "sinks": [
+    {
+      "type":      "file",
+      "pattern":   "%m%n",
+      "markers":   ["SECURITY"],
+      "marker_mode": "include",
+      "properties": { "path": "logs/audit.log" }
+    },
+    {
+      "type":      "console",
+      "pattern":   "[%p] %m%n",
+      "markers":   ["DEBUG"],
+      "marker_mode": "exclude"
+    }
+  ]
+}
+```
+
+**Backend notes:**
+
+| Backend      | Mechanism                                                                 |
+|--------------|---------------------------------------------------------------------------|
+| SimpleLogger | `MarkerFilter::passesAny()` checked in `append()` before writing to sink. |
+| spdlog       | `MarkerFilterSink` wrapper gates `log()` using thread-local marker vector. |
+| log4cxx      | `Log4CxxMarkerFilter` (spi::Filter) reads MDC `"marker"` and returns DENY when filtered. |
+
+---
+
 ### `console`
 
 Writes to standard output with optional ANSI color coding.
@@ -419,8 +474,8 @@ keeping subsequent fields column-aligned:
 
 ## Markers
 
-Markers are named tags that can be attached to individual log events.
-They are useful for filtering and correlating log output.
+Markers are named tags that can be attached to individual log events. They are useful
+for filtering and correlating log output.
 
 ```cpp
 #include <logger/MarkerFactory.h>
@@ -431,6 +486,11 @@ log->debug(*sqlMarker, "SELECT * FROM users WHERE id=%d", userId);
 
 The `%M` pattern token expands to the marker name when a marker is present,
 or to an empty string otherwise.
+
+For per-sink marker-based filtering, see the
+[### Marker-Based Sink Filtering](#marker-based-sink-filtering)
+section in CONFIGURATION.md which documents the `markers` and `marker_mode` sink
+fields, include/exclude semantics, and per-backend integration.
 
 ### Per-backend marker support
 
@@ -501,6 +561,28 @@ The canonical pattern syntax is identical to the JSON configuration format (see
 > by non-owning reference.  Ensure it outlives every logger configured against it.
 
 This API is supported by all three backends (simple, spdlog, log4cxx).
+
+An optional marker filter can be supplied to route only selected events to the
+ostream. Create and configure it with `MarkerFactory`; include mode is the
+default, while exclude mode lets unlisted and unmarked events through:
+
+```cpp
+#include <logger/LoggerFactory.h>
+#include <logger/MarkerFactory.h>
+#include <sstream>
+
+auto filter = sk::logger::MarkerFactory::createFilter();
+filter->setNames({"SECURITY", "AUDIT"});
+filter->setMode(sk::logger::MarkerFilter::Mode::Include);
+
+std::ostringstream auditOutput;
+sk::logger::LoggerFactory::configureLoggerWithOstream(
+  "App.Security", auditOutput, "[%p] %m%n", filter);
+```
+
+Use `MarkerFilter::Mode::Exclude` to suppress events carrying any listed marker.
+Omitting the filter preserves the unfiltered behavior. JSON-configured sinks use
+the `markers` and `marker_mode` fields described above.
 
 ---
 

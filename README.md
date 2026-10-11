@@ -84,6 +84,15 @@ logger->error(*marker, "Query failed", ex);
 The `%M` pattern token in a configured sink pattern expands to the marker name
 (or an empty string when no marker is attached to the event).
 
+For per-sink marker-based filtering — routing specific marker events to dedicated
+sinks — see the
+[`Marker-Based Sink Filtering`](/configuration/Marker-Based-Sink-Filtering)
+section in CONFIGURATION.md which documents the `markers` and `marker_mode` fields.
+For programmatic filtering of an ostream sink, create a filter with
+`MarkerFactory::createFilter()`, set its names and mode, and pass it as the
+optional fourth argument to `LoggerFactory::configureLoggerWithOstream()`; see
+[CONFIGURATION.md](CONFIGURATION.md) for an example.
+
 ### Multiple Markers
 
 Multiple markers can be attached to a single log event. This is useful when an event belongs to more than one category, such as both `SQL` and `SLOW_QUERY`.
