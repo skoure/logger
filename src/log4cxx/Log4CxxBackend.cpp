@@ -198,11 +198,11 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
                     skel->setThreshold(Log4CxxLogger::toLog4CxxLevel(*sc.level));
             }
 
-            if (!sc.markerFilter.empty())
+            if (!sc.markerFilters.empty())
             {
                 auto skel = std::dynamic_pointer_cast<log4cxx::AppenderSkeleton>(appender);
                 if (skel)
-                    skel->addFilter(std::make_shared<Log4CxxMarkerFilter>(sc.markerFilter));
+                    skel->addFilter(std::make_shared<Log4CxxMarkerFilter>(sc.markerFilters));
             }
 
             internalLogger->addAppender(appender);
@@ -240,7 +240,8 @@ void Log4CxxBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     if (filter) {
         MarkerFilterConfig filterConfig(*filter);
         if (!filterConfig.empty())
-            appender->addFilter(std::make_shared<Log4CxxMarkerFilter>(filterConfig));
+            appender->addFilter(std::make_shared<Log4CxxMarkerFilter>(
+                std::vector<MarkerFilterConfig>{std::move(filterConfig)}));
     }
 
     internalLogger->addAppender(appender);

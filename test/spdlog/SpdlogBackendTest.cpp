@@ -266,24 +266,66 @@ TEST_F(SpdlogBackendTest, ConfiguredSinkMarkerFilterComposesWithLevelThreshold)
     sink.pattern = "%m%n";
     sink.properties["path"] = path;
     sink.level = Logger::Level::Warn;
-    sink.markerFilter.names = {"SECURITY"};
+    sink.markerFilters = {
+        MarkerFilterConfig({"SECURITY"}),
+        MarkerFilterConfig({"AUDIT"})
+    };
     backend.configureLogger(logger, {sink});
 
     auto security = MarkerFactory::getMarker("SECURITY");
     auto other = MarkerFactory::getMarker("OTHER");
     logger->debug(*security, "blocked by level");
     logger->warn(*other, "blocked by marker");
-    logger->warn(*security, "accepted by both");
-    auto* spdLogger = dynamic_cast<SpdlogLogger*>(logger.get());
-    ASSERT_NE(spdLogger, nullptr);
-    spdLogger->getInternalLogger()->flush();
+    logger->warn(*security, "blocked by second marker filter");
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    logger->warn({*security, *audit}, "accepted by both");
+    auto* configuredLogger = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(configuredLogger, nullptr);
+    configuredLogger->getInternalLogger()->flush();
 
     std::ifstream file(path);
     const std::string content((std::istreambuf_iterator<char>(file)),
                               std::istreambuf_iterator<char>());
     EXPECT_EQ(content.find("blocked by level"), std::string::npos);
     EXPECT_EQ(content.find("blocked by marker"), std::string::npos);
+    EXPECT_EQ(content.find("blocked by second marker filter"), std::string::npos);
     EXPECT_NE(content.find("accepted by both"), std::string::npos);
+}
+
+TEST_F(SpdlogBackendTest, JsonFilterArrayAppliesEveryMarkerFilter)
+{
+    const std::string path = std::string(TEST_CONFIG_DIR) + "/spdlog_json_marker_filters.log";
+    std::remove(path.c_str());
+    registerTempLogFile(path);
+
+    LoggerFactory::configureFromJsonString(R"({
+        "loggers": [{
+            "name": "SpdlogBackend.JsonMarkerFilters",
+            "level": "TRACE",
+            "flush_on": "TRACE",
+            "sinks": [{
+                "type": "file",
+                "pattern": "%m%n",
+                "properties": {"path": ")" + path + R"("},
+                "filters": [
+                    {"type": "marker", "names": ["SECURITY"]},
+                    {"type": "marker", "names": ["AUDIT"]}
+                ]
+            }]
+        }]
+    })");
+
+    LoggerPtr logger = LoggerFactory::getLogger("SpdlogBackend.JsonMarkerFilters");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    logger->info(*security, "only security");
+    logger->info({*security, *audit}, "security and audit");
+
+    std::ifstream file(path);
+    const std::string content((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    EXPECT_EQ(content.find("only security"), std::string::npos);
+    EXPECT_NE(content.find("security and audit"), std::string::npos);
 }
 
 TEST_F(SpdlogBackendTest, SinkLevelJsonConfigFiltersOutput)
@@ -400,7 +442,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterIncludePassesMatchingEvent)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     filter->setMode(MarkerFilter::Mode::Include);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);
@@ -412,6 +454,26 @@ TEST_F(SpdlogBackendTest, MarkerFilterIncludePassesMatchingEvent)
         << "Include filter should pass events with a matching marker";
 }
 
+TEST_F(SpdlogBackendTest, SingleMarkerFilterMatchesAnyConfiguredMarker)
+{
+    LoggerPtr logger = backend.createLogger("Spdlog.Marker.MultipleNames");
+    logger->setLevel(Logger::Level::Trace);
+
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    auto other = MarkerFactory::getMarker("OTHER");
+    auto filter = MarkerFactory::createFilter();
+    filter->setMarkers({security, audit});
+
+    std::ostringstream output;
+    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
+    logger->info(*audit, "second configured marker passes");
+    logger->info(*other, "unlisted marker is blocked");
+
+    EXPECT_NE(output.str().find("second configured marker passes"), std::string::npos);
+    EXPECT_EQ(output.str().find("unlisted marker is blocked"), std::string::npos);
+}
+
 TEST_F(SpdlogBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
 {
     LoggerPtr logger = backend.createLogger("Spdlog.Marker.Include.Block");
@@ -419,7 +481,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     filter->setMode(MarkerFilter::Mode::Include);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);
@@ -438,7 +500,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     filter->setMode(MarkerFilter::Mode::Include);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);
@@ -456,7 +518,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"DEBUG"});
+    filter->setMarkers({MarkerFactory::getMarker("DEBUG")});
     filter->setMode(MarkerFilter::Mode::Exclude);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);
@@ -475,7 +537,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"DEBUG"});
+    filter->setMarkers({MarkerFactory::getMarker("DEBUG")});
     filter->setMode(MarkerFilter::Mode::Exclude);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);
@@ -493,7 +555,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"DEBUG"});
+    filter->setMarkers({MarkerFactory::getMarker("DEBUG")});
     filter->setMode(MarkerFilter::Mode::Exclude);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);
@@ -512,7 +574,7 @@ TEST_F(SpdlogBackendTest, MarkerFilterCombinedWithLevelFilter)
 
     std::ostringstream oss;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     filter->setMode(MarkerFilter::Mode::Include);
 
     backend.configureLoggerWithOstream(logger, oss, "%m%n", filter);

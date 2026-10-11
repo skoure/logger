@@ -466,7 +466,7 @@ TEST(SpdlogOStreamTest, LoggerFactoryPublicApiAppliesMarkerFilter)
 {
     std::ostringstream output;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     LoggerFactory::configureLoggerWithOstream(
         "Spdlog.OStream.Factory.Filter", output, "%m%n", filter);
 

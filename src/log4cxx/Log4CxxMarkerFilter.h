@@ -34,45 +34,31 @@ namespace sk { namespace logger {
 class Log4CxxMarkerFilter : public log4cxx::spi::Filter
 {
 public:
-    explicit Log4CxxMarkerFilter(const MarkerFilterConfig& filter)
-        : m_filter(filter) {}
+    explicit Log4CxxMarkerFilter(std::vector<MarkerFilterConfig> filters)
+        : m_filters(std::move(filters)) {}
 
     FilterDecision decide(const log4cxx::spi::LoggingEventPtr& event) const override
     {
-        if (m_filter.empty())
+        if (m_filters.empty())
             return NEUTRAL;
 
         log4cxx::LogString mdcValue;
         event->getMDC(log4cxx::LogString(LOG4CXX_STR("marker")), mdcValue);
 
-        if (mdcValue.empty())
-            return m_filter.exclude ? NEUTRAL : DENY;
-
         std::string names;
         LOG4CXX_NS::helpers::Transcoder::encodeUTF8(mdcValue, names);
         const std::vector<std::string> eventMarkers = splitMarkerNames(names);
 
-        if (m_filter.exclude)
+        for (const auto& filter : m_filters)
         {
-            for (const auto& name : eventMarkers)
-            {
-                if (m_filter.matches(name))
-                    return DENY;
-            }
-            return NEUTRAL;
+            if (!filter.passesAnyNames(eventMarkers))
+                return DENY;
         }
-
-        // include mode: event passes only if at least one marker matches
-        for (const auto& name : eventMarkers)
-        {
-            if (m_filter.matches(name))
-                return NEUTRAL;
-        }
-        return DENY;
+        return NEUTRAL;
     }
 
 private:
-    MarkerFilterConfig m_filter;
+    std::vector<MarkerFilterConfig> m_filters;
 
     static std::vector<std::string> splitMarkerNames(const std::string& joined)
     {

@@ -155,7 +155,7 @@ TEST(ProxyBackendTest, ConfigureOstreamForwardsMarkerFilter)
     auto real = std::make_shared<ProxyLogger>("Ostream.Filter.real");
     proxy->setReal(real);
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
 
     std::ostringstream stream;
     backend.configureLoggerWithOstream(proxy, stream, "%m%n", filter);

@@ -101,9 +101,18 @@ TEST_F(MarkerFactoryTest, CreatesConfigurableMarkerFilter)
     auto filter = MarkerFactory::createFilter();
     ASSERT_NE(filter, nullptr);
 
-    filter->setNames({"SECURITY", "AUDIT"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY"),
+                        MarkerFactory::getMarker("AUDIT")});
     filter->setMode(MarkerFilter::Mode::Exclude);
 
-    EXPECT_EQ(filter->getNames(), (std::vector<std::string>{"SECURITY", "AUDIT"}));
+    ASSERT_EQ(filter->getMarkers().size(), 2u);
+    EXPECT_EQ(filter->getMarkers()[0]->getName(), "SECURITY");
+    EXPECT_EQ(filter->getMarkers()[1]->getName(), "AUDIT");
     EXPECT_EQ(filter->getMode(), MarkerFilter::Mode::Exclude);
+}
+
+TEST_F(MarkerFactoryTest, RejectsNullMarkerInFilter)
+{
+    auto filter = MarkerFactory::createFilter();
+    EXPECT_THROW(filter->setMarkers({nullptr}), std::invalid_argument);
 }

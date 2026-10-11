@@ -79,8 +79,7 @@ void SimpleLogger::append(const LogRecord& record)
             continue;
 
         // Marker filtering
-        if (!sink.markerFilter.empty() &&
-            !sink.markerFilter.passesAny(record.markers))
+        if (!passesAllMarkerFilters(sink.markerFilters, record.markers))
             continue;
 
         if (sink.stream)
@@ -100,8 +99,7 @@ void SimpleLogger::append(const LogRecord& record)
         {
             if (sink.level.has_value() && record.level > *sink.level)
                 continue;
-            if (!sink.markerFilter.empty() &&
-                !sink.markerFilter.passesAny(record.markers))
+            if (!passesAllMarkerFilters(sink.markerFilters, record.markers))
                 continue;
             if (sink.stream)
                 sink.stream->flush();

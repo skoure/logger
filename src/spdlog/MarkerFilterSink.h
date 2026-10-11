@@ -28,8 +28,8 @@ class MarkerFilterSink : public spdlog::sinks::sink
 {
 public:
     explicit MarkerFilterSink(std::shared_ptr<spdlog::sinks::sink> inner,
-                              MarkerFilterConfig filter)
-        : m_inner(std::move(inner)), m_filter(std::move(filter))
+                              std::vector<MarkerFilterConfig> filters)
+        : m_inner(std::move(inner)), m_filters(std::move(filters))
     {
         set_level(m_inner->level());
     }
@@ -39,7 +39,7 @@ public:
         const auto& markers = spdlog_tls::markers
                                   ? *spdlog_tls::markers
                                   : std::vector<const Marker*>{};
-        if (!m_filter.passesAny(markers))
+        if (!passesAllMarkerFilters(m_filters, markers))
             return;
         m_inner->log(msg);
     }
@@ -55,7 +55,7 @@ public:
 
 private:
     std::shared_ptr<spdlog::sinks::sink> m_inner;
-    MarkerFilterConfig m_filter;
+    std::vector<MarkerFilterConfig> m_filters;
 };
 
 }}} // namespace sk::logger::spdlog_sinks

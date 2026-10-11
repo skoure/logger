@@ -87,9 +87,9 @@ The `%M` pattern token in a configured sink pattern expands to the marker name
 For per-sink marker-based filtering — routing specific marker events to dedicated
 sinks — see the
 [`Marker-Based Sink Filtering`](/configuration/Marker-Based-Sink-Filtering)
-section in CONFIGURATION.md which documents the `markers` and `marker_mode` fields.
+section in CONFIGURATION.md which documents the typed `filters` array.
 For programmatic filtering of an ostream sink, create a filter with
-`MarkerFactory::createFilter()`, set its names and mode, and pass it as the
+`MarkerFactory::createFilter()`, set its Marker handles and mode, and pass it as the
 optional fourth argument to `LoggerFactory::configureLoggerWithOstream()`; see
 [CONFIGURATION.md](CONFIGURATION.md) for an example.
 

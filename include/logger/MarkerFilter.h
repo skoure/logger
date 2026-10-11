@@ -10,7 +10,8 @@
 #ifndef SK_LOGGER_MARKER_FILTER_H
 #define SK_LOGGER_MARKER_FILTER_H
 
-#include <string>
+#include <logger/Marker.h>
+#include <memory>
 #include <vector>
 
 namespace sk { namespace logger {
@@ -24,8 +25,8 @@ public:
 
     virtual ~MarkerFilter() = default;
 
-    virtual const std::vector<std::string>& getNames() const = 0;
-    virtual void setNames(std::vector<std::string> names) = 0;
+    virtual const std::vector<std::shared_ptr<const Marker>>& getMarkers() const = 0;
+    virtual void setMarkers(std::vector<std::shared_ptr<const Marker>> markers) = 0;
     virtual Mode getMode() const = 0;
     virtual void setMode(Mode mode) = 0;
 };
