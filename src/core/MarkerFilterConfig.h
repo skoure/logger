@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace sk { namespace logger {
@@ -26,10 +27,20 @@ struct MarkerFilterConfig
 
     MarkerFilterConfig() = default;
 
-    explicit MarkerFilterConfig(const MarkerFilter& filter)
-        : names(filter.getNames()),
-          exclude(filter.getMode() == MarkerFilter::Mode::Exclude)
+    MarkerFilterConfig(std::vector<std::string> filterNames, bool excludeMode = false)
+        : names(std::move(filterNames)), exclude(excludeMode)
     {}
+
+    explicit MarkerFilterConfig(const MarkerFilter& filter)
+        : exclude(filter.getMode() == MarkerFilter::Mode::Exclude)
+    {
+        names.reserve(filter.getMarkers().size());
+        for (const auto& marker : filter.getMarkers())
+        {
+            if (marker)
+                names.push_back(marker->getName());
+        }
+    }
 
     bool empty() const { return names.empty(); }
 
@@ -51,7 +62,28 @@ struct MarkerFilterConfig
             });
         return exclude ? !hasMatching : hasMatching;
     }
+
+    bool passesAnyNames(const std::vector<std::string>& recordMarkerNames) const
+    {
+        if (names.empty()) return true;
+        if (recordMarkerNames.empty()) return exclude;
+
+        const bool hasMatching = std::any_of(
+            recordMarkerNames.begin(), recordMarkerNames.end(),
+            [this](const std::string& name) { return matches(name); });
+        return exclude ? !hasMatching : hasMatching;
+    }
 };
+
+inline bool passesAllMarkerFilters(
+    const std::vector<MarkerFilterConfig>& filters,
+    const std::vector<const Marker*>& recordMarkers)
+{
+    return std::all_of(filters.begin(), filters.end(),
+        [&recordMarkers](const MarkerFilterConfig& filter) {
+            return filter.passesAny(recordMarkers);
+        });
+}
 
 }} // namespace sk::logger
 

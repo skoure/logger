@@ -382,15 +382,37 @@ TEST(JsonConfigParserTest, MarkerFilterArrayParsed)
     auto configs = parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":["SECURITY","AUDIT"],"pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":["SECURITY","AUDIT"]}],"pattern":"%m"}]
         }]
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names.size(), 2u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names[0], "SECURITY");
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names[1], "AUDIT");
-    EXPECT_FALSE(configs[0].sinks[0].markerFilter.exclude);
+    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[1], "AUDIT");
+    EXPECT_FALSE(configs[0].sinks[0].markerFilters[0].exclude);
+}
+
+TEST(JsonConfigParserTest, FilterArrayParsesMultipleTypedEntries)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":[
+                {"type":"marker","names":["SECURITY"]},
+                {"type":"marker","names":["DEBUG"],"mode":"exclude"}
+            ],"pattern":"%m"}]
+        }]
+    })");
+
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_EQ(configs[0].sinks.size(), 1u);
+    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 2u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
+    EXPECT_FALSE(configs[0].sinks[0].markerFilters[0].exclude);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[1].names[0], "DEBUG");
+    EXPECT_TRUE(configs[0].sinks[0].markerFilters[1].exclude);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterSingleStringParsed)
@@ -398,13 +420,14 @@ TEST(JsonConfigParserTest, MarkerFilterSingleStringParsed)
     auto configs = parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":"SECURITY","pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":"SECURITY"}],"pattern":"%m"}]
         }]
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilter.names.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names[0], "SECURITY");
+    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
+    ASSERT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 1u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
 }
 
 TEST(JsonConfigParserTest, MarkerFilterWhitespaceTrimmed)
@@ -412,14 +435,14 @@ TEST(JsonConfigParserTest, MarkerFilterWhitespaceTrimmed)
     auto configs = parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":[" SECURITY "," AUDIT "],"pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":[" SECURITY "," AUDIT "]}],"pattern":"%m"}]
         }]
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilter.names.size(), 2u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names[0], "SECURITY");
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names[1], "AUDIT");
+    ASSERT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[1], "AUDIT");
 }
 
 TEST(JsonConfigParserTest, MarkerFilterEmptyNamesSkipped)
@@ -427,12 +450,12 @@ TEST(JsonConfigParserTest, MarkerFilterEmptyNamesSkipped)
     auto configs = parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":["SECURITY","","   ","AUDIT"],"pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":["SECURITY","","   ","AUDIT"]}],"pattern":"%m"}]
         }]
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilter.names.size(), 2u);
+    ASSERT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterExcludeModeParsed)
@@ -440,13 +463,13 @@ TEST(JsonConfigParserTest, MarkerFilterExcludeModeParsed)
     auto configs = parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":["DEBUG","TRACE"],"marker_mode":"exclude","pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":["DEBUG","TRACE"],"mode":"exclude"}],"pattern":"%m"}]
         }]
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names.size(), 2u);
-    EXPECT_TRUE(configs[0].sinks[0].markerFilter.exclude);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
+    EXPECT_TRUE(configs[0].sinks[0].markerFilters[0].exclude);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterDefaultModeInclude)
@@ -454,12 +477,13 @@ TEST(JsonConfigParserTest, MarkerFilterDefaultModeInclude)
     auto configs = parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":["DEBUG","TRACE"],"pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":["DEBUG","TRACE"]}],"pattern":"%m"}]
         }]
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_FALSE(configs[0].sinks[0].markerFilter.exclude);
+    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
+    EXPECT_FALSE(configs[0].sinks[0].markerFilters[0].exclude);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterUnknownModeThrows)
@@ -467,7 +491,67 @@ TEST(JsonConfigParserTest, MarkerFilterUnknownModeThrows)
     EXPECT_THROW(parseString(R"({
         "loggers":[{
             "name":"root",
-            "sinks":[{"type":"console","markers":["DEBUG"],"marker_mode":"unknown","pattern":"%m"}]
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":["DEBUG"],"mode":"unknown"}],"pattern":"%m"}]
+        }]
+    })"), ParseException);
+}
+
+TEST(JsonConfigParserTest, FiltersNodeMustBeArray)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":{},"pattern":"%m"}]
+        }]
+    })"), ParseException);
+}
+
+TEST(JsonConfigParserTest, MarkerFilterNodeMustBeObject)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":["marker"],"pattern":"%m"}]
+        }]
+    })"), ParseException);
+}
+
+TEST(JsonConfigParserTest, FilterEntryRequiresType)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":[{"names":["SECURITY"]}],"pattern":"%m"}]
+        }]
+    })"), ParseException);
+}
+
+TEST(JsonConfigParserTest, UnknownFilterTypeThrows)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":[{"type":"severity"}],"pattern":"%m"}]
+        }]
+    })"), ParseException);
+}
+
+TEST(JsonConfigParserTest, MarkerFilterNamesMustBeStrings)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":[{"type":"marker","names":42}],"pattern":"%m"}]
+        }]
+    })"), ParseException);
+}
+
+TEST(JsonConfigParserTest, MarkerFilterModeMustBeString)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":[{"type":"marker","mode":true}],"pattern":"%m"}]
         }]
     })"), ParseException);
 }
@@ -482,7 +566,20 @@ TEST(JsonConfigParserTest, MarkerFilterAbsentIsEmpty)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_TRUE(configs[0].sinks[0].markerFilter.empty());
+    EXPECT_TRUE(configs[0].sinks[0].markerFilters.empty());
+}
+
+TEST(JsonConfigParserTest, EmptyFiltersArrayMeansNoFiltering)
+{
+    auto configs = parseString(R"({
+        "loggers":[{
+            "name":"root",
+            "sinks":[{"type":"console","filters":[],"pattern":"%m"}]
+        }]
+    })");
+    ASSERT_EQ(configs.size(), 1u);
+    ASSERT_EQ(configs[0].sinks.size(), 1u);
+    EXPECT_TRUE(configs[0].sinks[0].markerFilters.empty());
 }
 
 TEST(JsonConfigParserTest, MarkerFilterCombinesWithLevel)
@@ -491,7 +588,7 @@ TEST(JsonConfigParserTest, MarkerFilterCombinesWithLevel)
         "loggers":[{
             "name":"root",
             "sinks":[{"type":"file","pattern":"%m","level":"WARN",
-                     "markers":["SECURITY"],"marker_mode":"exclude",
+                     "filters":[{"type":"marker","names":["SECURITY"],"mode":"exclude"}],
                      "properties":{"path":"/tmp/x.log"}}]
         }]
     })");
@@ -499,7 +596,8 @@ TEST(JsonConfigParserTest, MarkerFilterCombinesWithLevel)
     ASSERT_EQ(configs[0].sinks.size(), 1u);
     ASSERT_TRUE(configs[0].sinks[0].level.has_value());
     EXPECT_EQ(*configs[0].sinks[0].level, Logger::Level::Warn);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilter.names[0], "SECURITY");
-    EXPECT_TRUE(configs[0].sinks[0].markerFilter.exclude);
+    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 1u);
+    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
+    EXPECT_TRUE(configs[0].sinks[0].markerFilters[0].exclude);
 }

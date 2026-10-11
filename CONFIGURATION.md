@@ -263,11 +263,18 @@ between sinks.
 
 ### Marker-Based Sink Filtering
 
-Each sink can optionally filter log events based on their markers using the `markers` and `marker_mode` fields.
+Each sink can optionally filter log events using a `filters` array. Each entry
+has a `type` discriminator; `marker` is the currently supported filter type.
+All entries must pass (AND), evaluated in array order. An empty array means no
+additional filtering. The sink `level` threshold remains a separate gate.
 
-The `markers` field accepts either an array of strings or a single string (trimmed and treated as a one-element array). Empty strings in an array are ignored.
+For a marker entry, `names` accepts either an array of marker names or a single
+string (trimmed and treated as a one-element array). Empty strings in an array
+are ignored.
 
-The `marker_mode` field accepts `include` or `exclude` (case-insensitive). If omitted, the default is `include`.
+The marker entry's `mode` accepts `include` or `exclude` (case-insensitive). If
+omitted, the default is `include`. Within one marker rule, an event matches when
+any attached marker name matches a configured name.
 
 **Include mode:** Only events with at least one marker name matching the filter list are written to the sink. Unmarked events are dropped.
 
@@ -277,10 +284,12 @@ Marker matching is exact and case-sensitive. An event matches if **any** of its 
 
 Marker-based filtering composes with sink-level thresholds: both checks must pass for an event to be written.
 
-| Field        | Type               | Required | Description |
-|--------------|--------------------|----------|-------------|
-| `markers`    | array or string    | no       | Marker names to include or exclude. Omit for no marker filtering. |
-| `marker_mode`| string (`include`\|`exclude`) | no | Whether to include or exclude matching events. Defaults to `include`. |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filters` | array | no | Ordered sink filters; all entries must pass. Omit or use an empty array for no additional filtering. |
+| `filters[].type` | string | yes | Filter type. Currently only `marker` is supported. |
+| `filters[].names` | array or string | no | Marker names for a `marker` entry. Omit or use an empty list for no marker filtering. |
+| `filters[].mode` | string (`include`\|`exclude`) | no | Marker mode; defaults to `include`. |
 
 **Example:** audit file sink receives only `SECURITY` events; debug console drops `DEBUG`-tagged events:
 
@@ -292,15 +301,17 @@ Marker-based filtering composes with sink-level thresholds: both checks must pas
     {
       "type":      "file",
       "pattern":   "%m%n",
-      "markers":   ["SECURITY"],
-      "marker_mode": "include",
+      "filters": [
+        { "type": "marker", "names": ["SECURITY"], "mode": "include" }
+      ],
       "properties": { "path": "logs/audit.log" }
     },
     {
       "type":      "console",
       "pattern":   "[%p] %m%n",
-      "markers":   ["DEBUG"],
-      "marker_mode": "exclude"
+      "filters": [
+        { "type": "marker", "names": ["DEBUG"], "mode": "exclude" }
+      ]
     }
   ]
 }
@@ -310,7 +321,7 @@ Marker-based filtering composes with sink-level thresholds: both checks must pas
 
 | Backend      | Mechanism                                                                 |
 |--------------|---------------------------------------------------------------------------|
-| SimpleLogger | `MarkerFilter::passesAny()` checked in `append()` before writing to sink. |
+| SimpleLogger | Private marker-name filter checked in `append()` before writing to sink. |
 | spdlog       | `MarkerFilterSink` wrapper gates `log()` using thread-local marker vector. |
 | log4cxx      | `Log4CxxMarkerFilter` (spi::Filter) reads MDC `"marker"` and returns DENY when filtered. |
 
@@ -489,8 +500,8 @@ or to an empty string otherwise.
 
 For per-sink marker-based filtering, see the
 [### Marker-Based Sink Filtering](#marker-based-sink-filtering)
-section in CONFIGURATION.md which documents the `markers` and `marker_mode` sink
-fields, include/exclude semantics, and per-backend integration.
+section in CONFIGURATION.md which documents the typed `filters` array,
+include/exclude semantics, and per-backend integration.
 
 ### Per-backend marker support
 
@@ -572,7 +583,9 @@ default, while exclude mode lets unlisted and unmarked events through:
 #include <sstream>
 
 auto filter = sk::logger::MarkerFactory::createFilter();
-filter->setNames({"SECURITY", "AUDIT"});
+auto security = sk::logger::MarkerFactory::getMarker("SECURITY");
+auto audit = sk::logger::MarkerFactory::getMarker("AUDIT");
+filter->setMarkers({security, audit});
 filter->setMode(sk::logger::MarkerFilter::Mode::Include);
 
 std::ostringstream auditOutput;
@@ -582,7 +595,7 @@ sk::logger::LoggerFactory::configureLoggerWithOstream(
 
 Use `MarkerFilter::Mode::Exclude` to suppress events carrying any listed marker.
 Omitting the filter preserves the unfiltered behavior. JSON-configured sinks use
-the `markers` and `marker_mode` fields described above.
+the typed `filters` array described above.
 
 ---
 

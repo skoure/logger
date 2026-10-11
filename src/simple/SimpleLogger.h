@@ -33,7 +33,7 @@ struct SimpleSink
     std::string                   pattern; ///< canonical log4j-style; empty → default
     bool                          color = false;
     std::optional<Logger::Level>  level;   ///< nullopt = no additional filtering
-    MarkerFilterConfig            markerFilter; ///< marker-based filtering; empty = no filtering
+    std::vector<MarkerFilterConfig> markerFilters; ///< all filters must pass
 };
 
 /**

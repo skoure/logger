@@ -36,8 +36,8 @@ struct SinkConfig
     /** Minimum severity for this sink. nullopt = no additional filtering beyond the logger level. */
     std::optional<Logger::Level> level;
 
-    /** Marker-based filtering (include/exclude by marker name). Empty = no filtering. */
-    MarkerFilterConfig markerFilter;
+    /** Additional sink filters; all configured filters must pass. */
+    std::vector<MarkerFilterConfig> markerFilters;
 
     /** Extra properties (path, max_size, max_files, …). */
     std::map<std::string, std::string> properties;

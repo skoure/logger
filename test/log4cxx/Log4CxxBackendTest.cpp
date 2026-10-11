@@ -82,7 +82,7 @@ TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesIncludeMarkerFilter)
 
     std::ostringstream output;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
 
     auto security = MarkerFactory::getMarker("SECURITY");
@@ -96,6 +96,26 @@ TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesIncludeMarkerFilter)
     EXPECT_EQ(output.str().find("unmarked output"), std::string::npos);
 }
 
+TEST_F(Log4CxxBackendTest, SingleMarkerFilterMatchesAnyConfiguredMarker)
+{
+    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.MultipleNames");
+    logger->setLevel(Logger::Level::Trace);
+
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    auto other = MarkerFactory::getMarker("OTHER");
+    auto filter = MarkerFactory::createFilter();
+    filter->setMarkers({security, audit});
+
+    std::ostringstream output;
+    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
+    logger->info(*audit, "second configured marker passes");
+    logger->info(*other, "unlisted marker is blocked");
+
+    EXPECT_NE(output.str().find("second configured marker passes"), std::string::npos);
+    EXPECT_EQ(output.str().find("unlisted marker is blocked"), std::string::npos);
+}
+
 TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesExcludeMarkerFilter)
 {
     LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.Exclude");
@@ -103,7 +123,7 @@ TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesExcludeMarkerFilter)
 
     std::ostringstream output;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"DEBUG"});
+    filter->setMarkers({MarkerFactory::getMarker("DEBUG")});
     filter->setMode(MarkerFilter::Mode::Exclude);
     backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
 
@@ -389,8 +409,7 @@ TEST_F(Log4CxxBackendTest, MarkerFilterIncludePassesMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilter.names = {"SECURITY"};
-    sc.markerFilter.exclude = false;
+    sc.markerFilters = {MarkerFilterConfig({"SECURITY"})};
 
     backend.configureLogger(logger, {sc});
 
@@ -417,8 +436,7 @@ TEST_F(Log4CxxBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilter.names = {"SECURITY"};
-    sc.markerFilter.exclude = false;
+    sc.markerFilters = {MarkerFilterConfig({"SECURITY"})};
 
     backend.configureLogger(logger, {sc});
 
@@ -445,8 +463,7 @@ TEST_F(Log4CxxBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilter.names = {"SECURITY"};
-    sc.markerFilter.exclude = false;
+    sc.markerFilters = {MarkerFilterConfig({"SECURITY"})};
 
     backend.configureLogger(logger, {sc});
 
@@ -472,8 +489,7 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilter.names = {"DEBUG"};
-    sc.markerFilter.exclude = true;
+    sc.markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
 
     backend.configureLogger(logger, {sc});
 
@@ -500,8 +516,7 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilter.names = {"DEBUG"};
-    sc.markerFilter.exclude = true;
+    sc.markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
 
     backend.configureLogger(logger, {sc});
 
@@ -527,8 +542,7 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilter.names = {"DEBUG"};
-    sc.markerFilter.exclude = true;
+    sc.markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
 
     backend.configureLogger(logger, {sc});
 
@@ -539,4 +553,35 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
     std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     EXPECT_NE(content.find("other message"), std::string::npos)
         << "Exclude filter should pass events without a matching marker";
+}
+
+TEST_F(Log4CxxBackendTest, MultipleMarkerFiltersUseAndSemantics)
+{
+    LoggerPtr logger = backend.createLogger("Log4Cxx.Marker.MultipleFilters");
+    logger->setLevel(Logger::Level::Trace);
+
+    const std::string tmpPath = std::string(TEST_CONFIG_DIR) + "/l4c_marker_multiple.log";
+    std::remove(tmpPath.c_str());
+    registerTempLogFile(tmpPath);
+
+    SinkConfig sink;
+    sink.type = "file";
+    sink.pattern = "%m%n";
+    sink.properties["path"] = tmpPath;
+    sink.markerFilters = {
+        MarkerFilterConfig({"SECURITY"}),
+        MarkerFilterConfig({"AUDIT"})
+    };
+    backend.configureLogger(logger, {sink});
+
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    logger->info(*security, "only one rule passed");
+    logger->info({*security, *audit}, "all rules passed");
+
+    std::ifstream file(tmpPath);
+    const std::string content((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    EXPECT_EQ(content.find("only one rule passed"), std::string::npos);
+    EXPECT_NE(content.find("all rules passed"), std::string::npos);
 }

@@ -9,8 +9,10 @@
  */
 #include <logger/MarkerFactory.h>
 #include <logger/Marker.h>
+#include <algorithm>
 #include <unordered_map>
 #include <mutex>
+#include <stdexcept>
 
 namespace sk { namespace logger {
 
@@ -33,13 +35,23 @@ private:
 
 class MarkerFilterImpl final : public MarkerFilter {
 public:
-    const std::vector<std::string>& getNames() const override { return names_; }
-    void setNames(std::vector<std::string> names) override { names_ = std::move(names); }
+    const std::vector<std::shared_ptr<const Marker>>& getMarkers() const override
+    {
+        return markers_;
+    }
+    void setMarkers(std::vector<std::shared_ptr<const Marker>> markers) override
+    {
+        if (std::any_of(markers.begin(), markers.end(), [](const auto& marker) {
+                return !marker;
+            }))
+            throw std::invalid_argument("MarkerFilter cannot contain null markers");
+        markers_ = std::move(markers);
+    }
     Mode getMode() const override { return mode_; }
     void setMode(Mode mode) override { mode_ = mode; }
 
 private:
-    std::vector<std::string> names_;
+    std::vector<std::shared_ptr<const Marker>> markers_;
     Mode mode_ = Mode::Include;
 };
 

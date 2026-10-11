@@ -333,7 +333,7 @@ TEST_F(SimpleLoggerBackendTest, OstreamFilterIncludesOnlyMatchingMarkers)
 
     std::ostringstream output;
     auto filter = MarkerFactory::createFilter();
-    filter->setNames({"SECURITY"});
+    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
     backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
 
     auto security = MarkerFactory::getMarker("SECURITY");
@@ -347,6 +347,31 @@ TEST_F(SimpleLoggerBackendTest, OstreamFilterIncludesOnlyMatchingMarkers)
     EXPECT_EQ(output.str().find("unmarked output"), std::string::npos);
 }
 
+TEST_F(SimpleLoggerBackendTest, MultipleMarkerFiltersUseAndSemantics)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.MultipleFilters");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream output;
+    backend.configureLoggerWithOstream(logger, output, "%m%n");
+    auto* simpleLogger = static_cast<SimpleLogger*>(logger.get());
+    auto sinks = simpleLogger->getSinks();
+    ASSERT_FALSE(sinks.empty());
+    sinks[0].markerFilters = {
+        MarkerFilterConfig({"SECURITY"}),
+        MarkerFilterConfig({"AUDIT"})
+    };
+    simpleLogger->setSinks(std::move(sinks));
+
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto audit = MarkerFactory::getMarker("AUDIT");
+    logger->info(*security, "only one rule passed");
+    logger->info({*security, *audit}, "all rules passed");
+
+    EXPECT_EQ(output.str().find("only one rule passed"), std::string::npos);
+    EXPECT_NE(output.str().find("all rules passed"), std::string::npos);
+}
+
 TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesMatchingEvent)
 {
     LoggerPtr logger = backend.createLogger("SimpleBackend.Marker.Include.Pass");
@@ -357,8 +382,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesMatchingEvent)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"SECURITY"};
-    sinks[0].markerFilter.exclude = false;
+    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
     sl->setSinks(sinks);
 
     auto sec = MarkerFactory::getMarker("SECURITY");
@@ -377,8 +401,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"SECURITY"};
-    sinks[0].markerFilter.exclude = false;
+    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
     sl->setSinks(sinks);
 
     auto other = MarkerFactory::getMarker("OTHER");
@@ -397,8 +420,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"SECURITY"};
-    sinks[0].markerFilter.exclude = false;
+    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
     sl->setSinks(sinks);
 
     logger->info("plain message");
@@ -416,8 +438,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesWhenAnyMarkerMatches)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"AUDIT", "SECURITY"};
-    sinks[0].markerFilter.exclude = false;
+    sinks[0].markerFilters = {MarkerFilterConfig({"AUDIT", "SECURITY"})};
     sl->setSinks(sinks);
 
     // Event carries two markers; only one needs to match
@@ -438,8 +459,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"DEBUG"};
-    sinks[0].markerFilter.exclude = true;
+    sinks[0].markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
     sl->setSinks(sinks);
 
     auto dbg = MarkerFactory::getMarker("DEBUG");
@@ -458,8 +478,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"DEBUG"};
-    sinks[0].markerFilter.exclude = true;
+    sinks[0].markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
     sl->setSinks(sinks);
 
     logger->info("plain message");
@@ -477,8 +496,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
     auto* sl = static_cast<SimpleLogger*>(logger.get());
     auto sinks = sl->getSinks();
     ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilter.names = {"DEBUG"};
-    sinks[0].markerFilter.exclude = true;
+    sinks[0].markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
     sl->setSinks(sinks);
 
     auto other = MarkerFactory::getMarker("OTHER");
@@ -495,8 +513,7 @@ TEST_F(SimpleLoggerBackendTest, SinkConfigMarkerFilterCopiedToSimpleSink)
     SinkConfig sc;
     sc.type = "console";
     sc.pattern = "[%p] %m%n";
-    sc.markerFilter.names = {"SECURITY", "AUDIT"};
-    sc.markerFilter.exclude = false;
+    sc.markerFilters = {MarkerFilterConfig({"SECURITY", "AUDIT"})};
 
     backend.configureLogger(logger, {sc});
 
@@ -504,10 +521,11 @@ TEST_F(SimpleLoggerBackendTest, SinkConfigMarkerFilterCopiedToSimpleSink)
     ASSERT_NE(sl, nullptr);
     const auto& sinks = sl->getSinks();
     ASSERT_EQ(sinks.size(), 1u);
-    EXPECT_EQ(sinks[0].markerFilter.names.size(), 2u);
-    EXPECT_EQ(sinks[0].markerFilter.names[0], "SECURITY");
-    EXPECT_EQ(sinks[0].markerFilter.names[1], "AUDIT");
-    EXPECT_FALSE(sinks[0].markerFilter.exclude);
+    ASSERT_EQ(sinks[0].markerFilters.size(), 1u);
+    EXPECT_EQ(sinks[0].markerFilters[0].names.size(), 2u);
+    EXPECT_EQ(sinks[0].markerFilters[0].names[0], "SECURITY");
+    EXPECT_EQ(sinks[0].markerFilters[0].names[1], "AUDIT");
+    EXPECT_FALSE(sinks[0].markerFilters[0].exclude);
 }
 
 TEST_F(SimpleLoggerBackendTest, MarkerFilterCombinedWithLevelFilter)
@@ -521,8 +539,7 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterCombinedWithLevelFilter)
     ASSERT_FALSE(sinks.empty());
 
     sinks[0].level = Logger::Level::Warn;
-    sinks[0].markerFilter.names = {"SECURITY"};
-    sinks[0].markerFilter.exclude = false;
+    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
     static_cast<SimpleLogger*>(logger.get())->setSinks(sinks);
 
     // DEBUG level, no marker — blocked by level

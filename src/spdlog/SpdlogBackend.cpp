@@ -331,8 +331,8 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
         if (sc.level.has_value())
             sink->set_level(SpdlogLogger::toSpdlogLevel(*sc.level));
 
-        if (!sc.markerFilter.empty())
-            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(sink, sc.markerFilter);
+        if (!sc.markerFilters.empty())
+            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(sink, sc.markerFilters);
 
         newSinks.push_back(sink);
     }
@@ -359,7 +359,8 @@ void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
     if (filter) {
         MarkerFilterConfig filterConfig(*filter);
         if (!filterConfig.empty())
-            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(sink, std::move(filterConfig));
+            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(
+                sink, std::vector<MarkerFilterConfig>{std::move(filterConfig)});
     }
 
     internalLogger->sinks().push_back(sink);
