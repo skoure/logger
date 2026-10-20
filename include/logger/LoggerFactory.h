@@ -12,11 +12,12 @@
 #define SK_LOGGER_FACTORY_H
 
 #include <logger/Logger.h>
+#include <logger/Filter.h>
 #include <logger/LevelNames.h>
-#include <logger/MarkerFilter.h>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger {
 
@@ -80,24 +81,27 @@ public:
     static void configureFromJsonFile(const std::string& filePath);
 
     /**
-     * @brief Configure a logger to write to an arbitrary std::ostream.
+     * @brief Add an ostream sink that receives events from every logger.
      *
-     * Translates @p canonicalPattern and attaches the backend's ostream sink
-     * to the named logger (creating it if absent).
+     * Filters are evaluated in vector order and stop at the first rejection.
+     * Put inexpensive filters before message-regex filters when possible.
+    * The level threshold is checked before filters; `Trace` accepts every
+    * level. For example, `Warn` accepts Fatal, Error, and Warn events.
+     * The caller must keep @p os alive until this sink is cleared and no
+     * logging call can still be using it.
      *
-     * Supported by all three backends (simple, spdlog, log4cxx).
-     *
-     * @warning The caller must ensure @p os outlives all loggers configured
-     *          against it.
-     *
-     * @param name             Logger name (e.g. "App.Database").
      * @param os               Output stream to write to.
      * @param canonicalPattern Log4j-style pattern (e.g. "[%p] [%c] %m%n").
-     * @param filter           Optional marker filter.
+     * @param filters          Optional filters; all must pass.
+      * @param level            Minimum severity threshold for this sink; defaults to Trace.
      */
-    static void configureLoggerWithOstream(const char* name, std::ostream& os,
-                                   const std::string& canonicalPattern,
-                                   std::shared_ptr<const MarkerFilter> filter = {});
+    static void addOstreamSink(
+        std::ostream& os, const std::string& canonicalPattern,
+          std::vector<std::shared_ptr<const Filter>> filters = {},
+          Logger::Level level = Logger::Level::Trace);
+
+    /** @brief Remove all globally registered ostream sinks. */
+    static void clearOstreamSinks();
 
 };
 

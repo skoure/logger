@@ -10,18 +10,16 @@
 #ifndef SK_LOGGER_MARKER_FILTER_H
 #define SK_LOGGER_MARKER_FILTER_H
 
+#include <logger/Filter.h>
 #include <logger/Marker.h>
 #include <memory>
 #include <vector>
 
 namespace sk { namespace logger {
 
-class MarkerFilter {
+class MarkerFilter : public Filter {
 public:
-    enum class Mode {
-        Include,
-        Exclude
-    };
+    using Mode = FilterMode;
 
     virtual ~MarkerFilter() = default;
 

@@ -12,7 +12,7 @@
 #include <Log4CxxPatternTranslator.h>
 #include <LoggerFactoryImpl.h>
 
-#include <Log4CxxMarkerFilter.h>
+#include <Log4CxxFilter.h>
 #include <log4cxx/appenderskeleton.h>
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/fileappender.h>
@@ -198,53 +198,16 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
                     skel->setThreshold(Log4CxxLogger::toLog4CxxLevel(*sc.level));
             }
 
-            if (!sc.markerFilters.empty())
+            if (!sc.filters.empty())
             {
                 auto skel = std::dynamic_pointer_cast<log4cxx::AppenderSkeleton>(appender);
                 if (skel)
-                    skel->addFilter(std::make_shared<Log4CxxMarkerFilter>(sc.markerFilters));
+                    skel->addFilter(std::make_shared<Log4CxxFilter>(sc.filters));
             }
 
             internalLogger->addAppender(appender);
         }
     }
-}
-
-void Log4CxxBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
-                                                std::ostream& os,
-                                                const std::string& canonicalPattern,
-                                                const std::shared_ptr<const MarkerFilter>& filter)
-{
-    auto* l4Logger = dynamic_cast<Log4CxxLogger*>(loggerPtr.get());
-    if (!l4Logger) return;
-
-    log4cxx::LoggerPtr internalLogger = l4Logger->getInternalLogger();
-    if (!internalLogger) return;
-
-    const std::string l4Pattern = Log4CxxPatternTranslator::translate(canonicalPattern);
-    auto layout = std::make_shared<log4cxx::PatternLayout>(
-        log4cxx::LogString(l4Pattern.begin(), l4Pattern.end()));
-
-    // OutputStreamWriter's ctor takes OutputStreamPtr& (non-const lvalue ref in
-    // ABI <= 15), so we must upcast to the base shared_ptr type explicitly.
-    log4cxx::helpers::OutputStreamPtr osStream =
-        std::make_shared<StdOStreamOutputStream>(os);
-    auto writer = std::make_shared<log4cxx::helpers::OutputStreamWriter>(osStream);
-
-    auto appender = std::make_shared<log4cxx::WriterAppender>();
-    appender->setLayout(layout);
-    appender->setWriter(writer);
-    log4cxx::helpers::Pool pool;
-    appender->activateOptions(pool);
-
-    if (filter) {
-        MarkerFilterConfig filterConfig(*filter);
-        if (!filterConfig.empty())
-            appender->addFilter(std::make_shared<Log4CxxMarkerFilter>(
-                std::vector<MarkerFilterConfig>{std::move(filterConfig)}));
-    }
-
-    internalLogger->addAppender(appender);
 }
 
 void sk::logger::useLog4CxxBackend()

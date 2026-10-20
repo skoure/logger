@@ -11,7 +11,7 @@
 #define SK_SIMPLELOGGER_H
 
 #include <LoggerBase.h>
-#include <MarkerFilterConfig.h>
+#include <logger/Filter.h>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -33,7 +33,7 @@ struct SimpleSink
     std::string                   pattern; ///< canonical log4j-style; empty → default
     bool                          color = false;
     std::optional<Logger::Level>  level;   ///< nullopt = no additional filtering
-    std::vector<MarkerFilterConfig> markerFilters; ///< all filters must pass
+    std::vector<std::shared_ptr<const Filter>> filters; ///< all filters must pass
 };
 
 /**

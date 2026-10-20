@@ -240,20 +240,6 @@ TEST_F(LoggerConfiguratorTest, AdditivityFromJsonApplied)
     }
 }
 
-TEST_F(LoggerConfiguratorTest, PlaceholderAncestorSinkInheritanceAtCreation)
-{
-    std::ostringstream stream;
-    LoggerFactory::configureLoggerWithOstream("root", stream, "[%p] %m%n");
-
-    LoggerPtr child = LoggerFactory::getLogger("PlaceholderSnk.Deep.Child");
-    ASSERT_NE(child, nullptr);
-
-    child->setFlushOn(Logger::Level::Info);
-    child->info("placeholder-sink-test");
-    EXPECT_TRUE(stream.str().find("placeholder-sink-test") != std::string::npos)
-        << "Child under auto-created intermediate loggers should inherit root's sink";
-}
-
 TEST_F(LoggerConfiguratorTest, Integration_ChildInheritsParentSinksByDefault)
 {
     const std::string rootPath = std::string(TEST_CONFIG_DIR) + "/addt_log_true.log";

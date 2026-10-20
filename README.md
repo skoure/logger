@@ -58,8 +58,9 @@ The facade supports JSON-driven configuration of logger levels and output sinks.
 sk::logger::LoggerFactory::configureFromJsonFile("config/logger.json");
 ```
 
-For programmatic sink configuration (e.g. capturing output in a `std::ostringstream`),
-use `LoggerFactory::configureLoggerWithOstream()` — see [CONFIGURATION.md](CONFIGURATION.md).
+For programmatic output to an ostream across all loggers (including loggers with
+additivity disabled), use `LoggerFactory::addOstreamSink()` — see
+[CONFIGURATION.md](CONFIGURATION.md).
 
 See [CONFIGURATION.md](CONFIGURATION.md) for the full JSON schema, pattern
 token reference, and per-backend translation tables.
@@ -84,14 +85,10 @@ logger->error(*marker, "Query failed", ex);
 The `%M` pattern token in a configured sink pattern expands to the marker name
 (or an empty string when no marker is attached to the event).
 
-For per-sink marker-based filtering — routing specific marker events to dedicated
-sinks — see the
-[`Marker-Based Sink Filtering`](/configuration/Marker-Based-Sink-Filtering)
-section in CONFIGURATION.md which documents the typed `filters` array.
-For programmatic filtering of an ostream sink, create a filter with
-`MarkerFactory::createFilter()`, set its Marker handles and mode, and pass it as the
-optional fourth argument to `LoggerFactory::configureLoggerWithOstream()`; see
-[CONFIGURATION.md](CONFIGURATION.md) for an example.
+Per-sink filters can select events by marker, exact logger name, or a regular
+expression searched against the raw message body. JSON filter configuration and
+programmatic `FilterFactory` examples are documented in
+[CONFIGURATION.md](CONFIGURATION.md).
 
 ### Multiple Markers
 

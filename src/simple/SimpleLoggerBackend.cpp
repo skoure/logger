@@ -75,7 +75,7 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
         sink.pattern = sc.pattern;
 
         sink.level = sc.level;
-        sink.markerFilters = sc.markerFilters;
+        sink.filters = sc.filters;
 
         if (sc.type == "console")
         {
@@ -124,24 +124,6 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
     }
 
     sl->setSinks(std::move(simpleSinks));
-}
-
-void SimpleLoggerBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
-                                                     std::ostream& os,
-                                                     const std::string& canonicalPattern,
-                                                     const std::shared_ptr<const MarkerFilter>& filter)
-{
-    auto* sl = dynamic_cast<SimpleLogger*>(loggerPtr.get());
-    if (!sl) return;
-
-    SimpleSink sink;
-    sink.pattern = canonicalPattern;
-    if (filter)
-        sink.markerFilters.push_back(MarkerFilterConfig(*filter));
-    sink.stream  = std::shared_ptr<std::ostream>(&os, [](std::ostream*) {});  // non-owning
-    auto sinks = sl->getSinks();
-    sinks.push_back(std::move(sink));
-    sl->setSinks(std::move(sinks));
 }
 
 void SimpleLoggerBackend::clearSinks(LoggerPtr logger)

@@ -52,10 +52,6 @@ public:
     void configureLogger(LoggerPtr logger,
                          const std::vector<SinkConfig>& sinks) override;
 
-    void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
-                                    const std::string& canonicalPattern,
-                                    const std::shared_ptr<const MarkerFilter>& filter = {}) override;
-
     // IManagedSinkBackend
     void applyParentSinks(LoggerPtr child, LoggerPtr parent) override;
     void clearSinks(LoggerPtr logger) override;

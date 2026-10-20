@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <SimpleLoggerBackend.h>
 #include <SimpleLogger.h>
+#include <logger/FilterFactory.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <logger/MarkerFactory.h>
@@ -38,6 +39,17 @@ protected:
 
     void registerTempLogFile(const std::string& filePath) {
         cleanupFiles.push_back(filePath);
+    }
+
+    SimpleSink makeStreamSink(
+        std::ostream& stream, const std::string& pattern,
+        std::vector<std::shared_ptr<const Filter>> filters = {})
+    {
+        SimpleSink sink;
+        sink.stream = std::shared_ptr<std::ostream>(&stream, [](std::ostream*) {});
+        sink.pattern = pattern;
+        sink.filters = std::move(filters);
+        return sink;
     }
 };
 
@@ -88,19 +100,6 @@ TEST_F(SimpleLoggerBackendTest, ApplyParentSinksBothNullNocrash) {
     EXPECT_NO_THROW(backend.applyParentSinks(nullptr, nullptr));
 }
 
-TEST_F(SimpleLoggerBackendTest, ConfigureWithOstreamWritesFormattedOutput)
-{
-    LoggerPtr logger = backend.createLogger("Simple.OStream.Test");
-    logger->setLevel(Logger::Level::Trace);
-
-    std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-
-    logger->info("hello simple");
-    EXPECT_NE(oss.str().find("[INFO] hello simple"), std::string::npos)
-        << "output: " << oss.str();
-}
-
 TEST_F(SimpleLoggerBackendTest, ConsoleSinkDefaultHasColorFalse)
 {
     LoggerPtr logger = backend.createLogger("SimpleBackend.Console.DefaultNoColor");
@@ -144,12 +143,11 @@ TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueEmitsAnsiCodes)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-
-    // Manually enable color on the captured sink
-    auto sinks = sl->getSinks();
-    sinks.back().color = true;
-    sl->setSinks(std::move(sinks));
+    SimpleSink sink;
+    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
+    sink.pattern = "[%p] %m%n";
+    sink.color = true;
+    sl->setSinks({sink});
 
     logger->info("colortest");
 
@@ -172,14 +170,15 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdBlocksLowerSeverity)
 
     std::ostringstream warn_sink;
     std::ostringstream debug_sink;
-    backend.configureLoggerWithOstream(logger, warn_sink,  "[%p] %m%n");
-    backend.configureLoggerWithOstream(logger, debug_sink, "[%p] %m%n");
-
-    auto sinks = sl->getSinks();
-    ASSERT_EQ(sinks.size(), 2u);
-    sinks[0].level = Logger::Level::Warn;
-    sinks[1].level = Logger::Level::Debug;
-    sl->setSinks(std::move(sinks));
+    SimpleSink warnSink;
+    warnSink.stream = std::shared_ptr<std::ostream>(&warn_sink, [](std::ostream*) {});
+    warnSink.pattern = "[%p] %m%n";
+    warnSink.level = Logger::Level::Warn;
+    SimpleSink debugSink;
+    debugSink.stream = std::shared_ptr<std::ostream>(&debug_sink, [](std::ostream*) {});
+    debugSink.pattern = "[%p] %m%n";
+    debugSink.level = Logger::Level::Debug;
+    sl->setSinks({warnSink, debugSink});
 
     logger->info("info message");
 
@@ -197,12 +196,11 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdPassesEqualSeverity)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-
-    auto sinks = sl->getSinks();
-    ASSERT_EQ(sinks.size(), 1u);
-    sinks[0].level = Logger::Level::Warn;
-    sl->setSinks(std::move(sinks));
+    SimpleSink sink;
+    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
+    sink.pattern = "[%p] %m%n";
+    sink.level = Logger::Level::Warn;
+    sl->setSinks({sink});
 
     logger->warn("warn message");
 
@@ -218,12 +216,11 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdPassesHigherSeverity)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-
-    auto sinks = sl->getSinks();
-    ASSERT_EQ(sinks.size(), 1u);
-    sinks[0].level = Logger::Level::Warn;
-    sl->setSinks(std::move(sinks));
+    SimpleSink sink;
+    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
+    sink.pattern = "[%p] %m%n";
+    sink.level = Logger::Level::Warn;
+    sl->setSinks({sink});
 
     logger->error("error message");
 
@@ -239,8 +236,10 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelNulloptPassesAll)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-    // Leave sink.level as nullopt (default)
+    SimpleSink sink;
+    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
+    sink.pattern = "[%p] %m%n";
+    sl->setSinks({sink});
 
     logger->debug("debug message");
 
@@ -332,9 +331,10 @@ TEST_F(SimpleLoggerBackendTest, OstreamFilterIncludesOnlyMatchingMarkers)
     logger->setLevel(Logger::Level::Trace);
 
     std::ostringstream output;
-    auto filter = MarkerFactory::createFilter();
-    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
-    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")});
+    auto* simpleLogger = static_cast<SimpleLogger*>(logger.get());
+    simpleLogger->setSinks({makeStreamSink(output, "%m%n", {filter})});
 
     auto security = MarkerFactory::getMarker("SECURITY");
     auto other = MarkerFactory::getMarker("OTHER");
@@ -353,15 +353,13 @@ TEST_F(SimpleLoggerBackendTest, MultipleMarkerFiltersUseAndSemantics)
     logger->setLevel(Logger::Level::Trace);
 
     std::ostringstream output;
-    backend.configureLoggerWithOstream(logger, output, "%m%n");
     auto* simpleLogger = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = simpleLogger->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {
-        MarkerFilterConfig({"SECURITY"}),
-        MarkerFilterConfig({"AUDIT"})
-    };
-    simpleLogger->setSinks(std::move(sinks));
+    auto securityFilter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")});
+    auto auditFilter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("AUDIT")});
+    simpleLogger->setSinks({makeStreamSink(
+        output, "%m%n", {securityFilter, auditFilter})});
 
     auto security = MarkerFactory::getMarker("SECURITY");
     auto audit = MarkerFactory::getMarker("AUDIT");
@@ -378,12 +376,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesMatchingEvent)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")});
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     auto sec = MarkerFactory::getMarker("SECURITY");
     logger->info(*sec, "included message");
@@ -397,12 +393,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")});
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     auto other = MarkerFactory::getMarker("OTHER");
     logger->info(*other, "blocked message");
@@ -416,12 +410,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")});
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     logger->info("plain message");
     EXPECT_TRUE(oss.str().empty())
@@ -434,12 +426,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterIncludePassesWhenAnyMarkerMatches)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"AUDIT", "SECURITY"})};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("AUDIT"), MarkerFactory::getMarker("SECURITY")});
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     // Event carries two markers; only one needs to match
     auto audit = MarkerFactory::getMarker("AUDIT");
@@ -455,12 +445,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("DEBUG")}, FilterMode::Exclude);
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     auto dbg = MarkerFactory::getMarker("DEBUG");
     logger->info(*dbg, "excluded message");
@@ -474,12 +462,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("DEBUG")}, FilterMode::Exclude);
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     logger->info("plain message");
     EXPECT_NE(oss.str().find("plain message"), std::string::npos)
@@ -492,12 +478,10 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
     auto* sl = static_cast<SimpleLogger*>(logger.get());
-    auto sinks = sl->getSinks();
-    ASSERT_FALSE(sinks.empty());
-    sinks[0].markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
-    sl->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("DEBUG")}, FilterMode::Exclude);
+    sl->setSinks({makeStreamSink(oss, "[%p] %m%n", {filter})});
 
     auto other = MarkerFactory::getMarker("OTHER");
     logger->info(*other, "other message");
@@ -513,7 +497,8 @@ TEST_F(SimpleLoggerBackendTest, SinkConfigMarkerFilterCopiedToSimpleSink)
     SinkConfig sc;
     sc.type = "console";
     sc.pattern = "[%p] %m%n";
-    sc.markerFilters = {MarkerFilterConfig({"SECURITY", "AUDIT"})};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY"), MarkerFactory::getMarker("AUDIT")})};
 
     backend.configureLogger(logger, {sc});
 
@@ -521,11 +506,13 @@ TEST_F(SimpleLoggerBackendTest, SinkConfigMarkerFilterCopiedToSimpleSink)
     ASSERT_NE(sl, nullptr);
     const auto& sinks = sl->getSinks();
     ASSERT_EQ(sinks.size(), 1u);
-    ASSERT_EQ(sinks[0].markerFilters.size(), 1u);
-    EXPECT_EQ(sinks[0].markerFilters[0].names.size(), 2u);
-    EXPECT_EQ(sinks[0].markerFilters[0].names[0], "SECURITY");
-    EXPECT_EQ(sinks[0].markerFilters[0].names[1], "AUDIT");
-    EXPECT_FALSE(sinks[0].markerFilters[0].exclude);
+    ASSERT_EQ(sinks[0].filters.size(), 1u);
+    auto markerFilter = std::dynamic_pointer_cast<const MarkerFilter>(sinks[0].filters[0]);
+    ASSERT_NE(markerFilter, nullptr);
+    EXPECT_EQ(markerFilter->getMarkers().size(), 2u);
+    EXPECT_EQ(markerFilter->getMarkers()[0]->getName(), "SECURITY");
+    EXPECT_EQ(markerFilter->getMarkers()[1]->getName(), "AUDIT");
+    EXPECT_EQ(markerFilter->getMode(), FilterMode::Include);
 }
 
 TEST_F(SimpleLoggerBackendTest, MarkerFilterCombinedWithLevelFilter)
@@ -534,13 +521,11 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterCombinedWithLevelFilter)
     logger->setLevel(Logger::Level::Debug);
 
     std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-    auto sinks = static_cast<SimpleLogger*>(logger.get())->getSinks();
-    ASSERT_FALSE(sinks.empty());
-
-    sinks[0].level = Logger::Level::Warn;
-    sinks[0].markerFilters = {MarkerFilterConfig({"SECURITY"})};
-    static_cast<SimpleLogger*>(logger.get())->setSinks(sinks);
+    auto filter = FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")});
+    SimpleSink sink = makeStreamSink(oss, "[%p] %m%n", {filter});
+    sink.level = Logger::Level::Warn;
+    static_cast<SimpleLogger*>(logger.get())->setSinks({sink});
 
     // DEBUG level, no marker — blocked by level
     logger->debug("debug no marker");

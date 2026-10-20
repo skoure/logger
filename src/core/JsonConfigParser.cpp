@@ -9,9 +9,12 @@
  */
 #include "JsonConfigParser.h"
 
+#include <logger/FilterFactory.h>
+#include <logger/MarkerFactory.h>
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <regex>
 #include <sstream>
 
 #include <nlohmann/json.hpp>
@@ -47,37 +50,30 @@ static Logger::Level parseLevel(const std::string& s)
  *
  * Accepts "include" or "exclude" (case-insensitive).
  */
-static bool parseMarkerMode(const std::string& mode)
+static FilterMode parseFilterMode(const std::string& mode)
 {
     const std::string upper = toUpper(mode);
-    if (upper == "EXCLUDE") return true;
-    if (upper == "INCLUDE") return false;
+    if (upper == "EXCLUDE") return FilterMode::Exclude;
+    if (upper == "INCLUDE") return FilterMode::Include;
     throw ParseException(
-        "JsonConfigParser: unknown marker filter mode '" + mode + "' (expected 'include' or 'exclude')");
+        "JsonConfigParser: unknown filter mode '" + mode + "' (expected 'include' or 'exclude')");
 }
 
-/**
- * @brief Parses marker-specific fields into a MarkerFilterConfig.
- *
- * Accepts a JSON array of strings, or a single string for convenience.
- * Whitespace around each name is trimmed; empty entries are skipped.
- * Throws ParseException if a marker entry is not a string.
- */
-static MarkerFilterConfig parseMarkerFilter(const json& markerNode)
+static std::vector<std::string> parseNames(const json& filterNode,
+                                           const std::string& type)
 {
-    MarkerFilterConfig filter;
     std::vector<std::string> names;
 
-    if (markerNode.contains("names"))
+    if (filterNode.contains("names"))
     {
-        const json& namesNode = markerNode["names"];
+        const json& namesNode = filterNode["names"];
         if (namesNode.is_array())
         {
             for (const auto& entry : namesNode)
             {
                 if (!entry.is_string())
                     throw ParseException(
-                        "JsonConfigParser: marker filter 'names' array entries must be strings");
+                        "JsonConfigParser: " + type + " filter 'names' array entries must be strings");
                 names.push_back(entry.get<std::string>());
             }
         }
@@ -88,11 +84,12 @@ static MarkerFilterConfig parseMarkerFilter(const json& markerNode)
         else
         {
             throw ParseException(
-                "JsonConfigParser: marker filter 'names' must be a string or an array of strings");
+                "JsonConfigParser: " + type + " filter 'names' must be a string or an array of strings");
         }
     }
 
-    // Trim whitespace and skip empty entries.
+    std::vector<std::string> trimmedNames;
+    trimmedNames.reserve(names.size());
     for (std::string& name : names)
     {
         const auto first = name.find_first_not_of(" \t\r\n");
@@ -100,43 +97,67 @@ static MarkerFilterConfig parseMarkerFilter(const json& markerNode)
         const auto last = name.find_last_not_of(" \t\r\n");
         name = name.substr(first, last - first + 1);
         if (!name.empty())
-            filter.names.push_back(std::move(name));
+            trimmedNames.push_back(std::move(name));
     }
 
-    if (markerNode.contains("mode"))
-    {
-        if (!markerNode["mode"].is_string())
-            throw ParseException(
-                "JsonConfigParser: marker filter 'mode' must be a string");
-        filter.exclude = parseMarkerMode(markerNode["mode"].get<std::string>());
-    }
-
-    return filter;
+    return trimmedNames;
 }
 
-/**
- * @brief Dispatches each child in the sink's filters object to its parser.
- */
-static std::vector<MarkerFilterConfig> parseFilter(const json& filtersNode)
+static FilterMode parseFilterMode(const json& filterNode)
+{
+    if (!filterNode.contains("mode"))
+        return FilterMode::Include;
+    if (!filterNode["mode"].is_string())
+        throw ParseException("JsonConfigParser: filter 'mode' must be a string");
+    return parseFilterMode(filterNode["mode"].get<std::string>());
+}
+
+static std::shared_ptr<const Filter> parseFilter(const json& filterNode)
+{
+    if (!filterNode.is_object())
+        throw ParseException("JsonConfigParser: each 'filters' entry must be an object");
+    if (!filterNode.contains("type") || !filterNode["type"].is_string())
+        throw ParseException("JsonConfigParser: each filter entry requires a string 'type'");
+
+    const std::string type = filterNode["type"].get<std::string>();
+    const FilterMode mode = parseFilterMode(filterNode);
+
+    if (type == "marker")
+    {
+        std::vector<std::shared_ptr<const Marker>> markers;
+        for (const auto& name : parseNames(filterNode, type))
+            markers.push_back(MarkerFactory::getMarker(name));
+        return FilterFactory::createMarkerFilter(std::move(markers), mode);
+    }
+    if (type == "logger_name")
+        return FilterFactory::createLoggerNameFilter(parseNames(filterNode, type), mode);
+    if (type == "message_regex")
+    {
+        if (!filterNode.contains("pattern") || !filterNode["pattern"].is_string())
+            throw ParseException("JsonConfigParser: message_regex filter requires a string 'pattern'");
+        try
+        {
+            return FilterFactory::createRegexFilter(
+                filterNode["pattern"].get<std::string>(), mode);
+        }
+        catch (const std::regex_error& ex)
+        {
+            throw ParseException(
+                std::string("JsonConfigParser: invalid message_regex pattern: ") + ex.what());
+        }
+    }
+    throw ParseException("JsonConfigParser: unknown filter type '" + type + "'");
+}
+
+static std::vector<std::shared_ptr<const Filter>> parseFilters(const json& filtersNode)
 {
     if (!filtersNode.is_array())
         throw ParseException("JsonConfigParser: 'filters' must be an array");
 
-    std::vector<MarkerFilterConfig> filters;
+    std::vector<std::shared_ptr<const Filter>> filters;
     filters.reserve(filtersNode.size());
     for (const auto& filterNode : filtersNode)
-    {
-        if (!filterNode.is_object())
-            throw ParseException("JsonConfigParser: each 'filters' entry must be an object");
-        if (!filterNode.contains("type") || !filterNode["type"].is_string())
-            throw ParseException("JsonConfigParser: each filter entry requires a string 'type'");
-
-        const std::string type = filterNode["type"].get<std::string>();
-        if (type == "marker")
-            filters.push_back(parseMarkerFilter(filterNode));
-        else
-            throw ParseException("JsonConfigParser: unknown filter type '" + type + "'");
-    }
+        filters.push_back(parseFilter(filterNode));
     return filters;
 }
 
@@ -191,7 +212,7 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
                     sc.level = parseLevel(sinkNode["level"].get<std::string>());
 
                 if (sinkNode.contains("filters"))
-                    sc.markerFilters = parseFilter(sinkNode["filters"]);
+                    sc.filters = parseFilters(sinkNode["filters"]);
 
                 if (sinkNode.contains("properties") && sinkNode["properties"].is_object())
                 {

@@ -8,6 +8,7 @@
  * @date Created: November 08, 2025
  */
 #include <LoggerFactoryImpl.h>
+#include <GlobalOstreamSink.h>
 #include <ProxyLogger.h>
 #include <LoggerBase.h>
 #include <logger/LoggerFactory.h>
@@ -64,25 +65,16 @@ void LoggerFactoryImpl::configureLogger(LoggerPtr logger,
 	}
 }
 
-void LoggerFactory::configureLoggerWithOstream(const char* name, std::ostream& os,
-                                               const std::string& canonicalPattern,
-                                               std::shared_ptr<const MarkerFilter> filter)
+void LoggerFactory::addOstreamSink(
+    std::ostream& os, const std::string& canonicalPattern,
+    std::vector<std::shared_ptr<const Filter>> filters, Logger::Level level)
 {
-    LoggerFactoryImpl& impl = LoggerFactoryImpl::getInstance();
-    LoggerPtr logger = impl.getLogger(name);
-    if (logger) {
-        impl.configureLoggerWithOstream(logger, os, canonicalPattern, filter);
-	}
+    addGlobalOstreamSink(os, canonicalPattern, std::move(filters), level);
 }
 
-void LoggerFactoryImpl::configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
-                                                   const std::string& canonicalPattern,
-                                                   const std::shared_ptr<const MarkerFilter>& filter)
+void LoggerFactory::clearOstreamSinks()
 {
-    std::lock_guard<std::mutex> lock(m_factoryLock);
-    if (logger) {
-        m_proxyBackend->configureLoggerWithOstream(logger, os, canonicalPattern, filter);
-	}
+    clearGlobalOstreamSinks();
 }
 
 // Returns the ancestor names of `name` that have no real logger assigned yet,

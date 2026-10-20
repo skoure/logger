@@ -41,34 +41,13 @@ void ProxyBackend::configureLogger(LoggerPtr logger,
 		return;
 	}
 
-    // If the logger is a ProxyLogger, we need to unwrap it to get the real logger before forwarding the call to the real backend.  This ensures that the
-    // real backend's configureLoggerWithOstream() method receives the correct logger instance, allowing it to apply the configuration properly to the real logger rather than the proxy
+    // Unwrap proxies before forwarding so backend-specific casts see the real logger.
     if (auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger)) {
         auto real = proxy->getReal();
         if (!real) return;
         m_real->configureLogger(real, sinks);
     } else {
         m_real->configureLogger(logger, sinks);
-    }
-}
-
-void ProxyBackend::configureLoggerWithOstream(
-    LoggerPtr logger, std::ostream& os, const std::string& canonicalPattern,
-    const std::shared_ptr<const MarkerFilter>& filter)
-{
-    if (!m_real) {
-        return;  // real backend not yet registered
-    }
-
-    // If the logger is a ProxyLogger, we need to unwrap it to get the real logger before forwarding the call to the
-    // real backend.  This ensures that the real backend's configureLoggerWithOstream() method receives the correct
-    // logger instance, allowing it to apply the configuration properly to the real logger rather than the proxy.
-    if (auto proxy = std::dynamic_pointer_cast<ProxyLogger>(logger)) {
-        auto real = proxy->getReal();
-        if (!real) return;
-        m_real->configureLoggerWithOstream(real, os, canonicalPattern, filter);
-    } else {
-        m_real->configureLoggerWithOstream(logger, os, canonicalPattern, filter);
     }
 }
 

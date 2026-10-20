@@ -11,7 +11,6 @@
 #include <ProxyBackend.h>
 #include <ProxyLogger.h>
 #include <IManagedSinkBackend.h>
-#include <logger/MarkerFactory.h>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -38,14 +37,6 @@ public:
         configured.push_back(logger->getName());
     }
 
-    void configureLoggerWithOstream(LoggerPtr logger, std::ostream&,
-                                    const std::string&,
-                                    const std::shared_ptr<const MarkerFilter>& filter) override
-    {
-        ostreamConfigured.push_back(logger->getName());
-        lastFilter = filter;
-    }
-
     void applyParentSinks(LoggerPtr child, LoggerPtr parent) override
     {
         lastApplyChild  = child;
@@ -59,9 +50,7 @@ public:
 
     std::string lastCreated;
     std::vector<std::string> configured;
-    std::vector<std::string> ostreamConfigured;
     std::vector<std::string> cleared;
-    std::shared_ptr<const MarkerFilter> lastFilter;
     LoggerPtr lastApplyChild;
     LoggerPtr lastApplyParent;
 };
@@ -143,26 +132,6 @@ TEST(ProxyBackendTest, ConfigureLoggerReusesExistingRealFromSetBackend)
     // configureLogger was called on the pre-existing real logger, not a new one.
     ASSERT_EQ(raw->configured.size(), 1u);
     EXPECT_EQ(raw->configured[0], "Cfg.Reuse.real");
-}
-
-TEST(ProxyBackendTest, ConfigureOstreamForwardsMarkerFilter)
-{
-    auto fake = std::make_unique<FakeBackend>();
-    FakeBackend* raw = fake.get();
-    ProxyBackend backend(std::move(fake));
-
-    auto proxy = std::make_shared<ProxyLogger>("Ostream.Filter");
-    auto real = std::make_shared<ProxyLogger>("Ostream.Filter.real");
-    proxy->setReal(real);
-    auto filter = MarkerFactory::createFilter();
-    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
-
-    std::ostringstream stream;
-    backend.configureLoggerWithOstream(proxy, stream, "%m%n", filter);
-
-    ASSERT_EQ(raw->ostreamConfigured.size(), 1u);
-    EXPECT_EQ(raw->ostreamConfigured[0], "Ostream.Filter.real");
-    EXPECT_EQ(raw->lastFilter.get(), filter.get());
 }
 
 // ---------------------------------------------------------------------------

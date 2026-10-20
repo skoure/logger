@@ -261,56 +261,65 @@ between sinks.
 
 ---
 
-### Marker-Based Sink Filtering
+### Sink Filters
 
-Each sink can optionally filter log events using a `filters` array. Each entry
-has a `type` discriminator; `marker` is the currently supported filter type.
-All entries must pass (AND), evaluated in array order. An empty array means no
-additional filtering. The sink `level` threshold remains a separate gate.
+Each configured sink can have an ordered `filters` array. Every filter must
+pass for the sink to write an event (AND composition). Evaluation follows the
+array order and stops at the first rejection. Put inexpensive checks, such as
+marker or logger-name filters, before message-regex filters to avoid unnecessary
+regex searches. The sink's `level` threshold is a separate gate.
 
-For a marker entry, `names` accepts either an array of marker names or a single
-string (trimmed and treated as a one-element array). Empty strings in an array
-are ignored.
+| Type | Fields | Matching behavior |
+|------|--------|-------------------|
+| `marker` | `names`, `mode` | Match when any event marker exactly and case-sensitively equals any configured name. |
+| `logger_name` | `names`, `mode` | Match when the full logger name exactly and case-sensitively equals any configured name. Names do not imply hierarchy prefixes. |
+| `message_regex` | `pattern`, `mode` | Search the raw message body using a C++ ECMAScript regular expression (`std::regex_search`). |
 
-The marker entry's `mode` accepts `include` or `exclude` (case-insensitive). If
-omitted, the default is `include`. Within one marker rule, an event matches when
-any attached marker name matches a configured name.
+For `marker` and `logger_name`, `names` may be one string or an array of
+strings. Whitespace is trimmed and empty entries are ignored. An omitted or
+empty name list imposes no filtering. The `mode` field accepts `include` or
+`exclude`, case-insensitively, and defaults to `include` for all filter types.
+Include keeps matching events; exclude drops matching events. In exclude mode,
+unmarked events pass a marker filter.
 
-**Include mode:** Only events with at least one marker name matching the filter list are written to the sink. Unmarked events are dropped.
-
-**Exclude mode:** Events with any marker name matching the filter list are dropped; everything else (including unmarked events) passes through.
-
-Marker matching is exact and case-sensitive. An event matches if **any** of its markers appears in the filter list.
-
-Marker-based filtering composes with sink-level thresholds: both checks must pass for an event to be written.
+`message_regex` requires a string `pattern`. Search finds a matching substring;
+use anchors such as `^timeout` to require a beginning-of-message match, or
+`^timeout$` to require a full-message match. An empty pattern is valid and
+matches every message. Invalid patterns raise `ParseException` while parsing
+configuration.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `filters` | array | no | Ordered sink filters; all entries must pass. Omit or use an empty array for no additional filtering. |
-| `filters[].type` | string | yes | Filter type. Currently only `marker` is supported. |
-| `filters[].names` | array or string | no | Marker names for a `marker` entry. Omit or use an empty list for no marker filtering. |
-| `filters[].mode` | string (`include`\|`exclude`) | no | Marker mode; defaults to `include`. |
+| `filters` | array | no | Ordered filters for this sink. Omit or use an empty array for no additional filtering. |
+| `filters[].type` | string | yes | `marker`, `logger_name`, or `message_regex`. |
+| `filters[].names` | array or string | no | Names for `marker` or `logger_name` filters. |
+| `filters[].pattern` | string | yes for `message_regex` | ECMAScript regular expression searched against the message body. |
+| `filters[].mode` | string (`include`\|`exclude`) | no | Include or exclude matching events; defaults to `include`. |
 
-**Example:** audit file sink receives only `SECURITY` events; debug console drops `DEBUG`-tagged events:
+**Example:** write only security-tagged messages from the exact `App.Security`
+logger when the raw message mentions a denied request; the console excludes
+`NOISY_SQL` markers:
 
 ```json
 {
-  "name":  "root",
+  "name": "root",
   "level": "DEBUG",
   "sinks": [
     {
-      "type":      "file",
-      "pattern":   "%m%n",
+      "type": "file",
+      "pattern": "%m%n",
       "filters": [
-        { "type": "marker", "names": ["SECURITY"], "mode": "include" }
+        { "type": "marker", "names": "SECURITY" },
+        { "type": "logger_name", "names": ["App.Security"] },
+        { "type": "message_regex", "pattern": "denied|unauthorized" }
       ],
       "properties": { "path": "logs/audit.log" }
     },
     {
-      "type":      "console",
-      "pattern":   "[%p] %m%n",
+      "type": "console",
+      "pattern": "[%p] %m%n",
       "filters": [
-        { "type": "marker", "names": ["DEBUG"], "mode": "exclude" }
+        { "type": "marker", "names": ["NOISY_SQL"], "mode": "exclude" }
       ]
     }
   ]
@@ -319,11 +328,11 @@ Marker-based filtering composes with sink-level thresholds: both checks must pas
 
 **Backend notes:**
 
-| Backend      | Mechanism                                                                 |
-|--------------|---------------------------------------------------------------------------|
-| SimpleLogger | Private marker-name filter checked in `append()` before writing to sink. |
-| spdlog       | `MarkerFilterSink` wrapper gates `log()` using thread-local marker vector. |
-| log4cxx      | `Log4CxxMarkerFilter` (spi::Filter) reads MDC `"marker"` and returns DENY when filtered. |
+| Backend | Mechanism |
+|---------|-----------|
+| SimpleLogger | Evaluates the configured filters against the shared log record before writing to each sink. |
+| spdlog | A sink wrapper evaluates logger name, payload, and marker metadata before delegating. |
+| log4cxx | An appender filter evaluates logger name, message, and marker MDC metadata. |
 
 ---
 
@@ -499,7 +508,7 @@ The `%M` pattern token expands to the marker name when a marker is present,
 or to an empty string otherwise.
 
 For per-sink marker-based filtering, see the
-[### Marker-Based Sink Filtering](#marker-based-sink-filtering)
+[### Sink Filters](#sink-filters)
 section in CONFIGURATION.md which documents the typed `filters` array,
 include/exclude semantics, and per-backend integration.
 
@@ -507,7 +516,7 @@ include/exclude semantics, and per-backend integration.
 
 | Backend      | Mechanism                                      |
 |--------------|------------------------------------------------|
-| SimpleLogger | `%M` expanded in `SimpleLoggerPattern::render` |
+| SimpleLogger | `%M` expanded in `LogRecordPattern::render` |
 | spdlog       | Thread-local bridge → custom `%&` flag         |
 | Log4cxx      | MDC key `"marker"` → `%X{marker}` in pattern  |
 
@@ -549,53 +558,71 @@ Each backend translates the canonical pattern into its own format:
 
 For situations where you need log output captured in memory — such as unit tests,
 in-process diagnostics, or custom stream wrappers — use the programmatic API instead
-of a JSON file:
+of a JSON file. A registered ostream sink receives events from every logger,
+including loggers with `additivity: false`:
 
 ```cpp
 #include <logger/LoggerFactory.h>
+#include <logger/FilterFactory.h>
+#include <logger/MarkerFactory.h>
 #include <sstream>
 
 std::ostringstream buffer;
-sk::logger::LoggerFactory::configureLoggerWithOstream(
-    "App.Database", buffer, "[%p] [%c] %m%n");
+auto security = sk::logger::MarkerFactory::getMarker("SECURITY");
+auto markerFilter = sk::logger::FilterFactory::createMarkerFilter(
+  {security});
+auto nameFilter = sk::logger::FilterFactory::createLoggerNameFilter(
+  {"App.Security"});
+auto messageFilter = sk::logger::FilterFactory::createRegexFilter(
+  "denied|unauthorized");
 
-auto log = sk::logger::LoggerFactory::getLogger("App.Database");
-log->info("Connected");
+sk::logger::LoggerFactory::addOstreamSink(
+  buffer, "[%p] [%c] %m%n", {markerFilter, nameFilter, messageFilter},
+  sk::logger::Logger::Level::Warn);
 
-std::string output = buffer.str();  // e.g. "[INFO] [App.Database] Connected\n"
+auto log = sk::logger::LoggerFactory::getLogger("App.Security");
+log->warn(*security, "Request denied");
+std::string output = buffer.str();
+
+// Remove all global ostream sinks before their streams go out of scope.
+sk::logger::LoggerFactory::clearOstreamSinks();
 ```
 
 The canonical pattern syntax is identical to the JSON configuration format (see
 [Pattern Tokens](#pattern-tokens) above).
 
-> **Lifetime:** The `std::ostream` passed to `configureLoggerWithOstream` is held
-> by non-owning reference.  Ensure it outlives every logger configured against it.
+`addOstreamSink()` has no logger-name argument. Each call adds an independent
+global sink. Filters are evaluated in the supplied vector order and stop at the
+first rejection; put inexpensive filters before regex filters when possible.
+The optional fourth argument is the sink's level threshold and defaults to
+`Logger::Level::Trace`, which accepts every level. A `Warn` threshold accepts
+Fatal, Error, and Warn events while suppressing Info, Debug, and Trace. The level
+threshold is checked before filters, and all filters must pass for the sink to
+write an event.
 
-This API is supported by all three backends (simple, spdlog, log4cxx).
+The ostream remains non-owning. Keep it alive until `clearOstreamSinks()` has
+removed the registration, no logging calls are in flight, and no further logging
+will use it. `clearOstreamSinks()` removes all global ostream sink registrations;
+it does not change logger-specific sinks configured through JSON.
 
-An optional marker filter can be supplied to route only selected events to the
-ostream. Create and configure it with `MarkerFactory`; include mode is the
-default, while exclude mode lets unlisted and unmarked events through:
+Filters are factory-created and can be combined in the same vector:
 
 ```cpp
-#include <logger/LoggerFactory.h>
-#include <logger/MarkerFactory.h>
-#include <sstream>
-
-auto filter = sk::logger::MarkerFactory::createFilter();
-auto security = sk::logger::MarkerFactory::getMarker("SECURITY");
-auto audit = sk::logger::MarkerFactory::getMarker("AUDIT");
-filter->setMarkers({security, audit});
-filter->setMode(sk::logger::MarkerFilter::Mode::Include);
-
-std::ostringstream auditOutput;
-sk::logger::LoggerFactory::configureLoggerWithOstream(
-  "App.Security", auditOutput, "[%p] %m%n", filter);
+auto excludeNoisySql = sk::logger::FilterFactory::createMarkerFilter(
+  {sk::logger::MarkerFactory::getMarker("NOISY_SQL")},
+  sk::logger::FilterMode::Exclude);
+auto includeTimeout = sk::logger::FilterFactory::createRegexFilter(
+  "timed.?out", sk::logger::FilterMode::Include);
+sk::logger::LoggerFactory::addOstreamSink(
+  buffer, "[%p] [%c] %m%n", {excludeNoisySql, includeTimeout});
 ```
 
-Use `MarkerFilter::Mode::Exclude` to suppress events carrying any listed marker.
-Omitting the filter preserves the unfiltered behavior. JSON-configured sinks use
-the typed `filters` array described above.
+`createRegexFilter()` uses ECMAScript syntax and substring search. Add `^` or `$`
+anchors to constrain the match position. Invalid patterns throw `std::regex_error`.
+`createLoggerNameFilter()` matches full logger names exactly and case-sensitively;
+it does not match descendants implicitly. The `mode` defaults to include for all
+filter factories. With no filters, the global sink writes every event allowed by
+the logger's level.
 
 ---
 

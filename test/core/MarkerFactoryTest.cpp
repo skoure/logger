@@ -8,6 +8,7 @@
  * @date Created: November 15, 2025
  */
 #include "gtest/gtest.h"
+#include <logger/FilterFactory.h>
 #include <logger/MarkerFactory.h> // Includes Marker.h indirectly
 #include <sstream>
 #include <memory>
@@ -98,7 +99,7 @@ TEST_F(MarkerFactoryTest, FileScopeStaticMarkerInitializesCorrectly) {
 
 TEST_F(MarkerFactoryTest, CreatesConfigurableMarkerFilter)
 {
-    auto filter = MarkerFactory::createFilter();
+    auto filter = FilterFactory::createMarkerFilter();
     ASSERT_NE(filter, nullptr);
 
     filter->setMarkers({MarkerFactory::getMarker("SECURITY"),
@@ -113,6 +114,6 @@ TEST_F(MarkerFactoryTest, CreatesConfigurableMarkerFilter)
 
 TEST_F(MarkerFactoryTest, RejectsNullMarkerInFilter)
 {
-    auto filter = MarkerFactory::createFilter();
+    auto filter = FilterFactory::createMarkerFilter();
     EXPECT_THROW(filter->setMarkers({nullptr}), std::invalid_argument);
 }

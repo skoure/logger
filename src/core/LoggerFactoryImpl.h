@@ -11,14 +11,12 @@
 #define SK_LOGGER_FACTORY_IMPL_H
 
 #include <logger/Logger.h>
-#include <logger/MarkerFilter.h>
 #include <ILoggerBackend.h>
 #include <ProxyBackend.h>
 #include <LoggerHierarchy.h>
 #include <SinkConfig.h>
 #include <memory>
 #include <mutex>
-#include <ostream>
 #include <set>
 #include <string>
 #include <vector>
@@ -52,17 +50,6 @@ public:
      * @param logger Logger instance whose sinks should be cleared.
      */
     void clearSinks(LoggerPtr logger);
-
-    /**
-     * @brief Forward an ostream sink configuration request to the active backend.
-     * @param logger           Logger instance to configure.
-     * @param os               Output stream to write to.
-     * @param canonicalPattern Log4j-style pattern.
-     * @param filter           Optional marker filter to gate log records.
-     */
-    void configureLoggerWithOstream(LoggerPtr logger, std::ostream& os,
-                                    const std::string& canonicalPattern,
-                                    const std::shared_ptr<const MarkerFilter>& filter = {});
 
     /**
      * @brief Clear the explicitly-set level on every logger so all revert to

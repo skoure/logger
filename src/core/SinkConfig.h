@@ -10,11 +10,13 @@
 #ifndef SK_SINK_CONFIG_H
 #define SK_SINK_CONFIG_H
 
-#include <MarkerFilterConfig.h>
+#include <logger/Filter.h>
 #include <logger/Logger.h>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger {
 
@@ -37,7 +39,7 @@ struct SinkConfig
     std::optional<Logger::Level> level;
 
     /** Additional sink filters; all configured filters must pass. */
-    std::vector<MarkerFilterConfig> markerFilters;
+    std::vector<std::shared_ptr<const Filter>> filters;
 
     /** Extra properties (path, max_size, max_files, …). */
     std::map<std::string, std::string> properties;
