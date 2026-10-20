@@ -5,6 +5,7 @@
 #include <logger/MarkerFactory.h>
 #include <LoggerBase.h>
 #include <LogRecord.h>
+#include <LoggerUtils.h>
 
 #include <memory>
 #include <sstream>
@@ -57,7 +58,7 @@ TEST_F(GlobalOstreamSinkTest, WritesFormattedOutputFromEveryLogger)
     LoggerFactory::addOstreamSink(output, "[%p] [%c] %m%n");
     logger->info("hello global sink");
 
-    EXPECT_EQ(output.str(), "[INFO] [GlobalOstream.Format] hello global sink\n");
+    EXPECT_EQ(output.str(), std::string("[INFO] [GlobalOstream.Format] hello global sink") + eol);
 }
 
 TEST_F(GlobalOstreamSinkTest, ReceivesEventsFromLoggersCreatedAfterRegistration)
@@ -70,7 +71,7 @@ TEST_F(GlobalOstreamSinkTest, ReceivesEventsFromLoggersCreatedAfterRegistration)
     logger->info("created after sink registration");
 
     EXPECT_EQ(output.str(),
-              "GlobalOstream.FutureLogger.Child:created after sink registration\n");
+              std::string("GlobalOstream.FutureLogger.Child:created after sink registration") + eol);
 }
 
 TEST_F(GlobalOstreamSinkTest, FiltersNonAdditiveLoggersByNameMarkerAndMessage)
@@ -98,7 +99,7 @@ TEST_F(GlobalOstreamSinkTest, FiltersNonAdditiveLoggersByNameMarkerAndMessage)
     child->info(*marker, "database timed out");
     other->info(*marker, "database timed out");
 
-    EXPECT_EQ(output.str(), "GlobalOstream.Target:SECURITY:database timed out\n");
+    EXPECT_EQ(output.str(), std::string("GlobalOstream.Target:SECURITY:database timed out") + eol);
 }
 
 TEST_F(GlobalOstreamSinkTest, ExcludeMarkerFilterPassesUnmarkedAndOtherEvents)
@@ -114,7 +115,7 @@ TEST_F(GlobalOstreamSinkTest, ExcludeMarkerFilterPassesUnmarkedAndOtherEvents)
     logger->info("unmarked");
     logger->info(*MarkerFactory::getMarker("SECURITY"), "other marker");
 
-    EXPECT_EQ(output.str(), "unmarked\nother marker\n");
+    EXPECT_EQ(output.str(), std::string("unmarked") + eol + "other marker" + eol);
 }
 
 TEST_F(GlobalOstreamSinkTest, StopsAtFirstRejectedFilter)
@@ -149,7 +150,7 @@ TEST_F(GlobalOstreamSinkTest, AppliesLevelBeforeFilters)
     EXPECT_EQ(counting->calls, 0);
     logger->warn("warn message");
 
-    EXPECT_EQ(warnOutput.str(), "warn message\n");
-    EXPECT_EQ(traceOutput.str(), "info message\nwarn message\n");
+    EXPECT_EQ(warnOutput.str(), std::string("warn message") + eol);
+    EXPECT_EQ(traceOutput.str(), std::string("info message") + eol + "warn message" + eol);
     EXPECT_EQ(counting->calls, 1);
 }
