@@ -9,8 +9,11 @@
  */
 #include <gtest/gtest.h>
 #include <JsonConfigParser.h>
+#include <logger/LoggerNameFilter.h>
 #include <logger/Logger.h>
+#include <logger/MarkerFilter.h>
 #include <logger/MarkerFactory.h>
+#include <logger/RegexFilter.h>
 #include <array>
 #include <sstream>
 #include <string>
@@ -22,6 +25,14 @@ static std::vector<LoggerConfig> parseString(const std::string& json)
 {
     std::istringstream iss(json);
     return JsonConfigParser::parse(iss);
+}
+
+static const MarkerFilter& markerFilterAt(const SinkConfig& sink, std::size_t index)
+{
+    auto filter = std::dynamic_pointer_cast<const MarkerFilter>(sink.filters.at(index));
+    if (!filter)
+        throw std::runtime_error("Expected a marker filter");
+    return *filter;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,11 +398,11 @@ TEST(JsonConfigParserTest, MarkerFilterArrayParsed)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[1], "AUDIT");
-    EXPECT_FALSE(configs[0].sinks[0].markerFilters[0].exclude);
+    ASSERT_EQ(configs[0].sinks[0].filters.size(), 1u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers().size(), 2u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[0]->getName(), "SECURITY");
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[1]->getName(), "AUDIT");
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMode(), FilterMode::Include);
 }
 
 TEST(JsonConfigParserTest, FilterArrayParsesMultipleTypedEntries)
@@ -408,11 +419,11 @@ TEST(JsonConfigParserTest, FilterArrayParsesMultipleTypedEntries)
 
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 2u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
-    EXPECT_FALSE(configs[0].sinks[0].markerFilters[0].exclude);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[1].names[0], "DEBUG");
-    EXPECT_TRUE(configs[0].sinks[0].markerFilters[1].exclude);
+    ASSERT_EQ(configs[0].sinks[0].filters.size(), 2u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[0]->getName(), "SECURITY");
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMode(), FilterMode::Include);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 1).getMarkers()[0]->getName(), "DEBUG");
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 1).getMode(), FilterMode::Exclude);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterSingleStringParsed)
@@ -425,9 +436,9 @@ TEST(JsonConfigParserTest, MarkerFilterSingleStringParsed)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
+    ASSERT_EQ(configs[0].sinks[0].filters.size(), 1u);
+    ASSERT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers().size(), 1u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[0]->getName(), "SECURITY");
 }
 
 TEST(JsonConfigParserTest, MarkerFilterWhitespaceTrimmed)
@@ -440,9 +451,9 @@ TEST(JsonConfigParserTest, MarkerFilterWhitespaceTrimmed)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[1], "AUDIT");
+    ASSERT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers().size(), 2u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[0]->getName(), "SECURITY");
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[1]->getName(), "AUDIT");
 }
 
 TEST(JsonConfigParserTest, MarkerFilterEmptyNamesSkipped)
@@ -455,7 +466,7 @@ TEST(JsonConfigParserTest, MarkerFilterEmptyNamesSkipped)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
+    ASSERT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers().size(), 2u);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterExcludeModeParsed)
@@ -468,8 +479,8 @@ TEST(JsonConfigParserTest, MarkerFilterExcludeModeParsed)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 2u);
-    EXPECT_TRUE(configs[0].sinks[0].markerFilters[0].exclude);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers().size(), 2u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMode(), FilterMode::Exclude);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterDefaultModeInclude)
@@ -482,8 +493,8 @@ TEST(JsonConfigParserTest, MarkerFilterDefaultModeInclude)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
-    EXPECT_FALSE(configs[0].sinks[0].markerFilters[0].exclude);
+    ASSERT_EQ(configs[0].sinks[0].filters.size(), 1u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMode(), FilterMode::Include);
 }
 
 TEST(JsonConfigParserTest, MarkerFilterUnknownModeThrows)
@@ -566,7 +577,7 @@ TEST(JsonConfigParserTest, MarkerFilterAbsentIsEmpty)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_TRUE(configs[0].sinks[0].markerFilters.empty());
+    EXPECT_TRUE(configs[0].sinks[0].filters.empty());
 }
 
 TEST(JsonConfigParserTest, EmptyFiltersArrayMeansNoFiltering)
@@ -579,7 +590,7 @@ TEST(JsonConfigParserTest, EmptyFiltersArrayMeansNoFiltering)
     })");
     ASSERT_EQ(configs.size(), 1u);
     ASSERT_EQ(configs[0].sinks.size(), 1u);
-    EXPECT_TRUE(configs[0].sinks[0].markerFilters.empty());
+    EXPECT_TRUE(configs[0].sinks[0].filters.empty());
 }
 
 TEST(JsonConfigParserTest, MarkerFilterCombinesWithLevel)
@@ -596,8 +607,34 @@ TEST(JsonConfigParserTest, MarkerFilterCombinesWithLevel)
     ASSERT_EQ(configs[0].sinks.size(), 1u);
     ASSERT_TRUE(configs[0].sinks[0].level.has_value());
     EXPECT_EQ(*configs[0].sinks[0].level, Logger::Level::Warn);
-    ASSERT_EQ(configs[0].sinks[0].markerFilters.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names.size(), 1u);
-    EXPECT_EQ(configs[0].sinks[0].markerFilters[0].names[0], "SECURITY");
-    EXPECT_TRUE(configs[0].sinks[0].markerFilters[0].exclude);
+    ASSERT_EQ(configs[0].sinks[0].filters.size(), 1u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers().size(), 1u);
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMarkers()[0]->getName(), "SECURITY");
+    EXPECT_EQ(markerFilterAt(configs[0].sinks[0], 0).getMode(), FilterMode::Exclude);
+}
+
+TEST(JsonConfigParserTest, ParsesLoggerNameAndMessageRegexFilters)
+{
+    auto configs = parseString(R"({"loggers":[{"name":"root","sinks":[{"type":"console","filters":[
+        {"type":"logger_name","names":["App.Database"],"mode":"exclude"},
+        {"type":"message_regex","pattern":"^timeout","mode":"include"}
+    ]}]}]})");
+
+    const auto& filters = configs[0].sinks[0].filters;
+    ASSERT_EQ(filters.size(), 2u);
+    auto loggerNames = std::dynamic_pointer_cast<const LoggerNameFilter>(filters[0]);
+    auto regex = std::dynamic_pointer_cast<const RegexFilter>(filters[1]);
+    ASSERT_NE(loggerNames, nullptr);
+    ASSERT_NE(regex, nullptr);
+    EXPECT_EQ(loggerNames->getNames(), (std::vector<std::string>{"App.Database"}));
+    EXPECT_EQ(loggerNames->getMode(), FilterMode::Exclude);
+    EXPECT_EQ(regex->getPattern(), "^timeout");
+    EXPECT_EQ(regex->getMode(), FilterMode::Include);
+}
+
+TEST(JsonConfigParserTest, InvalidMessageRegexThrows)
+{
+    EXPECT_THROW(parseString(R"({"loggers":[{"name":"root","sinks":[{"type":"console","filters":[
+        {"type":"message_regex","pattern":"["}
+    ]}]}]})"), ParseException);
 }

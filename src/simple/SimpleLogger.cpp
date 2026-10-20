@@ -8,7 +8,8 @@
  * @date Created: November 08, 2025
  */
 #include <SimpleLogger.h>
-#include <SimpleLoggerPattern.h>
+#include <LogRecordPattern.h>
+#include <FilterEvaluator.h>
 #include <iostream>
 
 using namespace sk::logger;
@@ -56,7 +57,7 @@ void SimpleLogger::writeToStream(std::ostream& os,
     }
     else
     {
-        os << SimpleLoggerPattern::render(pattern, record);
+        os << LogRecordPattern::render(pattern, record);
     }
 }
 
@@ -78,8 +79,7 @@ void SimpleLogger::append(const LogRecord& record)
         if (sink.level.has_value() && record.level > *sink.level)
             continue;
 
-        // Marker filtering
-        if (!passesAllMarkerFilters(sink.markerFilters, record.markers))
+        if (!FilterEvaluator::passesAll(sink.filters, record))
             continue;
 
         if (sink.stream)
@@ -99,7 +99,7 @@ void SimpleLogger::append(const LogRecord& record)
         {
             if (sink.level.has_value() && record.level > *sink.level)
                 continue;
-            if (!passesAllMarkerFilters(sink.markerFilters, record.markers))
+            if (!FilterEvaluator::passesAll(sink.filters, record))
                 continue;
             if (sink.stream)
                 sink.stream->flush();

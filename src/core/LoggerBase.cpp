@@ -8,6 +8,7 @@
  * @date Created: March 21, 2026
  */
 #include <LoggerBase.h>
+#include <GlobalOstreamSink.h>
 #include <LoggerUtils.h>
 #include <chrono>
 #include <cstdio>
@@ -19,6 +20,12 @@ using namespace sk::logger;
 namespace {
 // skip 2 removes the formatException and LoggerBase frame from the top of the trace
 constexpr int kLoggerBaseExceptionTraceSkip = 2;
+
+void dispatchRecord(LoggerBase& logger, const LogRecord& record)
+{
+    logger.append(record);
+    dispatchGlobalOstreamSinks(record, logger.getFlushOn());
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +155,7 @@ void LoggerBase::logImpl(Level level, const char* fmt, va_list args)
     record.timestamp  = std::chrono::system_clock::now();
     record.threadId   = std::this_thread::get_id();
     record.threadName = getCurrentThreadName();
-    append(record);
+    dispatchRecord(*this, record);
 }
 
 void LoggerBase::logImplWithMarkers(Level level,
@@ -163,7 +170,7 @@ void LoggerBase::logImplWithMarkers(Level level,
     record.threadId   = std::this_thread::get_id();
     record.threadName = getCurrentThreadName();
     record.markers    = markers;
-    append(record);
+    dispatchRecord(*this, record);
 }
 
 void LoggerBase::fatal(const char* fmt, ...)
@@ -243,7 +250,7 @@ void LoggerBase::error(const char* msg, const std::exception& ex)
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
-        append(record);
+        dispatchRecord(*this, record);
     }
 }
 
@@ -258,7 +265,7 @@ void LoggerBase::fatal(const char* msg, const std::exception& ex)
         record.timestamp  = std::chrono::system_clock::now();
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
-        append(record);
+        dispatchRecord(*this, record);
     }
 }
 
@@ -345,7 +352,7 @@ void LoggerBase::error(const Marker& marker, const char* msg,
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
         record.markers    = {&marker};
-        append(record);
+        dispatchRecord(*this, record);
     }
 }
 
@@ -362,7 +369,7 @@ void LoggerBase::fatal(const Marker& marker, const char* msg,
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
         record.markers    = {&marker};
-        append(record);
+        dispatchRecord(*this, record);
     }
 }
 
@@ -449,7 +456,7 @@ void LoggerBase::error(const MarkerList& markers, const char* msg,
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
         record.markers    = markers.get();
-        append(record);
+        dispatchRecord(*this, record);
     }
 }
 
@@ -466,6 +473,6 @@ void LoggerBase::fatal(const MarkerList& markers, const char* msg,
         record.threadId   = std::this_thread::get_id();
         record.threadName = getCurrentThreadName();
         record.markers    = markers.get();
-        append(record);
+        dispatchRecord(*this, record);
     }
 }

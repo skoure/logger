@@ -14,7 +14,7 @@
 #include <LoggerFactoryImpl.h>
 #include <LoggerBase.h>
 #include <LoggerUtils.h>
-#include <MarkerFilterSink.h>
+#include <FilterSink.h>
 
 #include <spdlog/sinks/ansicolor_sink.h>
 #include <spdlog/sinks/sink.h>
@@ -331,39 +331,14 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
         if (sc.level.has_value())
             sink->set_level(SpdlogLogger::toSpdlogLevel(*sc.level));
 
-        if (!sc.markerFilters.empty())
-            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(sink, sc.markerFilters);
+        if (!sc.filters.empty())
+            sink = std::make_shared<spdlog_sinks::FilterSink>(sink, sc.filters);
 
         newSinks.push_back(sink);
     }
 
     if (!newSinks.empty())
         internalLogger->sinks() = newSinks;
-}
-
-void SpdlogBackend::configureLoggerWithOstream(LoggerPtr loggerPtr,
-                                               std::ostream& os,
-                                               const std::string& canonicalPattern,
-                                               const std::shared_ptr<const MarkerFilter>& filter)
-{
-    auto* spLogger = dynamic_cast<SpdlogLogger*>(loggerPtr.get());
-    if (!spLogger) return;
-
-    auto internalLogger = spLogger->getInternalLogger();
-    if (!internalLogger) return;
-
-    const std::string spdlogPattern = SpdlogPatternTranslator::translate(canonicalPattern);
-    std::shared_ptr<spdlog::sinks::sink> sink =
-        std::make_shared<spdlog::sinks::ostream_sink_mt>(os);
-    applyPattern(sink, spdlogPattern);
-    if (filter) {
-        MarkerFilterConfig filterConfig(*filter);
-        if (!filterConfig.empty())
-            sink = std::make_shared<spdlog_sinks::MarkerFilterSink>(
-                sink, std::vector<MarkerFilterConfig>{std::move(filterConfig)});
-    }
-
-    internalLogger->sinks().push_back(sink);
 }
 
 void SpdlogBackend::clearSinks(LoggerPtr logger)

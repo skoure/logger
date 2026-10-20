@@ -12,6 +12,7 @@
 #include <Log4CxxLogger.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
+#include <logger/FilterFactory.h>
 #include <logger/MarkerFactory.h>
 #include <sstream>
 #include <fstream>
@@ -61,82 +62,6 @@ TEST_F(Log4CxxBackendTest, CreateLoggerReturnsLog4CxxLoggerType) {
     EXPECT_NE(dynamic_cast<Log4CxxLogger*>(logger.get()), nullptr);
 }
 
-
-TEST_F(Log4CxxBackendTest, ConfigureWithOstreamWritesFormattedOutput)
-{
-    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Test");
-    logger->setLevel(Logger::Level::Trace);
-
-    std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%p] %m%n");
-
-    logger->info("hello log4cxx");
-    EXPECT_NE(oss.str().find("hello log4cxx"), std::string::npos)
-        << "output: " << oss.str();
-}
-
-TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesIncludeMarkerFilter)
-{
-    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.Include");
-    logger->setLevel(Logger::Level::Trace);
-
-    std::ostringstream output;
-    auto filter = MarkerFactory::createFilter();
-    filter->setMarkers({MarkerFactory::getMarker("SECURITY")});
-    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
-
-    auto security = MarkerFactory::getMarker("SECURITY");
-    auto other = MarkerFactory::getMarker("OTHER");
-    logger->info(*security, "included output");
-    logger->info(*other, "blocked output");
-    logger->info("unmarked output");
-
-    EXPECT_NE(output.str().find("included output"), std::string::npos);
-    EXPECT_EQ(output.str().find("blocked output"), std::string::npos);
-    EXPECT_EQ(output.str().find("unmarked output"), std::string::npos);
-}
-
-TEST_F(Log4CxxBackendTest, SingleMarkerFilterMatchesAnyConfiguredMarker)
-{
-    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.MultipleNames");
-    logger->setLevel(Logger::Level::Trace);
-
-    auto security = MarkerFactory::getMarker("SECURITY");
-    auto audit = MarkerFactory::getMarker("AUDIT");
-    auto other = MarkerFactory::getMarker("OTHER");
-    auto filter = MarkerFactory::createFilter();
-    filter->setMarkers({security, audit});
-
-    std::ostringstream output;
-    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
-    logger->info(*audit, "second configured marker passes");
-    logger->info(*other, "unlisted marker is blocked");
-
-    EXPECT_NE(output.str().find("second configured marker passes"), std::string::npos);
-    EXPECT_EQ(output.str().find("unlisted marker is blocked"), std::string::npos);
-}
-
-TEST_F(Log4CxxBackendTest, ConfigureWithOstreamAppliesExcludeMarkerFilter)
-{
-    LoggerPtr logger = backend.createLogger("Log4Cxx.OStream.Marker.Exclude");
-    logger->setLevel(Logger::Level::Trace);
-
-    std::ostringstream output;
-    auto filter = MarkerFactory::createFilter();
-    filter->setMarkers({MarkerFactory::getMarker("DEBUG")});
-    filter->setMode(MarkerFilter::Mode::Exclude);
-    backend.configureLoggerWithOstream(logger, output, "%m%n", filter);
-
-    auto debug = MarkerFactory::getMarker("DEBUG");
-    auto security = MarkerFactory::getMarker("SECURITY");
-    logger->info(*debug, "blocked output");
-    logger->info(*security, "included output");
-    logger->info("unmarked output");
-
-    EXPECT_EQ(output.str().find("blocked output"), std::string::npos);
-    EXPECT_NE(output.str().find("included output"), std::string::npos);
-    EXPECT_NE(output.str().find("unmarked output"), std::string::npos);
-}
 
 TEST_F(Log4CxxBackendTest, ConsoleSinkDefaultHasNoColorTokens)
 {
@@ -271,35 +196,6 @@ TEST_F(Log4CxxBackendTest, TwoSinksHaveDifferentThresholds)
     EXPECT_EQ(skel1->getThreshold(), log4cxx::Level::getError());
 }
 
-TEST_F(Log4CxxBackendTest, SinkLevelFilteredViaOstream)
-{
-    LoggerPtr logger = backend.createLogger("Log4Cxx.SinkLevel.OStream");
-    logger->setLevel(Logger::Level::Debug);
-
-    std::ostringstream warn_oss;
-    std::ostringstream debug_oss;
-    backend.configureLoggerWithOstream(logger, warn_oss,  "[%p] %m%n");
-    backend.configureLoggerWithOstream(logger, debug_oss, "[%p] %m%n");
-
-    auto internalLogger = dynamic_cast<Log4CxxLogger*>(logger.get())->getInternalLogger();
-    auto appenders = internalLogger->getAllAppenders();
-    ASSERT_EQ(appenders.size(), 2u);
-
-    auto skel0 = std::dynamic_pointer_cast<log4cxx::AppenderSkeleton>(appenders[0]);
-    auto skel1 = std::dynamic_pointer_cast<log4cxx::AppenderSkeleton>(appenders[1]);
-    ASSERT_NE(skel0, nullptr);
-    ASSERT_NE(skel1, nullptr);
-    skel0->setThreshold(log4cxx::Level::getWarn());
-    // skel1 left at ALL
-
-    logger->info("info message");
-
-    EXPECT_TRUE(warn_oss.str().empty())
-        << "WARN-threshold appender should suppress INFO; got: " << warn_oss.str();
-    EXPECT_NE(debug_oss.str().find("info message"), std::string::npos)
-        << "No-threshold appender should pass INFO; got: " << debug_oss.str();
-}
-
 // Integration: factory returns valid parent and child loggers (Log4cxx owns hierarchy natively)
 TEST(Log4CxxBackendFactoryTest, FactoryReturnsValidChildLogger) {
     LoggerFactory& factory = LoggerFactory::getInstance();
@@ -355,43 +251,6 @@ TEST_F(Log4CxxBackendTest, Integration_ChildDoesNotInheritWhenAdditivityFalse)
 }
 
 // ---------------------------------------------------------------------------
-// Marker rendering: %X{marker} with multiple markers
-// ---------------------------------------------------------------------------
-
-TEST(Log4CxxMarkerRenderingTest, MultiMarkerCommaJoined)
-{
-    Log4CxxBackend backend;
-    LoggerPtr logger = backend.createLogger("Log4CxxMarker.Multi");
-    logger->setLevel(Logger::Level::Trace);
-
-    std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%X{marker}] %m%n");
-
-    auto a = MarkerFactory::getMarker("DB");
-    auto b = MarkerFactory::getMarker("QUERY");
-    logger->info({*a, *b}, "multi-marker message");
-
-    EXPECT_NE(oss.str().find("[DB, QUERY]"), std::string::npos)
-        << "output: " << oss.str();
-}
-
-TEST(Log4CxxMarkerRenderingTest, SingleMarkerRendersName)
-{
-    Log4CxxBackend backend;
-    LoggerPtr logger = backend.createLogger("Log4CxxMarker.Single");
-    logger->setLevel(Logger::Level::Trace);
-
-    std::ostringstream oss;
-    backend.configureLoggerWithOstream(logger, oss, "[%X{marker}] %m%n");
-
-    auto m = MarkerFactory::getMarker("SINGLE");
-    logger->info(*m, "single marker message");
-
-    EXPECT_NE(oss.str().find("[SINGLE]"), std::string::npos)
-        << "output: " << oss.str();
-}
-
-// ---------------------------------------------------------------------------
 // Marker-based sink filtering (log4cxx)
 // ---------------------------------------------------------------------------
 
@@ -409,7 +268,8 @@ TEST_F(Log4CxxBackendTest, MarkerFilterIncludePassesMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilters = {MarkerFilterConfig({"SECURITY"})};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")})};
 
     backend.configureLogger(logger, {sc});
 
@@ -436,7 +296,8 @@ TEST_F(Log4CxxBackendTest, MarkerFilterIncludeBlocksNonMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilters = {MarkerFilterConfig({"SECURITY"})};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")})};
 
     backend.configureLogger(logger, {sc});
 
@@ -463,7 +324,8 @@ TEST_F(Log4CxxBackendTest, MarkerFilterIncludeBlocksUnmarkedEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilters = {MarkerFilterConfig({"SECURITY"})};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("SECURITY")})};
 
     backend.configureLogger(logger, {sc});
 
@@ -489,7 +351,8 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludeBlocksMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("DEBUG")}, FilterMode::Exclude)};
 
     backend.configureLogger(logger, {sc});
 
@@ -516,7 +379,8 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesUnmarkedEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("DEBUG")}, FilterMode::Exclude)};
 
     backend.configureLogger(logger, {sc});
 
@@ -542,7 +406,8 @@ TEST_F(Log4CxxBackendTest, MarkerFilterExcludePassesNonMatchingEvent)
     sc.type = "file";
     sc.pattern = "%m%n";
     sc.properties["path"] = tmpPath;
-    sc.markerFilters = {MarkerFilterConfig({"DEBUG"}, true)};
+    sc.filters = {FilterFactory::createMarkerFilter(
+        {MarkerFactory::getMarker("DEBUG")}, FilterMode::Exclude)};
 
     backend.configureLogger(logger, {sc});
 
@@ -568,9 +433,9 @@ TEST_F(Log4CxxBackendTest, MultipleMarkerFiltersUseAndSemantics)
     sink.type = "file";
     sink.pattern = "%m%n";
     sink.properties["path"] = tmpPath;
-    sink.markerFilters = {
-        MarkerFilterConfig({"SECURITY"}),
-        MarkerFilterConfig({"AUDIT"})
+    sink.filters = {
+        FilterFactory::createMarkerFilter({MarkerFactory::getMarker("SECURITY")}),
+        FilterFactory::createMarkerFilter({MarkerFactory::getMarker("AUDIT")})
     };
     backend.configureLogger(logger, {sink});
 
@@ -584,4 +449,37 @@ TEST_F(Log4CxxBackendTest, MultipleMarkerFiltersUseAndSemantics)
                               std::istreambuf_iterator<char>());
     EXPECT_EQ(content.find("only one rule passed"), std::string::npos);
     EXPECT_NE(content.find("all rules passed"), std::string::npos);
+}
+
+TEST_F(Log4CxxBackendTest, JsonLoggerNameAndRegexFiltersUseEventFields)
+{
+    const std::string path = std::string(TEST_CONFIG_DIR) + "/log4cxx_json_name_regex.log";
+    std::remove(path.c_str());
+    registerTempLogFile(path);
+
+    LoggerFactory::configureFromJsonString(R"({
+        "loggers": [{
+            "name": "root",
+            "level": "TRACE",
+            "flush_on": "TRACE",
+            "sinks": [{
+                "type": "file",
+                "pattern": "%m%n",
+                "properties": {"path": ")" + path + R"("},
+                "filters": [
+                    {"type": "logger_name", "names": ["Log4Cxx.Filters.Target"]},
+                    {"type": "message_regex", "pattern": "timed.?out"}
+                ]
+            }]
+        }]
+    })");
+
+    LoggerFactory::getLogger("Log4Cxx.Filters.Target")->info("database timed out");
+    LoggerFactory::getLogger("Log4Cxx.Filters.Target")->info("database healthy");
+    LoggerFactory::getLogger("Log4Cxx.Filters.Other")->info("database timed out");
+
+    std::ifstream file(path);
+    const std::string content((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    EXPECT_EQ(content, "database timed out\n");
 }

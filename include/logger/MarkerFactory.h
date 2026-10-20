@@ -11,7 +11,6 @@
 #define SK_LOGGER_MARKERFACTORY_H
 
 #include "Marker.h"
-#include "MarkerFilter.h"
 #include <memory>
 #include <string>
 
@@ -33,13 +32,6 @@ public:
      * @return A shared pointer to the unique Marker instance.
      */
     static std::shared_ptr<Marker> getMarker(const std::string& name);
-
-    /**
-     * @brief Creates a new MarkerFilter instance with default settings.
-     * The filter is initialized with no marker names and is set to include mode.
-     * @return A shared pointer to the newly created MarkerFilter instance.
-     */
-    static std::shared_ptr<MarkerFilter> createFilter();
 
 private:
     // Prevent instantiation (all methods are static)

@@ -20,10 +20,8 @@
 #define SK_ILOGGER_BACKEND_H
 
 #include <logger/Logger.h>
-#include <logger/MarkerFilter.h>
 #include <LoggerBase.h>
 #include <SinkConfig.h>
-#include <ostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -58,21 +56,6 @@ public:
     virtual void configureLogger(LoggerPtr /*logger*/,
                                  const std::vector<SinkConfig>& /*sinks*/) {}
 
-    /**
-     * @brief Configure a logger to write to an arbitrary std::ostream.
-     *
-     * The caller must ensure @p os outlives the logger.  The default
-     * implementation is a no-op; backends that do not support ostream
-     * output do not need to override it.
-     *
-     * @param logger           Logger instance to configure.
-     * @param os               Output stream to write to.
-     * @param canonicalPattern Log4j-style pattern (e.g. "[%p] %m%n").
-     */
-    virtual void configureLoggerWithOstream(LoggerPtr /*logger*/,
-                                            std::ostream& /*os*/,
-                                            const std::string& /*canonicalPattern*/,
-                                            const std::shared_ptr<const MarkerFilter>& /*filter*/ = {}) {}
 };
 
 }} // namespace sk::logger
