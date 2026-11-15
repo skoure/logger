@@ -14,6 +14,7 @@
 #include <Log4CxxBackend.h>
 #include <Log4CxxLogger.h>
 #include <Log4CxxPatternTranslator.h>
+#include <MarkerPatternLayout.h>
 #include <ProxyLogger.h>
 #include <LoggerBase.h>
 #include <logger/LevelNames.h>
@@ -258,16 +259,18 @@ static std::string captureLog4CxxLine(const std::string& canonicalPattern,
                                       Logger::Level level = Logger::Level::Info,
                                       const Marker* marker = nullptr)
 {
+    std::vector<MarkerPatternOptions> markerOptions;
     const std::string log4cxxPattern =
-        Log4CxxPatternTranslator::translate(canonicalPattern);
+        Log4CxxPatternTranslator::translate(canonicalPattern, markerOptions);
 
     Log4CxxLogger logger("Log4CxxPadding.Capture");
     logger.setLevel(Logger::Level::Trace);
     logger.getInternalLogger()->setAdditivity(false);
 
     auto* capturer = new FormattedCapturingAppender();
-    auto layout = std::make_shared<log4cxx::PatternLayout>(
-        log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()));
+    auto layout = std::make_shared<MarkerPatternLayout>(
+        log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()),
+        markerOptions);
     capturer->setLayout(layout);
     log4cxx::helpers::Pool pool;
     capturer->activateOptions(pool);
@@ -304,16 +307,18 @@ static std::string captureLog4CxxMultiMarkerLine(const std::string& canonicalPat
                                       Logger::Level level = Logger::Level::Info,
                                       const MarkerList& markers = MarkerList())
 {
+    std::vector<MarkerPatternOptions> markerOptions;
     const std::string log4cxxPattern =
-        Log4CxxPatternTranslator::translate(canonicalPattern);
+        Log4CxxPatternTranslator::translate(canonicalPattern, markerOptions);
 
     Log4CxxLogger logger("Log4CxxPadding.Capture");
     logger.setLevel(Logger::Level::Trace);
     logger.getInternalLogger()->setAdditivity(false);
 
     auto* capturer = new FormattedCapturingAppender();
-    auto layout = std::make_shared<log4cxx::PatternLayout>(
-        log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()));
+    auto layout = std::make_shared<MarkerPatternLayout>(
+        log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()),
+        markerOptions);
     capturer->setLayout(layout);
     log4cxx::helpers::Pool pool;
     capturer->activateOptions(pool);

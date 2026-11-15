@@ -104,6 +104,14 @@ static std::string modifierString(const PatternModifier& mod)
 
 std::string Log4CxxPatternTranslator::translate(const std::string& canonical)
 {
+    std::vector<MarkerPatternOptions> markerOptions;
+    return translate(canonical, markerOptions);
+}
+
+std::string Log4CxxPatternTranslator::translate(
+    const std::string& canonical,
+    std::vector<MarkerPatternOptions>& markerOptions)
+{
     std::string result;
     result.reserve(canonical.size() * 2);
 
@@ -156,10 +164,13 @@ std::string Log4CxxPatternTranslator::translate(const std::string& canonical)
             break;
 
         case 'M':
-            // Canonical %M = marker name; read from MDC "marker" key
-            // log4cxx handles %-10X{marker} natively
-            result += '%' + modStr + "X{marker}";
+        {
+            MarkerPatternOptions options = parseMarkerPatternOptions(canonical, i);
+            const std::size_t optionIndex = markerOptions.size();
+            markerOptions.push_back(std::move(options));
+            result += '%' + modStr + "K{" + std::to_string(optionIndex) + '}';
             break;
+        }
 
         case 'd':
         {

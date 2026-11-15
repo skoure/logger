@@ -7,28 +7,29 @@
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: March 28, 2026
  *
- * Most canonical tokens are already native log4cxx and pass through unchanged.
- * The following require transformation:
+ * Most canonical tokens map to native log4cxx tokens. Marker tokens are
+ * represented by a per-token converter so each occurrence can use its own
+ * parsed selection and separator options.
  *
  *   %d{strftime-fmt} → %d{java-date-fmt}
  *     e.g. %d{%Y-%m-%d %H:%M:%S} → %d{yyyy-MM-dd HH:mm:ss}
  *
- *   %M  → %X{marker}    (reads MDC "marker" key set by Log4CxxLogger::append())
  *   %T  → %t            (log4cxx %t = thread name — maps our thread-name token)
  *
  * strftime→java mapping for date tokens:
  *   %Y → yyyy   %m → MM   %d → dd
  *   %H → HH     %M → mm   %S → ss
  *
- * Note: %M appears in two contexts.
- *   • As a top-level token     → %X{marker}
- *   • Inside %d{…}             → translated to java 'mm' (minutes)
- *   These are distinguished by context in the parser.
+ * Note: %M inside %d{...} is a strftime minute specifier and becomes java 'mm';
+ * only top-level %M tokens are treated as library marker tokens.
  */
 #ifndef SK_LOG4CXX_PATTERN_TRANSLATOR_H
 #define SK_LOG4CXX_PATTERN_TRANSLATOR_H
 
+#include "MarkerPattern.h"
+
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger {
 
@@ -45,6 +46,15 @@ public:
      * @return log4cxx-compatible pattern string.
      */
     static std::string translate(const std::string& canonical);
+
+    /**
+     * @brief Translates a pattern and returns its configured marker rules.
+     * @param canonical Pattern using canonical tokens.
+     * @param markerOptions Receives one rule per configured `%M{...}` token.
+     * @return log4cxx-compatible pattern string.
+     */
+    static std::string translate(const std::string& canonical,
+                                 std::vector<MarkerPatternOptions>& markerOptions);
 
 private:
     Log4CxxPatternTranslator() = delete;

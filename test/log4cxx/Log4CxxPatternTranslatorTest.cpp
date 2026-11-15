@@ -9,6 +9,7 @@
  */
 #include <gtest/gtest.h>
 #include <Log4CxxPatternTranslator.h>
+#include <logger/Exceptions.h>
 
 using namespace sk::logger;
 
@@ -39,7 +40,33 @@ TEST(Log4CxxPatternTranslatorTest, NewlinePassesThrough)
 
 TEST(Log4CxxPatternTranslatorTest, MarkerTokenTranslated)
 {
-    EXPECT_EQ(Log4CxxPatternTranslator::translate("%M"), "%X{marker}");
+    std::vector<MarkerPatternOptions> options;
+    const std::string translated = Log4CxxPatternTranslator::translate("%M", options);
+
+    EXPECT_EQ(translated, "%K{0}");
+    ASSERT_EQ(options.size(), 1u);
+    EXPECT_EQ(options[0].mode, MarkerPatternOptions::Mode::All);
+    EXPECT_EQ(options[0].separator, ", ");
+}
+
+TEST(Log4CxxPatternTranslatorTest, ConfiguredMarkerTokensGetDistinctConverters)
+{
+    std::vector<MarkerPatternOptions> options;
+    const std::string translated = Log4CxxPatternTranslator::translate(
+        "%M{-:ACTIVITY-LOG;sep=|}|%M{+:OP-LOG,SECURITY;sep= / }", options);
+
+    EXPECT_EQ(translated, "%K{0}|%K{1}");
+    ASSERT_EQ(options.size(), 2u);
+    EXPECT_EQ(options[0].mode, MarkerPatternOptions::Mode::Exclude);
+    EXPECT_EQ(options[0].separator, "|");
+    EXPECT_EQ(options[1].mode, MarkerPatternOptions::Mode::Include);
+    EXPECT_EQ(options[1].separator, " / ");
+}
+
+TEST(Log4CxxPatternTranslatorTest, MalformedMarkerOptionsAreRejected)
+{
+    EXPECT_THROW(Log4CxxPatternTranslator::translate("%M{+:A;unknown=x}"),
+                 PatternLayoutParseException);
 }
 
 TEST(Log4CxxPatternTranslatorTest, ThreadNameTokenTranslated)
@@ -64,7 +91,7 @@ TEST(Log4CxxPatternTranslatorTest, MarkerInFullPattern)
 {
     std::string result = Log4CxxPatternTranslator::translate(
         "[%p] [%M] %m%n");
-    EXPECT_EQ(result, "[%X{level}] [%X{marker}] %m%n");
+    EXPECT_EQ(result, "[%X{level}] [%K{0}] %m%n");
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +125,7 @@ TEST(Log4CxxPatternTranslatorTest, ModifierOnThreadName)
 
 TEST(Log4CxxPatternTranslatorTest, ModifierOnMarker)
 {
-    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10M"), "%-10X{marker}");
+    EXPECT_EQ(Log4CxxPatternTranslator::translate("%-10M"), "%-10K{0}");
 }
 
 TEST(Log4CxxPatternTranslatorTest, ModifierOnDateWithFmt)

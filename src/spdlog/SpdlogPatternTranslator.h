@@ -13,7 +13,7 @@
  *   %c  → %n   (logger name)
  *   %t  → %t   (thread id, native in spdlog)
  *   %T  → %*   (thread name — custom flag, see SpdlogBackend.cpp)
- *   %M  → %&   (marker    — custom flag, see SpdlogBackend.cpp)
+ *   %M  → per-token custom flag (marker options are registered by the backend)
  *   %d{strftime-fmt} → strftime-fmt inline (spdlog parses strftime directly)
  *   %n  → %n   (newline — no, spdlog %n is logger name; use \n literal)
  *   other tokens pass through unchanged
@@ -21,7 +21,10 @@
 #ifndef SK_SPDLOG_PATTERN_TRANSLATOR_H
 #define SK_SPDLOG_PATTERN_TRANSLATOR_H
 
+#include "MarkerPattern.h"
+
 #include <string>
+#include <vector>
 
 namespace sk { namespace logger {
 
@@ -38,6 +41,15 @@ public:
      * @return spdlog-compatible pattern string.
      */
     static std::string translate(const std::string& canonical);
+
+    /**
+     * @brief Translates a pattern and returns its configured marker rules.
+     * @param canonical Pattern using canonical tokens.
+     * @param markerOptions Receives one rule per configured `%M{...}` token.
+     * @return spdlog-compatible pattern string.
+     */
+    static std::string translate(const std::string& canonical,
+                                 std::vector<MarkerPatternOptions>& markerOptions);
 
 private:
     SpdlogPatternTranslator() = delete;

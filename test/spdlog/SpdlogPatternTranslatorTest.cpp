@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <LoggerUtils.h>
 #include <SpdlogPatternTranslator.h>
+#include <logger/Exceptions.h>
 
 using namespace sk::logger;
 
@@ -52,7 +53,43 @@ TEST(SpdlogPatternTranslatorTest, ThreadNameTokenMapsToCustomFlag)
 
 TEST(SpdlogPatternTranslatorTest, MarkerTokenMapsToCustomFlag)
 {
-    EXPECT_EQ(SpdlogPatternTranslator::translate("%M"), "%&");
+    std::vector<MarkerPatternOptions> options;
+    const std::string translated = SpdlogPatternTranslator::translate("%M", options);
+
+    ASSERT_EQ(options.size(), 1u);
+    std::string expected("%");
+    expected += static_cast<char>(1);
+    EXPECT_EQ(translated, expected);
+    EXPECT_EQ(options[0].mode, MarkerPatternOptions::Mode::All);
+    EXPECT_EQ(options[0].separator, ", ");
+}
+
+TEST(SpdlogPatternTranslatorTest, ConfiguredMarkerTokensGetDistinctFlags)
+{
+    std::vector<MarkerPatternOptions> options;
+    const std::string translated = SpdlogPatternTranslator::translate(
+        "%M{-:ACTIVITY-LOG;sep=|}|%M{+:OP-LOG,SECURITY;sep= / }", options);
+
+    ASSERT_EQ(options.size(), 2u);
+    EXPECT_EQ(translated.size(), 5u);
+    EXPECT_EQ(translated[0], '%');
+    EXPECT_EQ(translated[1], static_cast<char>(1));
+    EXPECT_EQ(translated.substr(2, 1), "|");
+    EXPECT_EQ(translated[3], '%');
+    EXPECT_EQ(translated[4], static_cast<char>(2));
+    EXPECT_EQ(options[0].mode, MarkerPatternOptions::Mode::Exclude);
+    EXPECT_EQ(options[0].names, (std::vector<std::string>{"ACTIVITY-LOG"}));
+    EXPECT_EQ(options[0].separator, "|");
+    EXPECT_EQ(options[1].mode, MarkerPatternOptions::Mode::Include);
+    EXPECT_EQ(options[1].names,
+              (std::vector<std::string>{"OP-LOG", "SECURITY"}));
+    EXPECT_EQ(options[1].separator, " / ");
+}
+
+TEST(SpdlogPatternTranslatorTest, MalformedMarkerOptionsAreRejected)
+{
+    EXPECT_THROW(SpdlogPatternTranslator::translate("%M{+:A;unknown=x}"),
+                 PatternLayoutParseException);
 }
 
 TEST(SpdlogPatternTranslatorTest, MultipleTokensInOnePattern)
@@ -112,7 +149,9 @@ TEST(SpdlogPatternTranslatorTest, ModifierOnThreadName)
 
 TEST(SpdlogPatternTranslatorTest, ModifierOnMarker)
 {
-    EXPECT_EQ(SpdlogPatternTranslator::translate("%10M"), "%10&");
+    std::string expected = "%10";
+    expected += static_cast<char>(1);
+    EXPECT_EQ(SpdlogPatternTranslator::translate("%10M"), expected);
 }
 
 TEST(SpdlogPatternTranslatorTest, ModifierOnThreadId)

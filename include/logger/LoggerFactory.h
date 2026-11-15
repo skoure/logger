@@ -6,7 +6,6 @@
  *
  * @author Stephen Kouretas <stephen.kouretas@gmail.com>
  * @date Created: November 08, 2025
- * @date Last modified: November 08, 2025
  */
 #ifndef SK_LOGGER_FACTORY_H
 #define SK_LOGGER_FACTORY_H
@@ -63,7 +62,7 @@ public:
      * Parses @p json and, for each named logger entry, sets its level and
      * delegates sink configuration to the active backend.
      *
-     * Throws ParseException if the JSON is invalid.
+    * Throws ParseException if the JSON or a configured pattern is invalid.
      *
      * @param json JSON configuration string.
      */
@@ -74,7 +73,7 @@ public:
      *
      * Reads the file at @p filePath, then delegates to configureFromJsonString().
      *
-     * Throws ParseException if the file is missing or contains invalid JSON.
+    * Throws ParseException if the file is missing or contains invalid JSON or patterns.
      *
      * @param filePath Path to the JSON logging configuration file.
      */
