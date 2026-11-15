@@ -71,18 +71,15 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
 
     for (const SinkConfig& sc : sinks)
     {
-        SimpleSink sink;
-        sink.pattern = sc.pattern;
-
-        sink.level = sc.level;
-        sink.filters = sc.filters;
+        std::shared_ptr<std::ostream> stream;
+        bool color = false;
 
         if (sc.type == "console")
         {
             auto colorIt = sc.properties.find("color");
-            sink.color  = (colorIt != sc.properties.end())
-                          && (colorIt->second == "true");
-            sink.stream = std::shared_ptr<std::ostream>(
+            color = (colorIt != sc.properties.end())
+                    && (colorIt->second == "true");
+            stream = std::shared_ptr<std::ostream>(
                 &std::clog, [](std::ostream*) {});
         }
         else if (sc.type == "file")
@@ -97,7 +94,7 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
                 throw std::runtime_error(
                     std::string("SimpleLoggerBackend::configureLogger: cannot open file: ")
                     + it->second);
-            sink.stream = fs;
+            stream = fs;
         }
         else if (sc.type == "rotating_file")
         {
@@ -112,7 +109,7 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
                 throw std::runtime_error(
                     std::string("SimpleLoggerBackend::configureLogger: cannot open file: ")
                     + it->second);
-            sink.stream = fs;
+            stream = fs;
         }
         else
         {
@@ -120,7 +117,8 @@ void SimpleLoggerBackend::configureLogger(LoggerPtr loggerPtr,
             continue;
         }
 
-        simpleSinks.push_back(std::move(sink));
+        simpleSinks.emplace_back(std::move(stream), sc.pattern, color,
+                     sc.level, sc.filters);
     }
 
     sl->setSinks(std::move(simpleSinks));

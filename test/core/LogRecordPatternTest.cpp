@@ -1,6 +1,6 @@
 /**
  * @file LogRecordPatternTest.cpp
- * @brief Unit tests for LogRecordPattern::render().
+ * @brief Unit tests for compiled log-record pattern rendering.
  *
  * Copyright (c) 2026 Stephen Kouretas. All Rights Reserved.
  *
@@ -48,25 +48,25 @@ static LogRecord makeRecord(Logger::Level level = Logger::Level::Info,
 TEST(LogRecordPatternTest, MessageToken)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hello world");
-    EXPECT_EQ(LogRecordPattern::render("%m", r), "hello world");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%m"), r), "hello world");
 }
 
 TEST(LogRecordPatternTest, LevelToken)
 {
     LogRecord r = makeRecord(Logger::Level::Debug);
-    EXPECT_EQ(LogRecordPattern::render("%p", r), "DEBUG");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), r), "DEBUG");
 }
 
 TEST(LogRecordPatternTest, LoggerNameToken)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "App.Database");
-    EXPECT_EQ(LogRecordPattern::render("%c", r), "App.Database");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%c"), r), "App.Database");
 }
 
 TEST(LogRecordPatternTest, ThreadIdToken)
 {
     LogRecord r = makeRecord();
-    std::string result = LogRecordPattern::render("%t", r);
+    std::string result = LogRecordPattern::render(CompiledPattern("%t"), r);
     // Should be non-empty
     EXPECT_FALSE(result.empty());
 }
@@ -75,26 +75,26 @@ TEST(LogRecordPatternTest, ThreadNameToken)
 {
     LogRecord r = makeRecord();
     r.threadName = "mythread";
-    EXPECT_EQ(LogRecordPattern::render("%T", r), "mythread");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%T"), r), "mythread");
 }
 
 TEST(LogRecordPatternTest, NewlineToken)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(LogRecordPattern::render("%n", r), eol);
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%n"), r), eol);
 }
 
 TEST(LogRecordPatternTest, MarkerTokenWithNullMarker)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg");
-    EXPECT_EQ(LogRecordPattern::render("%M", r), "");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M"), r), "");
 }
 
 TEST(LogRecordPatternTest, MarkerTokenWithMarker)
 {
     auto markerPtr = MarkerFactory::getMarker("SLP.TestMarker");
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {markerPtr.get()});
-    EXPECT_EQ(LogRecordPattern::render("%M", r), "SLP.TestMarker");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M"), r), "SLP.TestMarker");
 }
 
 TEST(LogRecordPatternTest, BareMarkerTokenRetainsCommaSpaceSeparator)
@@ -104,7 +104,7 @@ TEST(LogRecordPatternTest, BareMarkerTokenRetainsCommaSpaceSeparator)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
                              {first.get(), second.get()});
 
-    EXPECT_EQ(LogRecordPattern::render("%M", r), "FIRST, SECOND");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M"), r), "FIRST, SECOND");
 }
 
 TEST(LogRecordPatternTest, MarkerIncludeModeUsesEventOrder)
@@ -115,8 +115,31 @@ TEST(LogRecordPatternTest, MarkerIncludeModeUsesEventOrder)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
                              {sql.get(), security.get(), op.get()});
 
-    EXPECT_EQ(LogRecordPattern::render("%M{+:OP-LOG,SECURITY;sep=|}", r),
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{+:OP-LOG,SECURITY;sep=|}"), r),
               "SECURITY|OP-LOG");
+}
+
+TEST(LogRecordPatternTest, CompiledPatternCachesEachTopLevelMarkerToken)
+{
+    auto first = MarkerFactory::getMarker("FIRST");
+    auto second = MarkerFactory::getMarker("SECOND");
+    LogRecord record = makeRecord(Logger::Level::Info, "L", "message",
+                                  {first.get(), second.get()});
+    const CompiledPattern pattern(
+        "%M{+:SECOND;sep=|} %%M %d{%%M} %M{;sep=/}");
+
+    EXPECT_EQ(LogRecordPattern::render(pattern, record),
+              "SECOND %M %M FIRST/SECOND");
+    EXPECT_EQ(LogRecordPattern::render(pattern, record),
+              "SECOND %M %M FIRST/SECOND");
+}
+
+TEST(LogRecordPatternTest, CompiledPatternRejectsMalformedMarkerOptions)
+{
+    EXPECT_THROW(CompiledPattern("%M{+:MARKER;unknown=x}"),
+                 PatternLayoutParseException);
+    EXPECT_THROW(CompiledPattern("%M{"),
+                 PatternLayoutParseException);
 }
 
 TEST(LogRecordPatternTest, MarkerBareListDefaultsToInclude)
@@ -126,7 +149,7 @@ TEST(LogRecordPatternTest, MarkerBareListDefaultsToInclude)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
                              {sql.get(), security.get()});
 
-    EXPECT_EQ(LogRecordPattern::render("%M{SECURITY}", r), "SECURITY");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{SECURITY}"), r), "SECURITY");
 }
 
 TEST(LogRecordPatternTest, MarkerExcludeModeAndAllMode)
@@ -136,8 +159,8 @@ TEST(LogRecordPatternTest, MarkerExcludeModeAndAllMode)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
                              {activity.get(), security.get()});
 
-    EXPECT_EQ(LogRecordPattern::render("%M{-:ACTIVITY-LOG;sep=|}", r), "SECURITY");
-    EXPECT_EQ(LogRecordPattern::render("%M{;sep=|}", r), "ACTIVITY-LOG|SECURITY");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{-:ACTIVITY-LOG;sep=|}"), r), "SECURITY");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{;sep=|}"), r), "ACTIVITY-LOG|SECURITY");
 }
 
 TEST(LogRecordPatternTest, MarkerSeparatorPreservesUnquotedSpacesAndStripsQuotes)
@@ -147,40 +170,32 @@ TEST(LogRecordPatternTest, MarkerSeparatorPreservesUnquotedSpacesAndStripsQuotes
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
                              {first.get(), second.get()});
 
-    EXPECT_EQ(LogRecordPattern::render("%M", r), "FIRST, SECOND");
-    EXPECT_EQ(LogRecordPattern::render("%M{;sep= | }", r), "FIRST | SECOND");
-    EXPECT_EQ(LogRecordPattern::render("%M{;sep=' | '}", r), "FIRST | SECOND");
-    EXPECT_EQ(LogRecordPattern::render("%M{;sep=it's}", r), "FIRSTit'sSECOND");
-    EXPECT_EQ(LogRecordPattern::render("%M{;sep=\";|\"}", r), "FIRST;|SECOND");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M"), r), "FIRST, SECOND");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{;sep= | }"), r), "FIRST | SECOND");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{;sep=' | '}"), r), "FIRST | SECOND");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{;sep=it's}"), r), "FIRSTit'sSECOND");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%M{;sep=\";|\"}"), r), "FIRST;|SECOND");
 }
 
-TEST(LogRecordPatternTest, MarkerOptionsWithConflictingModesUseDefault)
+TEST(LogRecordPatternTest, MarkerOptionsWithConflictingModesAreRejected)
 {
-    auto marker = MarkerFactory::getMarker("MARKER");
-    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {marker.get()});
-    EXPECT_EQ(LogRecordPattern::render("%M{+:MARKER,-:OTHER}", r),
-              "MARKER");
+    EXPECT_THROW(CompiledPattern("%M{+:MARKER,-:OTHER}"),
+                 PatternLayoutParseException);
 }
 
-TEST(LogRecordPatternTest, InvalidMarkerOptionsUseDefaultWithoutThrowing)
+TEST(LogRecordPatternTest, InvalidMarkerOptionsAreRejectedDuringCompilation)
 {
-    auto marker = MarkerFactory::getMarker("MARKER");
-    auto other = MarkerFactory::getMarker("OTHER");
-    LogRecord r = makeRecord(Logger::Level::Info, "L", "message",
-                             {marker.get(), other.get()});
-
-    EXPECT_EQ(LogRecordPattern::render("before%M{+:MARKER;unknown=x}after %m", r),
-              "beforeMARKER, OTHERafter message");
-    EXPECT_EQ(LogRecordPattern::render("before%M{", r),
-              "beforeMARKER, OTHER");
-    EXPECT_EQ(LogRecordPattern::render("[%-20M{;unknown=x}]", r),
-              "[MARKER, OTHER       ]");
+    EXPECT_THROW(CompiledPattern("before%M{+:MARKER;unknown=x}after %m"),
+                 PatternLayoutParseException);
+    EXPECT_THROW(CompiledPattern("before%M{"), PatternLayoutParseException);
+    EXPECT_THROW(CompiledPattern("[%-20M{;unknown=x}]"),
+                 PatternLayoutParseException);
 }
 
 TEST(LogRecordPatternTest, DateTokenFormatsTimestamp)
 {
     LogRecord r = makeRecord();
-    std::string result = LogRecordPattern::render("%d{%Y}", r);
+    std::string result = LogRecordPattern::render(CompiledPattern("%d{%Y}"), r);
     // Should be a 4-digit year
     EXPECT_EQ(result.size(), 4u);
     EXPECT_NE(result.find("20"), std::string::npos);
@@ -189,14 +204,14 @@ TEST(LogRecordPatternTest, DateTokenFormatsTimestamp)
 TEST(LogRecordPatternTest, UnknownTokenPassesThrough)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(LogRecordPattern::render("%q", r), "%q");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%q"), r), "%q");
 }
 
 TEST(LogRecordPatternTest, FullPattern)
 {
     LogRecord r = makeRecord(Logger::Level::Warn, "MyApp", "something happened");
     r.threadName = "";
-    std::string result = LogRecordPattern::render("[%p] [%c] %m%n", r);
+    std::string result = LogRecordPattern::render(CompiledPattern("[%p] [%c] %m%n"), r);
     std::string expected = std::string("[WARN] [MyApp] something happened") + eol;
     EXPECT_EQ(result, expected);
 }
@@ -204,7 +219,7 @@ TEST(LogRecordPatternTest, FullPattern)
 TEST(LogRecordPatternTest, LiteralPercentEscaping)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(LogRecordPattern::render("%%", r), "%");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%%"), r), "%");
 }
 
 // ---------------------------------------------------------------------------
@@ -215,84 +230,84 @@ TEST(LogRecordPatternTest, MinWidthPadsLeft)
 {
     // Right-align (default): pad on left
     LogRecord r = makeRecord(Logger::Level::Info, "L", "foo");
-    EXPECT_EQ(LogRecordPattern::render("%10m", r), "       foo");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%10m"), r), "       foo");
 }
 
 TEST(LogRecordPatternTest, MinWidthLeftAlign)
 {
     // Left-align: pad on right
     LogRecord r = makeRecord(Logger::Level::Info, "L", "foo");
-    EXPECT_EQ(LogRecordPattern::render("%-10m", r), "foo       ");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-10m"), r), "foo       ");
 }
 
 TEST(LogRecordPatternTest, MinWidthExact_NoPad)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "foo");
-    EXPECT_EQ(LogRecordPattern::render("%3m", r), "foo");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%3m"), r), "foo");
 }
 
 TEST(LogRecordPatternTest, MinWidthLonger_NoTrunc)
 {
     // min-width never truncates
     LogRecord r = makeRecord(Logger::Level::Info, "L", "0123456789");
-    EXPECT_EQ(LogRecordPattern::render("%3m", r), "0123456789");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%3m"), r), "0123456789");
 }
 
 TEST(LogRecordPatternTest, MaxWidthTruncatesLeft)
 {
     // Truncates from the left (log4j default)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hello world");
-    EXPECT_EQ(LogRecordPattern::render("%.5m", r), "world");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%.5m"), r), "world");
 }
 
 TEST(LogRecordPatternTest, MaxWidthExact_NoChange)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hello");
-    EXPECT_EQ(LogRecordPattern::render("%.5m", r), "hello");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%.5m"), r), "hello");
 }
 
 TEST(LogRecordPatternTest, MaxWidthShorter_NoChange)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hi");
-    EXPECT_EQ(LogRecordPattern::render("%.5m", r), "hi");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%.5m"), r), "hi");
 }
 
 TEST(LogRecordPatternTest, MaxWidthZero_EmptyOutput)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hello");
-    EXPECT_EQ(LogRecordPattern::render("%.0m", r), "");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%.0m"), r), "");
 }
 
 TEST(LogRecordPatternTest, MinAndMaxWidth_TruncateThenPad)
 {
     // Truncate "hello world" to 5 chars → "world", then pad to 10 (left-align)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hello world");
-    EXPECT_EQ(LogRecordPattern::render("%-10.5m", r), "world     ");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-10.5m"), r), "world     ");
 }
 
 TEST(LogRecordPatternTest, MinAndMaxWidth_PadOnly)
 {
     // "hi" is shorter than max (5) so no truncation, then pad to 10 (right-align)
     LogRecord r = makeRecord(Logger::Level::Info, "L", "hi");
-    EXPECT_EQ(LogRecordPattern::render("%10.5m", r), "        hi");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%10.5m"), r), "        hi");
 }
 
 TEST(LogRecordPatternTest, ModifierOnLevel)
 {
     LogRecord r = makeRecord(Logger::Level::Info);
-    EXPECT_EQ(LogRecordPattern::render("%-10p", r), "INFO      ");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-10p"), r), "INFO      ");
 }
 
 TEST(LogRecordPatternTest, ModifierOnLoggerName)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "App");
-    EXPECT_EQ(LogRecordPattern::render("%20c", r), "                 App");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%20c"), r), "                 App");
 }
 
 TEST(LogRecordPatternTest, ModifierOnDate)
 {
     LogRecord r = makeRecord();
-    std::string result = LogRecordPattern::render("%10d{%Y}", r);
+    std::string result = LogRecordPattern::render(CompiledPattern("%10d{%Y}"), r);
     // 4-digit year right-padded to 10 chars
     EXPECT_EQ(result.size(), 10u);
     EXPECT_EQ(result.substr(0, 6), "      "); // 6 leading spaces
@@ -302,26 +317,26 @@ TEST(LogRecordPatternTest, ModifierOnDate)
 TEST(LogRecordPatternTest, ModifierOnMarkerEmpty)
 {
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg");
-    EXPECT_EQ(LogRecordPattern::render("%10M", r), "          ");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%10M"), r), "          ");
 }
 
 TEST(LogRecordPatternTest, ModifierOnMarkerPresent)
 {
     auto markerPtr = MarkerFactory::getMarker("DB");
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {markerPtr.get()});
-    EXPECT_EQ(LogRecordPattern::render("%-10M", r), "DB        ");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-10M"), r), "DB        ");
 }
 
 TEST(LogRecordPatternTest, ModifierOnNewlineIgnored)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(LogRecordPattern::render("%-5n", r), eol);
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-5n"), r), eol);
 }
 
 TEST(LogRecordPatternTest, DoublePercent_Unaffected)
 {
     LogRecord r = makeRecord();
-    EXPECT_EQ(LogRecordPattern::render("%%", r), "%");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%%"), r), "%");
 }
 
 // ---------------------------------------------------------------------------
@@ -339,13 +354,13 @@ protected:
 TEST_F(LevelNamesTest, DefaultWarnIsWARN)
 {
     LogRecord r = makeRecord(Logger::Level::Warn);
-    EXPECT_EQ(LogRecordPattern::render("%p", r), "WARN");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), r), "WARN");
 }
 
 TEST_F(LevelNamesTest, DefaultInfoIsINFO)
 {
     LogRecord r = makeRecord(Logger::Level::Info);
-    EXPECT_EQ(LogRecordPattern::render("%p", r), "INFO");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), r), "INFO");
 }
 
 TEST_F(LevelNamesTest, CustomWarnName)
@@ -355,7 +370,7 @@ TEST_F(LevelNamesTest, CustomWarnName)
     LoggerBase::setLevelNames(names);
 
     LogRecord r = makeRecord(Logger::Level::Warn);
-    EXPECT_EQ(LogRecordPattern::render("%p", r), "WARNING");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), r), "WARNING");
 }
 
 TEST_F(LevelNamesTest, AllLevelsCustom)
@@ -369,10 +384,10 @@ TEST_F(LevelNamesTest, AllLevelsCustom)
     names.trace = "TRC";
     LoggerBase::setLevelNames(names);
 
-    EXPECT_EQ(LogRecordPattern::render("%p", makeRecord(Logger::Level::Fatal)), "CRIT");
-    EXPECT_EQ(LogRecordPattern::render("%p", makeRecord(Logger::Level::Error)), "ERR");
-    EXPECT_EQ(LogRecordPattern::render("%p", makeRecord(Logger::Level::Warn)),  "WRN");
-    EXPECT_EQ(LogRecordPattern::render("%p", makeRecord(Logger::Level::Info)),  "INF");
-    EXPECT_EQ(LogRecordPattern::render("%p", makeRecord(Logger::Level::Debug)), "DBG");
-    EXPECT_EQ(LogRecordPattern::render("%p", makeRecord(Logger::Level::Trace)), "TRC");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), makeRecord(Logger::Level::Fatal)), "CRIT");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), makeRecord(Logger::Level::Error)), "ERR");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), makeRecord(Logger::Level::Warn)),  "WRN");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), makeRecord(Logger::Level::Info)),  "INF");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), makeRecord(Logger::Level::Debug)), "DBG");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%p"), makeRecord(Logger::Level::Trace)), "TRC");
 }
