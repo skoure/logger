@@ -13,6 +13,7 @@
 #include <LoggerUtils.h>
 #include <LogRecord.h>
 #include <logger/LevelNames.h>
+#include <logger/Exceptions.h>
 #include <logger/MarkerFactory.h>
 #include <chrono>
 #include <string>
@@ -94,6 +95,86 @@ TEST(LogRecordPatternTest, MarkerTokenWithMarker)
     auto markerPtr = MarkerFactory::getMarker("SLP.TestMarker");
     LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {markerPtr.get()});
     EXPECT_EQ(LogRecordPattern::render("%M", r), "SLP.TestMarker");
+}
+
+TEST(LogRecordPatternTest, BareMarkerTokenRetainsCommaSpaceSeparator)
+{
+    auto first = MarkerFactory::getMarker("FIRST");
+    auto second = MarkerFactory::getMarker("SECOND");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
+                             {first.get(), second.get()});
+
+    EXPECT_EQ(LogRecordPattern::render("%M", r), "FIRST, SECOND");
+}
+
+TEST(LogRecordPatternTest, MarkerIncludeModeUsesEventOrder)
+{
+    auto sql = MarkerFactory::getMarker("SQL");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    auto op = MarkerFactory::getMarker("OP-LOG");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
+                             {sql.get(), security.get(), op.get()});
+
+    EXPECT_EQ(LogRecordPattern::render("%M{+:OP-LOG,SECURITY;sep=|}", r),
+              "SECURITY|OP-LOG");
+}
+
+TEST(LogRecordPatternTest, MarkerBareListDefaultsToInclude)
+{
+    auto sql = MarkerFactory::getMarker("SQL");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
+                             {sql.get(), security.get()});
+
+    EXPECT_EQ(LogRecordPattern::render("%M{SECURITY}", r), "SECURITY");
+}
+
+TEST(LogRecordPatternTest, MarkerExcludeModeAndAllMode)
+{
+    auto activity = MarkerFactory::getMarker("ACTIVITY-LOG");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
+                             {activity.get(), security.get()});
+
+    EXPECT_EQ(LogRecordPattern::render("%M{-:ACTIVITY-LOG;sep=|}", r), "SECURITY");
+    EXPECT_EQ(LogRecordPattern::render("%M{;sep=|}", r), "ACTIVITY-LOG|SECURITY");
+}
+
+TEST(LogRecordPatternTest, MarkerSeparatorPreservesUnquotedSpacesAndStripsQuotes)
+{
+    auto first = MarkerFactory::getMarker("FIRST");
+    auto second = MarkerFactory::getMarker("SECOND");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg",
+                             {first.get(), second.get()});
+
+    EXPECT_EQ(LogRecordPattern::render("%M", r), "FIRST, SECOND");
+    EXPECT_EQ(LogRecordPattern::render("%M{;sep= | }", r), "FIRST | SECOND");
+    EXPECT_EQ(LogRecordPattern::render("%M{;sep=' | '}", r), "FIRST | SECOND");
+    EXPECT_EQ(LogRecordPattern::render("%M{;sep=it's}", r), "FIRSTit'sSECOND");
+    EXPECT_EQ(LogRecordPattern::render("%M{;sep=\";|\"}", r), "FIRST;|SECOND");
+}
+
+TEST(LogRecordPatternTest, MarkerOptionsWithConflictingModesUseDefault)
+{
+    auto marker = MarkerFactory::getMarker("MARKER");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {marker.get()});
+    EXPECT_EQ(LogRecordPattern::render("%M{+:MARKER,-:OTHER}", r),
+              "MARKER");
+}
+
+TEST(LogRecordPatternTest, InvalidMarkerOptionsUseDefaultWithoutThrowing)
+{
+    auto marker = MarkerFactory::getMarker("MARKER");
+    auto other = MarkerFactory::getMarker("OTHER");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "message",
+                             {marker.get(), other.get()});
+
+    EXPECT_EQ(LogRecordPattern::render("before%M{+:MARKER;unknown=x}after %m", r),
+              "beforeMARKER, OTHERafter message");
+    EXPECT_EQ(LogRecordPattern::render("before%M{", r),
+              "beforeMARKER, OTHER");
+    EXPECT_EQ(LogRecordPattern::render("[%-20M{;unknown=x}]", r),
+              "[MARKER, OTHER       ]");
 }
 
 TEST(LogRecordPatternTest, DateTokenFormatsTimestamp)

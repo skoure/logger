@@ -99,12 +99,26 @@ void Log4CxxLogger::append(const LogRecord& record)
     // in a PatternLayout can render the application-supplied level string.
     log4cxx::MDC::put("level", LoggerBase::levelToString(record.level));
 
-    // Populate the log4cxx MDC with the marker name(s) so that %X{marker}
-    // in a PatternLayout can render them (comma-separated for multiple).
+    // Keep the conventional marker MDC value available to native log4cxx
+    // appenders. Library %M patterns use the per-token values populated below.
     const std::string markerText = joinMarkerNames(record.markers);
     const bool hasMarker = !markerText.empty();
     if (hasMarker)
         log4cxx::MDC::put("marker", markerText);
+
+    std::vector<std::string> markerNames;
+    markerNames.reserve(record.markers.size());
+    for (const Marker* marker : record.markers)
+    {
+        if (marker)
+            markerNames.push_back(marker->getName());
+    }
+    log4cxx::MDC::put("__sk_logger_marker_count", std::to_string(markerNames.size()));
+    for (std::size_t i = 0; i < markerNames.size(); ++i)
+    {
+        const std::string key = "__sk_logger_marker_" + std::to_string(i);
+        log4cxx::MDC::put(key, markerNames[i]);
+    }
 
     switch (record.level)
     {
@@ -118,5 +132,11 @@ void Log4CxxLogger::append(const LogRecord& record)
 
     if (hasMarker)
         log4cxx::MDC::remove("marker");
+    for (std::size_t i = 0; i < markerNames.size(); ++i)
+    {
+        const std::string key = "__sk_logger_marker_" + std::to_string(i);
+        log4cxx::MDC::remove(key);
+    }
+    log4cxx::MDC::remove("__sk_logger_marker_count");
     log4cxx::MDC::remove("level");
 }

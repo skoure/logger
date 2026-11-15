@@ -12,6 +12,8 @@
 
 #include "LoggerBase.h"
 #include "LoggerUtils.h"
+#include "MarkerPattern.h"
+#include <logger/Exceptions.h>
 
 #include <chrono>
 #include <ctime>
@@ -137,7 +139,18 @@ std::string LogRecordPattern::render(const std::string& pattern,
         case 'c': result += applyModifier(record.loggerName, modifier); break;
         case 't': result += applyModifier(threadIdToString(record.threadId), modifier); break;
         case 'T': result += applyModifier(record.threadName, modifier); break;
-        case 'M': result += applyModifier(joinMarkerNames(record.markers), modifier); break;
+        case 'M': {
+            try {
+                const MarkerPatternOptions options =
+                    parseMarkerPatternOptions(pattern, index);
+                result += applyModifier(renderMarkerNames(record.markers, options), modifier);
+            } catch (const PatternLayoutParseException&) {
+                result += applyModifier(
+                    renderMarkerNames(record.markers, MarkerPatternOptions{}),
+                    modifier);
+            }
+            break;
+        }
         case 'n': result += eol; break;
         case 'd': result += applyModifier(expandDate(pattern, index, record), modifier); break;
         default:

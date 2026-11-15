@@ -57,6 +57,14 @@ static std::string modifierString(const PatternModifier& mod)
 
 std::string SpdlogPatternTranslator::translate(const std::string& canonical)
 {
+    std::vector<MarkerPatternOptions> markerOptions;
+    return translate(canonical, markerOptions);
+}
+
+std::string SpdlogPatternTranslator::translate(
+    const std::string& canonical,
+    std::vector<MarkerPatternOptions>& markerOptions)
+{
     std::string result;
     result.reserve(canonical.size() * 2);
 
@@ -121,9 +129,16 @@ std::string SpdlogPatternTranslator::translate(const std::string& canonical)
             break;
 
         case 'M':
-            // marker — custom flag character '&'
-            result += '%' + modStr + '&';
+        {
+            MarkerPatternOptions options = parseMarkerPatternOptions(canonical, i);
+            if (markerOptions.size() >= 255)
+                throw std::runtime_error(
+                    "SpdlogPatternTranslator: too many configured %M tokens");
+            const char flag = static_cast<char>(markerOptions.size() + 1);
+            markerOptions.push_back(std::move(options));
+            result += '%' + modStr + flag;
             break;
+        }
 
         case 'n':
             // canonical %n = newline; spdlog %n = logger name, so emit platform eol

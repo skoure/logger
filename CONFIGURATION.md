@@ -420,7 +420,8 @@ tokens into its own native format.
 | `%c`             | Logger name                                 |
 | `%t`             | Thread identifier                           |
 | `%T`             | Thread name (OS-level name)                 |
-| `%M`             | Marker name (empty if no marker set)        |
+| `%M`             | Marker names in event order, joined by `", "` by default |
+| `%M{options}`    | Filtered marker names and/or a custom separator |
 | `%d{strftime}`   | Timestamp formatted with a strftime string  |
 | `%n`             | Platform newline (`\n` on Unix, `\r\n` on Windows) |
 | `%%`             | Literal `%` (SimpleLogger only)             |
@@ -504,8 +505,42 @@ auto sqlMarker = sk::logger::MarkerFactory::getMarker("SQL");
 log->debug(*sqlMarker, "SELECT * FROM users WHERE id=%d", userId);
 ```
 
-The `%M` pattern token expands to the marker name when a marker is present,
-or to an empty string otherwise.
+### Attaching Multiple Markers
+
+An event can carry more than one marker when it belongs to multiple categories,
+such as both `SQL` and `SLOW_QUERY`:
+
+```cpp
+#include <logger/LoggerFactory.h>
+#include <logger/MarkerFactory.h>
+
+auto logger = sk::logger::LoggerFactory::getLogger("App.Database");
+auto sqlMarker = sk::logger::MarkerFactory::getMarker("SQL");
+auto slowMarker = sk::logger::MarkerFactory::getMarker("SLOW_QUERY");
+logger->info({*sqlMarker, *slowMarker}, "Query completed");
+```
+
+### Marker Pattern Output
+
+The `%M` pattern token expands to marker names in event order, or to an empty
+string when no marker is attached. Bare `%M` includes all markers with the
+legacy `", "` separator. The optional braces support include and exclude
+modes and a custom separator:
+
+| Pattern | Behavior |
+|---------|----------|
+| `%M{-:ACTIVITY-LOG;sep=\|}` | Exclude `ACTIVITY-LOG`; join the rest with `\|`. |
+| `%M{+:OP-LOG,SECURITY;sep= / }` | Include those markers; preserve spaces around `/`. |
+| `%M{OP-LOG,SECURITY;sep=,}` | A bare list defaults to include mode. |
+| `%M{;sep=\|}` | Include all markers, joined with `\|`. |
+
+Only one mode may be specified. Matching is by exact marker name, and output
+retains the event's marker order. Matching quotes around the separator are
+stripped; unquoted separator text, including leading and trailing spaces, is
+preserved. Invalid syntax in JSON configuration raises
+`PatternLayoutParseException`. In programmatic SimpleLogger patterns, malformed
+marker options fall back to bare `%M` behavior: all attached markers with the
+default `", "` separator. Any width modifier on the token still applies.
 
 For per-sink marker-based filtering, see the
 [### Sink Filters](#sink-filters)
@@ -514,17 +549,19 @@ include/exclude semantics, and per-backend integration.
 
 ### Per-backend marker support
 
-| Backend      | Mechanism                                      |
-|--------------|------------------------------------------------|
-| SimpleLogger | `%M` expanded in `LogRecordPattern::render` |
-| spdlog       | Thread-local bridge → custom `%&` flag         |
-| Log4cxx      | MDC key `"marker"` → `%X{marker}` in pattern  |
+| Backend      | Marker rendering |
+|--------------|------------------|
+| SimpleLogger | Applies each `%M` token's selection and separator while rendering the event. |
+| spdlog       | Uses a per-token formatter for marker selection and separator. |
+| Log4cxx      | Uses a per-token layout converter for marker selection and separator. |
 
 ---
 
 ## Backend Token Translation
 
 Each backend translates the canonical pattern into its own format:
+The Canonical column is the library syntax used in JSON; the backend column is
+descriptive and is not pattern syntax to copy into JSON.
 
 ### spdlog
 
@@ -535,7 +572,7 @@ Each backend translates the canonical pattern into its own format:
 | `%c`      | `%n`      |
 | `%t`      | `%t`      |
 | `%T`      | `%*` (custom) |
-| `%M`      | `%&` (custom) |
+| `%M`      | Per-token marker rendering applies selection and separator options |
 | `%d{fmt}` | `fmt` inlined |
 | `%n`      | platform EOL literal |
 
@@ -544,11 +581,11 @@ Each backend translates the canonical pattern into its own format:
 | Canonical   | log4cxx          |
 |-------------|------------------|
 | `%m`        | `%m`             |
-| `%p`        | `%p`             |
+| `%p`        | Configured level name |
 | `%c`        | `%c`             |
 | `%t`        | `%t`             |
 | `%T`        | `%t`             |
-| `%M`        | `%X{marker}`     |
+| `%M`        | Per-token marker rendering applies selection and separator options |
 | `%d{strfmt}`| `%d{java-fmt}`   |
 | `%n`        | `%n`             |
 

@@ -351,6 +351,35 @@ TEST_F(SpdlogBackendTest, ConfiguredFileSinkRendersCanonicalPattern)
     EXPECT_EQ(content, "INFO|SpdlogBackend.Pattern.File|PATTERN|formatted output\n");
 }
 
+TEST_F(SpdlogBackendTest, ConfiguredMarkerOptionsRenderPerToken)
+{
+    LoggerPtr logger = backend.createLogger("SpdlogBackend.Pattern.MarkerOptions");
+    logger->setLevel(Logger::Level::Trace);
+
+    const std::string path = std::string(TEST_CONFIG_DIR) + "/spdlog_marker_options.log";
+    std::remove(path.c_str());
+    registerTempLogFile(path);
+
+    SinkConfig sink;
+    sink.type = "file";
+    sink.pattern = "%M{-:ACTIVITY-LOG;sep=|}|%M{+:OP-LOG,SECURITY;sep= / }|%M{;sep=,}|%M|%m%n";
+    sink.properties["path"] = path;
+    backend.configureLogger(logger, {sink});
+
+    logger->info({*MarkerFactory::getMarker("ACTIVITY-LOG"),
+                  *MarkerFactory::getMarker("OP-LOG"),
+                  *MarkerFactory::getMarker("SECURITY")}, "filtered markers");
+    auto* configuredLogger = dynamic_cast<SpdlogLogger*>(logger.get());
+    ASSERT_NE(configuredLogger, nullptr);
+    configuredLogger->getInternalLogger()->flush();
+
+    std::ifstream file(path);
+    const std::string content((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    EXPECT_EQ(content,
+              "OP-LOG|SECURITY|OP-LOG / SECURITY|ACTIVITY-LOG,OP-LOG,SECURITY|ACTIVITY-LOG, OP-LOG, SECURITY|filtered markers\n");
+}
+
 TEST_F(SpdlogBackendTest, CustomFormattersApplyPaddingToLevelMarkerAndThreadName)
 {
     LoggerPtr logger = backend.createLogger("SpdlogBackend.FormatterPadding");

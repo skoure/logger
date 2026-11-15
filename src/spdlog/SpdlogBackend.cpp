@@ -129,19 +129,32 @@ public:
 class MarkerFormatter final : public spdlog::custom_flag_formatter
 {
 public:
+    /** @brief Creates a formatter for one marker token's selection rule. */
+    explicit MarkerFormatter(MarkerPatternOptions options = {})
+        : options_(std::move(options))
+    {
+    }
+
+    /** @brief Appends the selected event markers with the configured padding. */
     void format(const spdlog::details::log_msg& /*msg*/,
                 const std::tm& /*tm_time*/,
                 spdlog::memory_buf_t& dest) override
     {
         const std::string joined =
-            spdlog_tls::markers ? joinMarkerNames(*spdlog_tls::markers) : std::string{};
+            spdlog_tls::markers
+                ? renderMarkerNames(*spdlog_tls::markers, options_)
+                : std::string{};
         appendPadded(spdlog::string_view_t(joined), padinfo_, dest);
     }
 
+    /** @brief Clones this formatter and its marker selection rule. */
     std::unique_ptr<custom_flag_formatter> clone() const override
     {
-        return spdlog::details::make_unique<MarkerFormatter>();
+        return spdlog::details::make_unique<MarkerFormatter>(options_);
     }
+
+private:
+    MarkerPatternOptions options_;
 };
 
 /**
@@ -192,12 +205,15 @@ public:
 // ---------------------------------------------------------------------------
 
 void applyPattern(const std::shared_ptr<spdlog::sinks::sink>& sink,
-                  const std::string& spdlogPattern)
+                  const std::string& spdlogPattern,
+                  const std::vector<MarkerPatternOptions>& markerOptions = {})
 {
     auto formatter = spdlog::details::make_unique<spdlog::pattern_formatter>(
         spdlog::pattern_time_type::local, "");
     formatter->add_flag<ThreadNameFormatter>('*');
     formatter->add_flag<MarkerFormatter>('&');
+    for (std::size_t i = 0; i < markerOptions.size(); ++i)
+        formatter->add_flag<MarkerFormatter>(static_cast<char>(i + 1), markerOptions[i]);
     formatter->add_flag<LevelNameFormatter>('l');
     formatter->set_pattern(spdlogPattern);
     sink->set_formatter(std::move(formatter));
@@ -264,8 +280,9 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
 
     for (const SinkConfig& sc : sinks)
     {
+        std::vector<MarkerPatternOptions> markerOptions;
         const std::string spdlogPattern =
-            SpdlogPatternTranslator::translate(sc.pattern);
+            SpdlogPatternTranslator::translate(sc.pattern, markerOptions);
 
         std::shared_ptr<spdlog::sinks::sink> sink;
 
@@ -284,7 +301,7 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
             } else {
                 sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
             }
-            applyPattern(sink, spdlogPattern);
+            applyPattern(sink, spdlogPattern, markerOptions);
         }
         else if (sc.type == "file")
         {
@@ -296,7 +313,7 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
             auto fileSink =
                 std::make_shared<spdlog::sinks::basic_file_sink_mt>(
                     it->second, /*truncate=*/false);
-            applyPattern(fileSink, spdlogPattern);
+            applyPattern(fileSink, spdlogPattern, markerOptions);
             sink = fileSink;
         }
         else if (sc.type == "rotating_file")
@@ -319,7 +336,7 @@ void SpdlogBackend::configureLogger(LoggerPtr loggerPtr,
             auto rotatingSink =
                 std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
                     pathIt->second, maxSize, maxFiles);
-            applyPattern(rotatingSink, spdlogPattern);
+            applyPattern(rotatingSink, spdlogPattern, markerOptions);
             sink = rotatingSink;
         }
         else

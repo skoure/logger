@@ -82,17 +82,10 @@ logger->info(*marker, "SELECT completed in %d ms", elapsed);
 logger->error(*marker, "Query failed", ex);
 ```
 
-The `%M` pattern token in a configured sink pattern expands to the marker name
-(or an empty string when no marker is attached to the event).
+### Attaching Multiple Markers
 
-Per-sink filters can select events by marker, exact logger name, or a regular
-expression searched against the raw message body. JSON filter configuration and
-programmatic `FilterFactory` examples are documented in
-[CONFIGURATION.md](CONFIGURATION.md).
-
-### Multiple Markers
-
-Multiple markers can be attached to a single log event. This is useful when an event belongs to more than one category, such as both `SQL` and `SLOW_QUERY`.
+An event can carry more than one marker when it belongs to multiple categories,
+such as both `SQL` and `SLOW_QUERY`:
 
 ```cpp
 #include <logger/LoggerFactory.h>
@@ -106,7 +99,31 @@ logger->info({*sql, *slow}, "Query completed in %d ms", 142);
 logger->error({*sql, *slow}, "Query failed", ex);
 ```
 
-If a sink pattern includes %M, the token expands to comma-separated markers (or stays empty if there are no markers attached).
+### Marker Pattern Output
+
+The `%M` pattern token expands to marker names in event order, or to an empty
+string when no marker is attached. Bare `%M` includes every attached marker,
+joined with `", "`. Add braces to select markers or change the separator:
+
+```text
+%M{-:ACTIVITY-LOG;sep=|}
+%M{+:OP-LOG,SECURITY;sep= / }
+%M{OP-LOG,SECURITY;sep=,}
+%M{;sep=|}
+```
+
+`+:` includes the named markers, `-:` excludes them, and a bare list defaults
+to include mode. Matching is by exact marker name, with output retaining event
+order. Matching quotes around `sep=` are stripped; unquoted spaces are
+preserved. Invalid `%M{...}` syntax in JSON configuration raises
+`PatternLayoutParseException`. In programmatic SimpleLogger patterns, malformed
+marker options fall back to bare `%M` behavior: all attached markers with the
+default `", "` separator. Any width modifier on the token still applies.
+
+Per-sink filters can select events by marker, exact logger name, or a regular
+expression searched against the raw message body. JSON filter configuration and
+programmatic `FilterFactory` examples are documented in
+[CONFIGURATION.md](CONFIGURATION.md).
 
 ---
 

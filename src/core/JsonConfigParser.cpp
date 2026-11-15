@@ -8,6 +8,7 @@
  * @date Created: March 28, 2026
  */
 #include "JsonConfigParser.h"
+#include "MarkerPattern.h"
 
 #include <logger/FilterFactory.h>
 #include <logger/MarkerFactory.h>
@@ -206,7 +207,10 @@ std::vector<LoggerConfig> JsonConfigParser::parse(std::istream& stream)
                     sc.type = sinkNode["type"].get<std::string>();
 
                 if (sinkNode.contains("pattern") && sinkNode["pattern"].is_string())
+                {
                     sc.pattern = sinkNode["pattern"].get<std::string>();
+                    validateMarkerPatternOptions(sc.pattern);
+                }
 
                 if (sinkNode.contains("level") && sinkNode["level"].is_string())
                     sc.level = parseLevel(sinkNode["level"].get<std::string>());

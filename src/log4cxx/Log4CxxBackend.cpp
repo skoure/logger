@@ -11,13 +11,13 @@
 #include <Log4CxxLogger.h>
 #include <Log4CxxPatternTranslator.h>
 #include <LoggerFactoryImpl.h>
+#include <MarkerPatternLayout.h>
 
 #include <Log4CxxFilter.h>
 #include <log4cxx/appenderskeleton.h>
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/fileappender.h>
 #include <log4cxx/rolling/rollingfileappender.h>
-#include <log4cxx/patternlayout.h>
 #include <log4cxx/spi/filter.h>
 #include <log4cxx/writerappender.h>
 #include <log4cxx/helpers/outputstreamwriter.h>
@@ -26,7 +26,10 @@
 #include <log4cxx/helpers/pool.h>
 
 #include <ostream>
+#include <memory>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 using namespace sk::logger;
 
@@ -123,11 +126,13 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
 
     for (const SinkConfig& sc : sinks)
     {
+        std::vector<MarkerPatternOptions> markerOptions;
         const std::string log4cxxPattern =
-            Log4CxxPatternTranslator::translate(sc.pattern);
+            Log4CxxPatternTranslator::translate(sc.pattern, markerOptions);
 
-        auto layout = std::make_shared<log4cxx::PatternLayout>(
-            log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()));
+        auto layout = std::make_shared<MarkerPatternLayout>(
+            log4cxx::LogString(log4cxxPattern.begin(), log4cxxPattern.end()),
+            markerOptions);
 
         log4cxx::AppenderPtr appender;
 
@@ -140,8 +145,9 @@ void Log4CxxBackend::configureLogger(LoggerPtr loggerPtr,
             if (useColor)
             {
                 std::string coloredPattern = "%Y" + log4cxxPattern + "%y";
-                layout = std::make_shared<log4cxx::PatternLayout>(
-                    log4cxx::LogString(coloredPattern.begin(), coloredPattern.end()));
+                layout = std::make_shared<MarkerPatternLayout>(
+                    log4cxx::LogString(coloredPattern.begin(), coloredPattern.end()),
+                    markerOptions);
             }
 
             auto consoleAppender = std::make_shared<log4cxx::ConsoleAppender>();

@@ -63,6 +63,24 @@ TEST(JsonConfigParserTest, ParsesConsoleSinkTypeAndPattern)
     EXPECT_EQ(configs[0].sinks[0].pattern, "[%p] %m%n");
 }
 
+TEST(JsonConfigParserTest, ValidatesMarkerPatternOptionsDuringConfigParsing)
+{
+    EXPECT_THROW(parseString(R"({
+        "loggers":[{"name":"root","sinks":[{
+            "type":"console","pattern":"%M{+:SECURITY;unknown=x}"
+        }]}]
+    })"), PatternLayoutParseException);
+}
+
+TEST(JsonConfigParserTest, MarkerLikeDateSpecifierIsNotParsedAsMarkerOptions)
+{
+    EXPECT_NO_THROW(parseString(R"({
+        "loggers":[{"name":"root","sinks":[{
+            "type":"console","pattern":"%d{%M} %M{;sep=|}"
+        }]}]
+    })"));
+}
+
 TEST(JsonConfigParserTest, ParsesFileSinkWithPath)
 {
     auto configs = parseString(R"({
