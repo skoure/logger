@@ -12,10 +12,9 @@
 
 #include "LoggerBase.h"
 #include "LoggerUtils.h"
-#include "MarkerPattern.h"
-#include <logger/Exceptions.h>
 
 #include <chrono>
+#include <cctype>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
@@ -102,19 +101,26 @@ std::string expandDate(const std::string& pattern, std::size_t& index,
 
 } // namespace
 
-std::string LogRecordPattern::render(const std::string& pattern,
+std::string LogRecordPattern::render(const CompiledPattern& compiledPattern,
                                      const LogRecord& record)
 {
+    const std::string& pattern = compiledPattern.getPattern();
+    const std::vector<CompiledPattern::MarkerToken>& markerTokens =
+        compiledPattern.markerTokens();
     std::string result;
     result.reserve(pattern.size() * 2);
     std::size_t index = 0;
+    std::size_t markerTokenIndex = 0;
 
-    while (index < pattern.size()) {
-        if (pattern[index] != '%') {
+    while (index < pattern.size())
+    {
+        if (pattern[index] != '%')
+        {
             result += pattern[index++];
             continue;
         }
-        if (index + 1 >= pattern.size()) {
+        if (index + 1 >= pattern.size())
+        {
             result += '%';
             ++index;
             continue;
@@ -122,33 +128,33 @@ std::string LogRecordPattern::render(const std::string& pattern,
 
         ++index;
         const PatternModifier modifier = parseModifier(pattern, index);
-        if (index >= pattern.size()) {
+        if (index >= pattern.size())
+        {
             result += '%';
             break;
         }
 
         const char token = pattern[index++];
-        if (token == '%') {
+        if (token == '%')
+        {
             result += '%';
             continue;
         }
 
-        switch (token) {
+        switch (token)
+        {
         case 'm': result += applyModifier(record.message, modifier); break;
         case 'p': result += applyModifier(LoggerBase::levelToString(record.level), modifier); break;
         case 'c': result += applyModifier(record.loggerName, modifier); break;
         case 't': result += applyModifier(threadIdToString(record.threadId), modifier); break;
         case 'T': result += applyModifier(record.threadName, modifier); break;
-        case 'M': {
-            try {
-                const MarkerPatternOptions options =
-                    parseMarkerPatternOptions(pattern, index);
-                result += applyModifier(renderMarkerNames(record.markers, options), modifier);
-            } catch (const PatternLayoutParseException&) {
-                result += applyModifier(
-                    renderMarkerNames(record.markers, MarkerPatternOptions{}),
-                    modifier);
-            }
+        case 'M':
+        {
+            const CompiledPattern::MarkerToken& markerToken =
+                markerTokens[markerTokenIndex++];
+            index = markerToken.endIndex;
+            result += applyModifier(
+                renderMarkerNames(record.markers, markerToken.options), modifier);
             break;
         }
         case 'n': result += eol; break;

@@ -3,6 +3,7 @@
 #include <logger/FilterFactory.h>
 #include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
+#include <logger/Exceptions.h>
 #include <LoggerBase.h>
 #include <LogRecord.h>
 #include <LoggerUtils.h>
@@ -59,6 +60,35 @@ TEST_F(GlobalOstreamSinkTest, WritesFormattedOutputFromEveryLogger)
     logger->info("hello global sink");
 
     EXPECT_EQ(output.str(), std::string("[INFO] [GlobalOstream.Format] hello global sink") + eol);
+}
+
+TEST_F(GlobalOstreamSinkTest, UsesCompiledMarkerOptionsForEachToken)
+{
+    LoggerPtr logger = LoggerFactory::getLogger("GlobalOstream.CompiledMarkers");
+    logger->setLevel(Logger::Level::Trace);
+
+    std::ostringstream output;
+    LoggerFactory::addOstreamSink(
+        output, "%M{+:SECURITY;sep=|}:%M{;sep=/}%n");
+
+    auto sql = MarkerFactory::getMarker("SQL");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    logger->info({*sql, *security}, "classified");
+
+    EXPECT_EQ(output.str(), std::string("SECURITY:SQL/SECURITY") + eol);
+}
+
+TEST_F(GlobalOstreamSinkTest, RejectsMalformedMarkerPatternAtRegistration)
+{
+    LoggerPtr logger = LoggerFactory::getLogger("GlobalOstream.InvalidPattern");
+    logger->setLevel(Logger::Level::Trace);
+    std::ostringstream output;
+
+    EXPECT_THROW(LoggerFactory::addOstreamSink(output, "%M{;unknown=x}"),
+                 PatternLayoutParseException);
+
+    logger->info("not registered");
+    EXPECT_TRUE(output.str().empty());
 }
 
 TEST_F(GlobalOstreamSinkTest, ReceivesEventsFromLoggersCreatedAfterRegistration)

@@ -10,10 +10,12 @@
 #include <gtest/gtest.h>
 #include <SimpleLoggerBackend.h>
 #include <SimpleLogger.h>
+#include <LoggerUtils.h>
 #include <logger/FilterFactory.h>
 #include <logger/LoggerFactory.h>
 #include <logger/Logger.h>
 #include <logger/MarkerFactory.h>
+#include <logger/Exceptions.h>
 #include <sstream>
 #include <fstream>
 #include <iterator>
@@ -45,11 +47,9 @@ protected:
         std::ostream& stream, const std::string& pattern,
         std::vector<std::shared_ptr<const Filter>> filters = {})
     {
-        SimpleSink sink;
-        sink.stream = std::shared_ptr<std::ostream>(&stream, [](std::ostream*) {});
-        sink.pattern = pattern;
-        sink.filters = std::move(filters);
-        return sink;
+        return SimpleSink(
+            std::shared_ptr<std::ostream>(&stream, [](std::ostream*) {}),
+            pattern, false, std::nullopt, std::move(filters));
     }
 };
 
@@ -114,7 +114,7 @@ TEST_F(SimpleLoggerBackendTest, ConsoleSinkDefaultHasColorFalse)
 
     const auto& sinks = sl->getSinks();
     ASSERT_EQ(sinks.size(), 1u);
-    EXPECT_FALSE(sinks[0].color) << "Default console sink should have color=false";
+    EXPECT_FALSE(sinks[0].isColor()) << "Default console sink should have color=false";
 }
 
 TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueSetsFlag)
@@ -132,7 +132,7 @@ TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueSetsFlag)
 
     const auto& sinks = sl->getSinks();
     ASSERT_EQ(sinks.size(), 1u);
-    EXPECT_TRUE(sinks[0].color) << "color=true should set the color flag on the sink";
+    EXPECT_TRUE(sinks[0].isColor()) << "color=true should set the color flag on the sink";
 }
 
 TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueEmitsAnsiCodes)
@@ -143,10 +143,9 @@ TEST_F(SimpleLoggerBackendTest, ConsoleSinkColorTrueEmitsAnsiCodes)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    SimpleSink sink;
-    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
-    sink.pattern = "[%p] %m%n";
-    sink.color = true;
+    SimpleSink sink(
+        std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {}),
+        "[%p] %m%n", true);
     sl->setSinks({sink});
 
     logger->info("colortest");
@@ -170,14 +169,12 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdBlocksLowerSeverity)
 
     std::ostringstream warn_sink;
     std::ostringstream debug_sink;
-    SimpleSink warnSink;
-    warnSink.stream = std::shared_ptr<std::ostream>(&warn_sink, [](std::ostream*) {});
-    warnSink.pattern = "[%p] %m%n";
-    warnSink.level = Logger::Level::Warn;
-    SimpleSink debugSink;
-    debugSink.stream = std::shared_ptr<std::ostream>(&debug_sink, [](std::ostream*) {});
-    debugSink.pattern = "[%p] %m%n";
-    debugSink.level = Logger::Level::Debug;
+    SimpleSink warnSink(
+        std::shared_ptr<std::ostream>(&warn_sink, [](std::ostream*) {}),
+        "[%p] %m%n", false, Logger::Level::Warn);
+    SimpleSink debugSink(
+        std::shared_ptr<std::ostream>(&debug_sink, [](std::ostream*) {}),
+        "[%p] %m%n", false, Logger::Level::Debug);
     sl->setSinks({warnSink, debugSink});
 
     logger->info("info message");
@@ -196,10 +193,9 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdPassesEqualSeverity)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    SimpleSink sink;
-    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
-    sink.pattern = "[%p] %m%n";
-    sink.level = Logger::Level::Warn;
+    SimpleSink sink(
+        std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {}),
+        "[%p] %m%n", false, Logger::Level::Warn);
     sl->setSinks({sink});
 
     logger->warn("warn message");
@@ -216,10 +212,9 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelThresholdPassesHigherSeverity)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    SimpleSink sink;
-    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
-    sink.pattern = "[%p] %m%n";
-    sink.level = Logger::Level::Warn;
+    SimpleSink sink(
+        std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {}),
+        "[%p] %m%n", false, Logger::Level::Warn);
     sl->setSinks({sink});
 
     logger->error("error message");
@@ -236,9 +231,9 @@ TEST_F(SimpleLoggerBackendTest, SinkLevelNulloptPassesAll)
     ASSERT_NE(sl, nullptr);
 
     std::ostringstream oss;
-    SimpleSink sink;
-    sink.stream = std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {});
-    sink.pattern = "[%p] %m%n";
+    SimpleSink sink(
+        std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {}),
+        "[%p] %m%n");
     sl->setSinks({sink});
 
     logger->debug("debug message");
@@ -262,8 +257,28 @@ TEST_F(SimpleLoggerBackendTest, SinkConfigLevelCopiedToSimpleSink)
 
     const auto& sinks = sl->getSinks();
     ASSERT_EQ(sinks.size(), 1u);
-    ASSERT_TRUE(sinks[0].level.has_value());
-    EXPECT_EQ(*sinks[0].level, Logger::Level::Error);
+    ASSERT_TRUE(sinks[0].getLevel().has_value());
+    EXPECT_EQ(*sinks[0].getLevel(), Logger::Level::Error);
+}
+
+TEST_F(SimpleLoggerBackendTest, InvalidPatternFailsBeforeReplacingExistingSinks)
+{
+    LoggerPtr logger = backend.createLogger("SimpleBackend.InvalidPattern");
+    logger->setLevel(Logger::Level::Trace);
+    auto* sl = dynamic_cast<SimpleLogger*>(logger.get());
+    ASSERT_NE(sl, nullptr);
+
+    auto output = std::make_shared<std::ostringstream>();
+    sl->setSinks({SimpleSink(output, "%m%n")});
+
+    SinkConfig invalid;
+    invalid.type = "console";
+    invalid.pattern = "%M{;unknown=x}";
+    EXPECT_THROW(backend.configureLogger(logger, {invalid}),
+                 PatternLayoutParseException);
+
+    logger->info("still configured");
+    EXPECT_EQ(output->str(), std::string("still configured") + eol);
 }
 
 // Integration: LoggerFactoryImpl copies parent level to child (SimpleLogger is IManagedSinkBackend)
@@ -506,8 +521,9 @@ TEST_F(SimpleLoggerBackendTest, SinkConfigMarkerFilterCopiedToSimpleSink)
     ASSERT_NE(sl, nullptr);
     const auto& sinks = sl->getSinks();
     ASSERT_EQ(sinks.size(), 1u);
-    ASSERT_EQ(sinks[0].filters.size(), 1u);
-    auto markerFilter = std::dynamic_pointer_cast<const MarkerFilter>(sinks[0].filters[0]);
+    ASSERT_EQ(sinks[0].getFilters().size(), 1u);
+    auto markerFilter = std::dynamic_pointer_cast<const MarkerFilter>(
+        sinks[0].getFilters()[0]);
     ASSERT_NE(markerFilter, nullptr);
     EXPECT_EQ(markerFilter->getMarkers().size(), 2u);
     EXPECT_EQ(markerFilter->getMarkers()[0]->getName(), "SECURITY");
@@ -523,8 +539,9 @@ TEST_F(SimpleLoggerBackendTest, MarkerFilterCombinedWithLevelFilter)
     std::ostringstream oss;
     auto filter = FilterFactory::createMarkerFilter(
         {MarkerFactory::getMarker("SECURITY")});
-    SimpleSink sink = makeStreamSink(oss, "[%p] %m%n", {filter});
-    sink.level = Logger::Level::Warn;
+    SimpleSink sink(
+        std::shared_ptr<std::ostream>(&oss, [](std::ostream*) {}),
+        "[%p] %m%n", false, Logger::Level::Warn, {filter});
     static_cast<SimpleLogger*>(logger.get())->setSinks({sink});
 
     // DEBUG level, no marker — blocked by level

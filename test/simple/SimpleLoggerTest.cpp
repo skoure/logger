@@ -9,6 +9,7 @@
  */
 #include <gtest/gtest.h>
 #include <SimpleLogger.h>
+#include <LoggerUtils.h>
 #include <logger/MarkerFactory.h>
 #include <sstream>
 #include <iostream>
@@ -205,4 +206,18 @@ TEST(SimpleLoggerMarkerTest, MultiMarkerCommaJoined)
 
     EXPECT_NE(buf->str().find("[DB, QUERY]"), std::string::npos);
     EXPECT_NE(buf->str().find("multi-marker message"), std::string::npos);
+}
+
+TEST(SimpleLoggerMarkerTest, UsesCompiledMarkerOptionsForEachToken)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    SimpleLogger logger("SL.CompiledMarkers");
+    logger.setLevel(Logger::Level::Trace);
+    logger.setSinks({{buf, "%M{+:SECURITY;sep=|}:%M{;sep=/}%n"}});
+
+    auto sql = MarkerFactory::getMarker("SQL");
+    auto security = MarkerFactory::getMarker("SECURITY");
+    logger.info({*sql, *security}, "classified");
+
+    EXPECT_EQ(buf->str(), std::string("SECURITY:SQL/SECURITY") + eol);
 }
