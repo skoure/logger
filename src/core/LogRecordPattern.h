@@ -10,14 +10,15 @@
 #ifndef SK_LOG_RECORD_PATTERN_H
 #define SK_LOG_RECORD_PATTERN_H
 
+#include "CompiledPattern.h"
+
 #include <LogRecord.h>
-#include <string>
 
 namespace sk { namespace logger {
 
 class LogRecordPattern {
 public:
-    static std::string render(const std::string& pattern, const LogRecord& record);
+    static std::string render(const CompiledPattern& pattern, const LogRecord& record);
 
 private:
     LogRecordPattern() = delete;

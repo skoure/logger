@@ -49,11 +49,8 @@ struct CountingStream
 // Build a SimpleSink pointing at the given ostream (non-owning shared_ptr).
 static SimpleSink makeSink(std::ostream& os, const std::string& pattern = "%m%n")
 {
-    SimpleSink s;
-    s.stream  = std::shared_ptr<std::ostream>(&os, [](std::ostream*) {});
-    s.pattern = pattern;
-    s.color   = false;
-    return s;
+    return SimpleSink(
+        std::shared_ptr<std::ostream>(&os, [](std::ostream*) {}), pattern);
 }
 
 // ---------------------------------------------------------------------------

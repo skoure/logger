@@ -45,20 +45,25 @@ void SimpleLogger::setSinks(std::vector<SimpleSink> sinks)
 }
 
 void SimpleLogger::writeToStream(std::ostream& os,
-                                 const std::string& pattern,
+                                 const CompiledPattern& pattern,
                                  const LogRecord& record) const
 {
-    if (pattern.empty())
+    if (pattern.getPattern().empty())
     {
-        // Hardcoded default format
-        os << levelToString(record.level)
-           << " [" << record.loggerName << "] "
-           << record.message << "\n";
+        writeDefaultToStream(os, record);
     }
     else
     {
         os << LogRecordPattern::render(pattern, record);
     }
+}
+
+void SimpleLogger::writeDefaultToStream(std::ostream& os,
+                                        const LogRecord& record) const
+{
+    os << levelToString(record.level)
+       << " [" << record.loggerName << "] "
+       << record.message << "\n";
 }
 
 void SimpleLogger::append(const LogRecord& record)
@@ -67,7 +72,7 @@ void SimpleLogger::append(const LogRecord& record)
 
     if (m_sinks.empty())
     {
-        writeToStream(clog, "", record);
+        writeDefaultToStream(clog, record);
         auto flushOn = getFlushOn();
         if (flushOn.has_value() && record.level <= *flushOn)
             clog.flush();
@@ -76,19 +81,20 @@ void SimpleLogger::append(const LogRecord& record)
 
     for (const SimpleSink &sink : m_sinks)
     {
-        if (sink.level.has_value() && record.level > *sink.level)
+        const auto level = sink.getLevel();
+        if (level.has_value() && record.level > *level)
             continue;
 
-        if (!FilterEvaluator::passesAll(sink.filters, record))
+        if (!FilterEvaluator::passesAll(sink.getFilters(), record))
             continue;
 
-        if (sink.stream)
+        if (sink.getStream())
         {
-            if (sink.color)
-                *sink.stream << levelToAnsiCode(record.level);
-            writeToStream(*sink.stream, sink.pattern, record);
-            if (sink.color)
-                *sink.stream << "\x1b[0m";
+            if (sink.isColor())
+                *sink.getStream() << levelToAnsiCode(record.level);
+            writeToStream(*sink.getStream(), sink.getCompiledPattern(), record);
+            if (sink.isColor())
+                *sink.getStream() << "\x1b[0m";
         }
     }
 
@@ -97,12 +103,13 @@ void SimpleLogger::append(const LogRecord& record)
     {
         for (const SimpleSink &sink : m_sinks)
         {
-            if (sink.level.has_value() && record.level > *sink.level)
+            const auto level = sink.getLevel();
+            if (level.has_value() && record.level > *level)
                 continue;
-            if (!FilterEvaluator::passesAll(sink.filters, record))
+            if (!FilterEvaluator::passesAll(sink.getFilters(), record))
                 continue;
-            if (sink.stream)
-                sink.stream->flush();
+            if (sink.getStream())
+                sink.getStream()->flush();
         }
     }
 }

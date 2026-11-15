@@ -11,30 +11,13 @@
 #define SK_SIMPLELOGGER_H
 
 #include <LoggerBase.h>
-#include <logger/Filter.h>
-#include <memory>
-#include <optional>
+#include <SimpleSink.h>
 #include <ostream>
 #include <string>
 #include <vector>
 #include <mutex>
 
 namespace sk { namespace logger {
-
-/**
- * @struct SimpleSink
- * @brief A single output destination for a SimpleLogger.
- *
- * When pattern is empty the default hardcoded format is used by append().
- */
-struct SimpleSink
-{
-    std::shared_ptr<std::ostream> stream;
-    std::string                   pattern; ///< canonical log4j-style; empty → default
-    bool                          color = false;
-    std::optional<Logger::Level>  level;   ///< nullopt = no additional filtering
-    std::vector<std::shared_ptr<const Filter>> filters; ///< all filters must pass
-};
 
 /**
  * @class SimpleLogger
@@ -70,10 +53,10 @@ private:
     std::vector<SimpleSink> m_sinks;
     std::mutex m_sinkMutex;
 
-    /** Writes one line to @p os using @p pattern (or the default format). */
-    void writeToStream(std::ostream& os,
-                       const std::string& pattern,
+    /** Writes one line to @p os using the compiled pattern. */
+    void writeToStream(std::ostream& os, const CompiledPattern& pattern,
                        const LogRecord& record) const;
+    void writeDefaultToStream(std::ostream& os, const LogRecord& record) const;
 };
 
 }} // namespace sk::logger

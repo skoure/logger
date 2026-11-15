@@ -38,7 +38,7 @@ public:
             return;
 
         std::lock_guard<std::mutex> lock(mutex_);
-        if (pattern_.empty()) {
+        if (pattern_.getPattern().empty()) {
             *stream_ << LoggerBase::levelToString(record.level)
                      << " [" << record.loggerName << "] "
                      << record.message << eol;
@@ -51,7 +51,7 @@ public:
 
 private:
     std::ostream* stream_;
-    std::string pattern_;
+    CompiledPattern pattern_;
     std::vector<std::shared_ptr<const Filter>> filters_;
     Logger::Level level_;
     std::mutex mutex_;
