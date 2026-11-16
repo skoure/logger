@@ -134,6 +134,64 @@ TEST(LogRecordPatternTest, CompiledPatternCachesEachTopLevelMarkerToken)
               "SECOND %M %M FIRST/SECOND");
 }
 
+TEST(LogRecordPatternTest, CompiledPatternCoalescesLiteralRunsAndCachesPayloads)
+{
+    const CompiledPattern pattern("before %% after %q %10m%%%-5.3d{%Y}%n");
+    const auto& tokens = pattern.tokens();
+
+    ASSERT_EQ(tokens.size(), 5u);
+    ASSERT_TRUE(std::holds_alternative<CompiledPattern::LiteralToken>(tokens[0]));
+    EXPECT_EQ(std::get<CompiledPattern::LiteralToken>(tokens[0]).text,
+              "before % after %q ");
+    ASSERT_TRUE(std::holds_alternative<CompiledPattern::MessageToken>(tokens[1]));
+    EXPECT_EQ(std::get<CompiledPattern::MessageToken>(tokens[1]).modifier.minWidth,
+              10);
+    ASSERT_TRUE(std::holds_alternative<CompiledPattern::LiteralToken>(tokens[2]));
+    EXPECT_EQ(std::get<CompiledPattern::LiteralToken>(tokens[2]).text, "%");
+    ASSERT_TRUE(std::holds_alternative<CompiledPattern::DateToken>(tokens[3]));
+    const auto& date = std::get<CompiledPattern::DateToken>(tokens[3]);
+    EXPECT_EQ(date.format, "%Y");
+    EXPECT_TRUE(date.modifier.leftAlign);
+    EXPECT_EQ(date.modifier.minWidth, 5);
+    EXPECT_EQ(date.modifier.maxWidth, 3);
+    EXPECT_TRUE(std::holds_alternative<CompiledPattern::NewlineToken>(tokens[4]));
+}
+
+TEST(LogRecordPatternTest, CompiledPatternPreservesPercentAndIncompleteModifierBehavior)
+{
+    LogRecord r = makeRecord();
+
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("x%%y %10q z"), r),
+              "x%y %q z");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("before%"), r),
+              "before%");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-"), r), "%");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%5"), r), "%");
+    EXPECT_EQ(LogRecordPattern::render(CompiledPattern("%-5%"), r), "%");
+}
+
+TEST(LogRecordPatternTest, CompiledPatternDateAndEscapedMarkerTextStayLiteral)
+{
+    auto marker = MarkerFactory::getMarker("ACTIVE");
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "msg", {marker.get()});
+    const CompiledPattern pattern("%%M|%d{%%M}|%M");
+
+    ASSERT_EQ(pattern.tokens().size(), 4u);
+    EXPECT_TRUE(std::holds_alternative<CompiledPattern::LiteralToken>(pattern.tokens()[0]));
+    EXPECT_TRUE(std::holds_alternative<CompiledPattern::DateToken>(pattern.tokens()[1]));
+    EXPECT_TRUE(std::holds_alternative<CompiledPattern::MarkerToken>(pattern.tokens()[3]));
+    EXPECT_EQ(LogRecordPattern::render(pattern, r), "%M|%M|ACTIVE");
+}
+
+TEST(LogRecordPatternTest, UnclosedDateFallbackContinuesParsingFollowingTokens)
+{
+    LogRecord r = makeRecord(Logger::Level::Info, "L", "message");
+
+    EXPECT_EQ(LogRecordPattern::render(
+                  CompiledPattern("%-8d{prefix %m tail"), r),
+              "%d{     {prefix message tail");
+}
+
 TEST(LogRecordPatternTest, CompiledPatternRejectsMalformedMarkerOptions)
 {
     EXPECT_THROW(CompiledPattern("%M{+:MARKER;unknown=x}"),

@@ -14,6 +14,7 @@
 
 #include <cstddef>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace sk { namespace logger {
@@ -21,20 +22,58 @@ namespace sk { namespace logger {
 class CompiledPattern
 {
 public:
+    struct Modifier
+    {
+        bool leftAlign = false;
+        int minWidth = 0;
+        int maxWidth = -1;
+
+        bool operator==(const Modifier& other) const noexcept
+        {
+            return leftAlign == other.leftAlign
+                   && minWidth == other.minWidth
+                   && maxWidth == other.maxWidth;
+        }
+    };
+
+    struct LiteralToken
+    {
+        std::string text;
+        Modifier modifier;
+    };
+
+    struct MessageToken { Modifier modifier; };
+    struct LevelToken { Modifier modifier; };
+    struct LoggerNameToken { Modifier modifier; };
+    struct ThreadIdToken { Modifier modifier; };
+    struct ThreadNameToken { Modifier modifier; };
+
     struct MarkerToken
     {
+        Modifier modifier;
         MarkerPatternOptions options;
-        std::size_t endIndex;
     };
+
+    struct DateToken
+    {
+        Modifier modifier;
+        std::string format;
+    };
+
+    struct NewlineToken {};
+
+    using Token = std::variant<LiteralToken, MessageToken, LevelToken,
+                               LoggerNameToken, ThreadIdToken, ThreadNameToken,
+                               MarkerToken, DateToken, NewlineToken>;
 
     explicit CompiledPattern(std::string pattern);
 
     const std::string& getPattern() const { return pattern_; }
-    const std::vector<MarkerToken>& markerTokens() const { return markerTokens_; }
+    const std::vector<Token>& tokens() const { return tokens_; }
 
 private:
     std::string pattern_;
-    std::vector<MarkerToken> markerTokens_;
+    std::vector<Token> tokens_;
 };
 
 }} // namespace sk::logger

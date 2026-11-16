@@ -14,42 +14,18 @@
 #include "LoggerUtils.h"
 
 #include <chrono>
-#include <cctype>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <type_traits>
 
 using namespace sk::logger;
 
 namespace {
 
-struct PatternModifier {
-    bool leftAlign = false;
-    int minWidth = 0;
-    int maxWidth = -1;
-};
+using Modifier = CompiledPattern::Modifier;
 
-PatternModifier parseModifier(const std::string& pattern, std::size_t& index)
-{
-    PatternModifier modifier;
-    if (index < pattern.size() && pattern[index] == '-') {
-        modifier.leftAlign = true;
-        ++index;
-    }
-    while (index < pattern.size()
-           && std::isdigit(static_cast<unsigned char>(pattern[index])))
-        modifier.minWidth = modifier.minWidth * 10 + (pattern[index++] - '0');
-    if (index < pattern.size() && pattern[index] == '.') {
-        ++index;
-        modifier.maxWidth = 0;
-        while (index < pattern.size()
-               && std::isdigit(static_cast<unsigned char>(pattern[index])))
-            modifier.maxWidth = modifier.maxWidth * 10 + (pattern[index++] - '0');
-    }
-    return modifier;
-}
-
-std::string applyModifier(std::string value, const PatternModifier& modifier)
+std::string applyModifier(std::string value, const Modifier& modifier)
 {
     if (modifier.maxWidth >= 0
         && static_cast<int>(value.size()) > modifier.maxWidth)
@@ -74,18 +50,8 @@ std::string threadIdToString(std::thread::id id)
     return stream.str();
 }
 
-std::string expandDate(const std::string& pattern, std::size_t& index,
-                       const LogRecord& record)
+std::string expandDate(const std::string& format, const LogRecord& record)
 {
-    std::string format = "%Y-%m-%d %H:%M:%S";
-    if (index < pattern.size() && pattern[index] == '{') {
-        const std::size_t close = pattern.find('}', index + 1);
-        if (close == std::string::npos)
-            return "%d{";
-        format = pattern.substr(index + 1, close - index - 1);
-        index = close + 1;
-    }
-
     const auto time = std::chrono::system_clock::to_time_t(record.timestamp);
     std::tm localTime;
 #ifdef _WIN32
@@ -99,71 +65,67 @@ std::string expandDate(const std::string& pattern, std::size_t& index,
                : std::string();
 }
 
+struct TokenRenderer
+{
+    const LogRecord& record;
+    std::string& output;
+
+    void operator()(const CompiledPattern::LiteralToken& token) const
+    {
+        output += applyModifier(token.text, token.modifier);
+    }
+
+    void operator()(const CompiledPattern::MessageToken& token) const
+    {
+        output += applyModifier(record.message, token.modifier);
+    }
+
+    void operator()(const CompiledPattern::LevelToken& token) const
+    {
+        output += applyModifier(LoggerBase::levelToString(record.level), token.modifier);
+    }
+
+    void operator()(const CompiledPattern::LoggerNameToken& token) const
+    {
+        output += applyModifier(record.loggerName, token.modifier);
+    }
+
+    void operator()(const CompiledPattern::ThreadIdToken& token) const
+    {
+        output += applyModifier(threadIdToString(record.threadId), token.modifier);
+    }
+
+    void operator()(const CompiledPattern::ThreadNameToken& token) const
+    {
+        output += applyModifier(record.threadName, token.modifier);
+    }
+
+    void operator()(const CompiledPattern::MarkerToken& token) const
+    {
+        output += applyModifier(
+            renderMarkerNames(record.markers, token.options), token.modifier);
+    }
+
+    void operator()(const CompiledPattern::DateToken& token) const
+    {
+        output += applyModifier(expandDate(token.format, record), token.modifier);
+    }
+
+    void operator()(const CompiledPattern::NewlineToken&) const
+    {
+        output += eol;
+    }
+};
+
 } // namespace
 
 std::string LogRecordPattern::render(const CompiledPattern& compiledPattern,
                                      const LogRecord& record)
 {
-    const std::string& pattern = compiledPattern.getPattern();
-    const std::vector<CompiledPattern::MarkerToken>& markerTokens =
-        compiledPattern.markerTokens();
     std::string result;
-    result.reserve(pattern.size() * 2);
-    std::size_t index = 0;
-    std::size_t markerTokenIndex = 0;
+    result.reserve(compiledPattern.getPattern().size() * 2);
 
-    while (index < pattern.size())
-    {
-        if (pattern[index] != '%')
-        {
-            result += pattern[index++];
-            continue;
-        }
-        if (index + 1 >= pattern.size())
-        {
-            result += '%';
-            ++index;
-            continue;
-        }
-
-        ++index;
-        const PatternModifier modifier = parseModifier(pattern, index);
-        if (index >= pattern.size())
-        {
-            result += '%';
-            break;
-        }
-
-        const char token = pattern[index++];
-        if (token == '%')
-        {
-            result += '%';
-            continue;
-        }
-
-        switch (token)
-        {
-        case 'm': result += applyModifier(record.message, modifier); break;
-        case 'p': result += applyModifier(LoggerBase::levelToString(record.level), modifier); break;
-        case 'c': result += applyModifier(record.loggerName, modifier); break;
-        case 't': result += applyModifier(threadIdToString(record.threadId), modifier); break;
-        case 'T': result += applyModifier(record.threadName, modifier); break;
-        case 'M':
-        {
-            const CompiledPattern::MarkerToken& markerToken =
-                markerTokens[markerTokenIndex++];
-            index = markerToken.endIndex;
-            result += applyModifier(
-                renderMarkerNames(record.markers, markerToken.options), modifier);
-            break;
-        }
-        case 'n': result += eol; break;
-        case 'd': result += applyModifier(expandDate(pattern, index, record), modifier); break;
-        default:
-            result += '%';
-            result += token;
-            break;
-        }
-    }
+    for (const CompiledPattern::Token& token : compiledPattern.tokens())
+        std::visit(TokenRenderer{record, result}, token);
     return result;
 }
