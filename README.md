@@ -155,6 +155,76 @@ The strings pointed to by the `LevelNames` struct must outlive all subsequent lo
 
 ---
 
+## Rate-Limited Logging
+
+`RateLimitedLogger` provides backend-independent, thread-safe rate limiting at individual log statements. It wraps any configured `LoggerPtr` and preserves all configured sinks, patterns, markers, and exception stacktraces.
+
+### Timed Quota
+
+Admits up to `maxRate` calls per fixed/reset time window (defaults to 1 admitted call per window if `maxRate` is omitted):
+
+```cpp
+#include <logger/LoggerFactory.h>
+#include <logger/RateLimitedLogger.h>
+
+void retryRequest(const std::string& reqId) {
+    auto logger = sk::logger::LoggerFactory::getLogger("Network");
+
+    // Retained as a function-local static handle for statement-level state
+    static auto throttled = sk::logger::RateLimitedLogger::forLogger(logger)
+        .every(std::chrono::seconds{10})
+        .maxRate(5)
+        .build();
+
+    // Admits first 5 calls every 10 seconds; suppresses remainder
+    throttled->warn("Retrying request %s; {suppressed} repeats suppressed", reqId.c_str());
+}
+```
+
+### Call Sampling
+
+Admits every Nth call (calls 1, 1+N, 1+2N, ...):
+
+```cpp
+static auto sampled = sk::logger::RateLimitedLogger::forLogger(logger)
+    .every(10)
+    .build();
+
+sampled->info("Processing batch item %d; {suppressed} skipped", itemId);
+```
+
+### `{suppressed}` Placeholder
+
+The optional `{suppressed}` placeholder in format strings and exception context messages is replaced with the number of calls suppressed since the previous admitted message. The counter resets on every admitted message, even if `{suppressed}` is omitted.
+
+### Lazy Lambda Evaluation (Zero Overhead When Suppressed)
+
+To avoid eager argument evaluation for expensive computations, pass a callable returning a string:
+
+```cpp
+// Lambda is executed ONLY when admitted (never when suppressed or level disabled)
+throttled->warn([&] {
+    return "Expensive diagnostic: " + generateHeavyDiagnostics();
+});
+
+// Can also receive the suppressed count directly:
+throttled->warn([&](int suppressed) {
+    return "Dropped " + std::to_string(suppressed) + " requests: " + generateHeavyDiagnostics();
+});
+```
+
+### Polymorphic Compatibility
+
+`RateLimitedLogger` directly implements the `sk::logger::Logger` interface. The `RateLimitedLoggerPtr` returned by `build()` is a `std::shared_ptr<RateLimitedLogger>` and implicitly converts to `sk::logger::LoggerPtr`:
+
+```cpp
+void auditOperation(sk::logger::LoggerPtr log);
+
+auditOperation(throttled); // Valid! Full polymorphic compatibility
+```
+
+---
+
 ## How to Link
 
 The build produces an auto-registering wrapper target for each backend. Link exactly one:

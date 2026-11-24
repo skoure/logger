@@ -11,6 +11,7 @@
 #include <SimpleLogger.h>
 #include <LoggerUtils.h>
 #include <logger/MarkerFactory.h>
+#include <logger/RateLimitedLogger.h>
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
@@ -220,4 +221,26 @@ TEST(SimpleLoggerMarkerTest, UsesCompiledMarkerOptionsForEachToken)
     logger.info({*sql, *security}, "classified");
 
     EXPECT_EQ(buf->str(), std::string("SECURITY:SQL/SECURITY") + eol);
+}
+
+TEST(SimpleLoggerRateLimitedIntegrationTest, RateLimitedOutputHonorsSinksAndPatterns)
+{
+    auto buf = std::make_shared<std::ostringstream>();
+    auto baseLogger = std::make_shared<SimpleLogger>("SL.RateLimitIntegration");
+    baseLogger->setLevel(Logger::Level::Trace);
+    baseLogger->setSinks({{buf, "[%p] [%c] %m%n"}});
+
+    auto throttled = RateLimitedLogger::forLogger(baseLogger)
+        .every(2)
+        .build();
+
+    throttled->warn("Event 1 ({suppressed})"); // Admitted
+    throttled->warn("Event 2 ({suppressed})"); // Suppressed
+    throttled->warn("Event 3 ({suppressed})"); // Admitted
+
+    std::string expected =
+        std::string("[WARN] [SL.RateLimitIntegration] Event 1 (0)") + eol +
+        std::string("[WARN] [SL.RateLimitIntegration] Event 3 (1)") + eol;
+
+    EXPECT_EQ(buf->str(), expected);
 }

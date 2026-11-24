@@ -14,6 +14,7 @@
 #include <LoggerBase.h>
 #include <logger/LevelNames.h>
 #include <logger/MarkerFactory.h>
+#include <logger/RateLimitedLogger.h>
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/ostream_sink.h>
 #include <mutex>
@@ -324,4 +325,33 @@ TEST_F(SpdlogLoggerTest, ChildLoggerFlushesOnInheritedFlushOnThreshold)
 
     child.error("above flush threshold");
     EXPECT_EQ(countingSink->flushCount, 2);
+}
+
+TEST_F(SpdlogLoggerTest, RateLimitedIntegrationHonorsSinksAndMarkers)
+{
+    auto baseLogger = std::make_shared<SpdlogLogger>("Spdlog.RateLimitIntegration");
+    baseLogger->setLevel(Logger::Level::Trace);
+
+    auto sink = std::make_shared<MarkerCapturingSink>();
+    baseLogger->getInternalLogger()->sinks() = { sink };
+
+    auto throttled = RateLimitedLogger::forLogger(baseLogger)
+        .every(3)
+        .build();
+
+    auto marker = MarkerFactory::getMarker("PERF");
+
+    throttled->info(*marker, "Check 1 ({suppressed})"); // Admitted
+    EXPECT_EQ(sink->capturedMarker, "PERF");
+    EXPECT_EQ(sink->capturedMessage, "Check 1 (0)");
+
+    throttled->info(*marker, "Check 2 ({suppressed})"); // Suppressed
+    EXPECT_EQ(sink->capturedMessage, "Check 1 (0)");   // Sink not called
+
+    throttled->info(*marker, "Check 3 ({suppressed})"); // Suppressed
+    EXPECT_EQ(sink->capturedMessage, "Check 1 (0)");   // Sink not called
+
+    throttled->info(*marker, "Check 4 ({suppressed})"); // Admitted
+    EXPECT_EQ(sink->capturedMarker, "PERF");
+    EXPECT_EQ(sink->capturedMessage, "Check 4 (2)");
 }
