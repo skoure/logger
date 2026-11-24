@@ -99,6 +99,40 @@ TEST(LoggerUtilsTest, JoinMarkerNamesMultiple) {
     EXPECT_EQ(result, "first, second, third");
 }
 
+TEST(LoggerUtilsTest, ReplaceAllNoMatch) {
+    std::string text = "Hello world";
+    EXPECT_EQ(replaceAll(text, "{suppressed}", "0"), "Hello world");
+}
+
+TEST(LoggerUtilsTest, ReplaceAllSingleMatch) {
+    std::string text = "Repeats: {suppressed} count";
+    EXPECT_EQ(replaceAll(text, "{suppressed}", "42"), "Repeats: 42 count");
+}
+
+TEST(LoggerUtilsTest, ReplaceAllMultipleMatches) {
+    std::string text = "{suppressed} items ({suppressed} dropped)";
+    EXPECT_EQ(replaceAll(text, "{suppressed}", "5"), "5 items (5 dropped)");
+}
+
+TEST(LoggerUtilsTest, ReplaceAllEmptyPlaceholderOrInput) {
+    EXPECT_EQ(replaceAll("", "{suppressed}", "5"), "");
+    EXPECT_EQ(replaceAll("text", "", "5"), "text");
+}
+
+static std::string helperFormat(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    std::string s = formatMessage(fmt, args);
+    va_end(args);
+    return s;
+}
+
+TEST(LoggerUtilsTest, FormatMessageBasic) {
+    EXPECT_EQ(helperFormat("Number: %d, string: %s", 123, "test"), "Number: 123, string: test");
+    EXPECT_EQ(helperFormat(nullptr), "");
+    EXPECT_EQ(helperFormat(""), "");
+}
+
 TEST(LoggerUtilsTest, JoinMarkerNamesWithCustomSeparator) {
     class TestMarker : public Marker {
     public:

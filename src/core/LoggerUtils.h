@@ -10,6 +10,7 @@
 #ifndef SK_LOGGER_UTILS_H
 #define SK_LOGGER_UTILS_H
 
+#include <cstdarg>
 #include <exception>
 #include <string>
 #include <thread>
@@ -61,6 +62,31 @@ std::string getCurrentThreadName();
  * @return Marker names separated by the specified separator, or an empty string.
  */
  std::string joinMarkerNames(const std::vector<const Marker*>& markers, const char* separator = ", ");
+
+/**
+ * @brief Formats a printf-style format string and argument list into a std::string.
+ *
+ * Uses vsnprintf twice: first to measure the required buffer size, then to write
+ * the formatted text into the allocated string. Handles null or empty format strings safely.
+ *
+ * @param fmt printf-style format string.
+ * @param args va_list of arguments.
+ * @return Formatted std::string, or empty string on error or null/empty input.
+ */
+std::string formatMessage(const char* fmt, va_list args);
+
+/**
+ * @brief Replaces all occurrences of a placeholder token in a string with a replacement string.
+ *
+ * Scans @p input for occurrences of @p placeholder and substitutes @p replacement.
+ * If @p placeholder is empty or not found in @p input, returns @p input unchanged.
+ *
+ * @param input The original input string.
+ * @param placeholder The token to search for (e.g. "{suppressed}").
+ * @param replacement The string to substitute for each occurrence.
+ * @return A new std::string with all occurrences replaced.
+ */
+std::string replaceAll(const std::string& input, const std::string& placeholder, const std::string& replacement);
 
 }} // namespace sk::logger
 

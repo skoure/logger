@@ -20,6 +20,7 @@
 #include <logger/LevelNames.h>
 #include <logger/LoggerFactory.h>
 #include <logger/MarkerFactory.h>
+#include <logger/RateLimitedLogger.h>
 #include <stdexcept>
 #include <string>
 
@@ -444,5 +445,34 @@ TEST_F(Log4CxxLevelNamesTest, CustomWarnNameWithPadding)
 
     std::string out = captureLog4CxxLine("[%-8p] %m%n", "msg", Logger::Level::Warn);
     EXPECT_NE(out.find("[WARNING ]"), std::string::npos) << "output: " << out;
+}
+
+TEST(Log4CxxRateLimitedIntegrationTest, HonorsAppendersAndMarkers)
+{
+    auto baseLogger = std::make_shared<Log4CxxLogger>("Log4cxx.RateLimitIntegration");
+    baseLogger->setLevel(Logger::Level::Trace);
+
+    auto* appender = new MarkerCapturingAppender();
+    log4cxx::AppenderPtr appenderPtr(appender);
+    baseLogger->getInternalLogger()->addAppender(appenderPtr);
+
+    auto throttled = RateLimitedLogger::forLogger(baseLogger)
+        .every(2)
+        .build();
+
+    auto marker = MarkerFactory::getMarker("AUDIT");
+
+    throttled->warn(*marker, "Audit 1: {suppressed} repeats"); // Admitted
+    EXPECT_EQ(appender->capturedMarker, "AUDIT");
+    EXPECT_EQ(appender->capturedMessage, "Audit 1: 0 repeats");
+
+    throttled->warn(*marker, "Audit 2: {suppressed} repeats"); // Suppressed
+    EXPECT_EQ(appender->capturedMessage, "Audit 1: 0 repeats");
+
+    throttled->warn(*marker, "Audit 3: {suppressed} repeats"); // Admitted
+    EXPECT_EQ(appender->capturedMarker, "AUDIT");
+    EXPECT_EQ(appender->capturedMessage, "Audit 3: 1 repeats");
+
+    baseLogger->getInternalLogger()->removeAppender(appenderPtr);
 }
 
