@@ -587,7 +587,7 @@ TEST(RateLimitedLoggerTest, ConcurrentCallsToSingleHandle)
 
     for (int t = 0; t < kNumThreads; ++t)
     {
-        threads.emplace_back([&rateLogger] {
+        threads.emplace_back([&rateLogger, kCallsPerThread] {
             for (int i = 0; i < kCallsPerThread; ++i)
             {
                 rateLogger->info("Worker msg");
